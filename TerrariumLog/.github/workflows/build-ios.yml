@@ -1,0 +1,34 @@
+name: Build iOS
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Select Xcode version
+        run: sudo xcode-select -switch /Applications/Xcode_16.2.app/Contents/Developer
+
+      - name: Show Xcode version
+        run: xcodebuild -version
+
+      - name: Create Xcode project from Swift package
+        run: |
+          cd "$GITHUB_WORKSPACE"
+          swift package generate-xcodeproj
+
+      - name: Build app
+        run: |
+          cd "$GITHUB_WORKSPACE"
+          xcodebuild -project TerrariumLog.xcodeproj \
+            -scheme TerrariumLog \
+            -destination 'generic/platform=iOS' \
+            -configuration Release \
+            build
