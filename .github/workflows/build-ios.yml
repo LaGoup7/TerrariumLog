@@ -35,12 +35,23 @@ jobs:
           cd "$GITHUB_WORKSPACE"
           xcodegen generate --spec project.yml
 
+      - name: Resolve available simulator
+        run: |
+          DEVICE=$(xcrun simctl list devices available iOS | grep -m 1 "iPhone" | sed -E 's/^ *(.+) \([0-9A-F-]+\).*/\1/')
+          if [ -z "$DEVICE" ]; then
+            echo "No available iPhone simulator found" >&2
+            xcrun simctl list devices available
+            exit 1
+          fi
+          echo "Using simulator: $DEVICE"
+          echo "SIMULATOR_NAME=$DEVICE" >> "$GITHUB_ENV"
+
       - name: Build app for simulator
         run: |
           cd "$GITHUB_WORKSPACE"
           xcodebuild -project TerrariumLog.xcodeproj \
             -scheme TerrariumLog \
-            -destination 'platform=iOS Simulator,name=iPhone 14' \
+            -destination "platform=iOS Simulator,name=$SIMULATOR_NAME" \
             -configuration Debug \
             -derivedDataPath build build
 
@@ -48,7 +59,7 @@ jobs:
         run: |
           set -e
           xcrun simctl shutdown all || true
-          xcrun simctl boot "iPhone 14" || true
+          xcrun simctl boot "$SIMULATOR_NAME" || true
           sleep 3
           cd "$GITHUB_WORKSPACE"
           APP_PATH=$(find build -name "TerrariumLog.app" | head -n 1)
