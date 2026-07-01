@@ -32,12 +32,12 @@ jobs:
 
       - name: Generate Xcode project with xcodegen
         run: |
-          cd "$GITHUB_WORKSPACE"
+          cd "$GITHUB_WORKSPACE/TerrariumLog"
           xcodegen generate --spec project.yml
 
       - name: Build app for simulator
         run: |
-          cd "$GITHUB_WORKSPACE"
+          cd "$GITHUB_WORKSPACE/TerrariumLog"
           xcodebuild -project TerrariumLog.xcodeproj \
             -scheme TerrariumLog \
             -destination 'platform=iOS Simulator,name=iPhone 14' \
@@ -50,6 +50,7 @@ jobs:
           xcrun simctl shutdown all || true
           xcrun simctl boot "iPhone 14" || true
           sleep 3
+          cd "$GITHUB_WORKSPACE/TerrariumLog"
           APP_PATH=$(find build -name "TerrariumLog.app" | head -n 1)
           echo "Found app at: $APP_PATH"
           mkdir -p screenshots
@@ -66,4 +67,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: screenshots
-          path: screenshots
+          path: TerrariumLog/screenshots
