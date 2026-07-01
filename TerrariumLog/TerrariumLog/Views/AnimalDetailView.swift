@@ -86,7 +86,7 @@ struct AnimalDetailView: View {
                 guard let first = newItems.first else { return }
                 Task {
                     if let data = try? await first.loadTransferable(type: Data.self), let image = UIImage(data: data) {
-                        if let path = try? PhotoStorage.shared.saveImage(image, for: animalName: animal.name) {
+                        if let path = try? PhotoStorage.shared.saveImage(image, for: animal.name) {
                             animal.primaryPhotoPath = path
                             try? context.save()
                             primaryImage = image
@@ -220,7 +220,7 @@ struct JournalEntryView: View {
                     Task {
                         for item in newItems {
                             if let data = try? await item.loadTransferable(type: Data.self), let image = UIImage(data: data) {
-                                if let path = try? PhotoStorage.shared.saveImage(image, for: animalName: animal.name) {
+                                if let path = try? PhotoStorage.shared.saveImage(image, for: animal.name) {
                                     photoPaths.append(path)
                                 }
                             }
