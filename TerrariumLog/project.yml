@@ -1,0 +1,21 @@
+name: TerrariumLog
+options:
+  bundleIdPrefix: com.example
+
+configs:
+  Debug: {}
+  Release: {}
+
+settings:
+  PRODUCT_BUNDLE_IDENTIFIER: com.example.terrariumlog
+
+targets:
+  TerrariumLog:
+    type: application
+    platform: iOS
+    deploymentTarget: '17.0'
+    sources:
+      - TerrariumLog/TerrariumLog
+    settings:
+      INFO_PLIST_FILE: TerrariumLog/TerrariumLog/Info.plist
+      PRODUCT_BUNDLE_IDENTIFIER: com.example.terrariumlog
