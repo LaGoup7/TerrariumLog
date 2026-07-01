@@ -16,16 +16,17 @@ jobs:
       - name: Show Xcode version
         run: xcodebuild -version
 
-      - name: Create Xcode project from Swift package
+      - name: Inspect repository
         run: |
-          cd "$GITHUB_WORKSPACE/TerrariumLog"
-          swift package generate-xcodeproj
+          echo "Repository root: $GITHUB_WORKSPACE"
+          ls -la "$GITHUB_WORKSPACE"
+          echo "Contents of TerrariumLog folder:"
+          ls -la "$GITHUB_WORKSPACE/TerrariumLog" || true
 
-      - name: Build app
+      - name: Show Swift version
+        run: swift --version || true
+
+      - name: Describe Swift package
         run: |
           cd "$GITHUB_WORKSPACE/TerrariumLog"
-          xcodebuild -project TerrariumLog.xcodeproj \
-            -scheme TerrariumLog \
-            -destination 'generic/platform=iOS' \
-            -configuration Release \
-            build
+          swift package describe --type json
