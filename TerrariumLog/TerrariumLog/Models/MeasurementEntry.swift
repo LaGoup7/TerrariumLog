@@ -10,7 +10,6 @@ final class MeasurementEntry {
     var waterLevel: Double?
     var note: String
 
-    @Relationship(deleteRule: .nullify, inverse: \Animal.measurements)
     var animal: Animal?
 
     init(

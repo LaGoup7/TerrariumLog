@@ -8,7 +8,6 @@ final class ObservationEntry {
     var note: String
     var photoPaths: [String] = []
 
-    @Relationship(deleteRule: .nullify, inverse: \Animal.journalEntries)
     var animal: Animal?
 
     init(date: Date, eventType: String, note: String, photoPaths: [String] = [], animal: Animal? = nil) {
