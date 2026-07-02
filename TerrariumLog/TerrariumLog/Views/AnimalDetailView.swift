@@ -149,7 +149,7 @@ struct AnimalDetailView: View {
                 .font(.headline)
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 10) {
-                    ForEach(animal.journalEntries.flatMap(\.photoPaths)) { path in
+                    ForEach(animal.journalEntries.flatMap(\.photoPaths), id: \.self) { path in
                         if let image = PhotoStorage.shared.loadImage(from: path) {
                             Image(uiImage: image)
                                 .resizable()
@@ -180,7 +180,7 @@ struct AnimalDetailView: View {
                             .foregroundStyle(.secondary)
                     }
                     Spacer()
-                    Text("T: \(measurement.temperature.map(String.init) ?? "—")")
+                    Text("T: \(measurement.temperature.map { String($0) } ?? "—")")
                         .font(.caption)
                 }
             }
