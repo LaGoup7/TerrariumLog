@@ -7,24 +7,24 @@ final class ReminderTests: XCTestCase {
         XCTAssertNil(reminder.nextOccurrence(after: .now))
     }
 
-    func testDailyRecurrenceAddsOneDay() {
+    func testDailyRecurrenceAddsOneDay() throws {
         let start = Date(timeIntervalSince1970: 0)
         let reminder = Reminder(title: "Test", reminderDate: start, recurrence: .daily, category: .feeding)
-        let next = reminder.nextOccurrence(after: start)
-        XCTAssertEqual(next?.timeIntervalSince(start), 86400, accuracy: 1)
+        let next = try XCTUnwrap(reminder.nextOccurrence(after: start))
+        XCTAssertEqual(next.timeIntervalSince(start), 86400, accuracy: 1)
     }
 
-    func testWeeklyRecurrenceAddsSevenDays() {
+    func testWeeklyRecurrenceAddsSevenDays() throws {
         let start = Date(timeIntervalSince1970: 0)
         let reminder = Reminder(title: "Test", reminderDate: start, recurrence: .weekly, category: .feeding)
-        let next = reminder.nextOccurrence(after: start)
-        XCTAssertEqual(next?.timeIntervalSince(start), 7 * 86400, accuracy: 1)
+        let next = try XCTUnwrap(reminder.nextOccurrence(after: start))
+        XCTAssertEqual(next.timeIntervalSince(start), 7 * 86400, accuracy: 1)
     }
 
-    func testBiweeklyRecurrenceAddsFourteenDays() {
+    func testBiweeklyRecurrenceAddsFourteenDays() throws {
         let start = Date(timeIntervalSince1970: 0)
         let reminder = Reminder(title: "Test", reminderDate: start, recurrence: .biweekly, category: .feeding)
-        let next = reminder.nextOccurrence(after: start)
-        XCTAssertEqual(next?.timeIntervalSince(start), 14 * 86400, accuracy: 1)
+        let next = try XCTUnwrap(reminder.nextOccurrence(after: start))
+        XCTAssertEqual(next.timeIntervalSince(start), 14 * 86400, accuracy: 1)
     }
 }
