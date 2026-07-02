@@ -31,6 +31,22 @@ final class Reminder {
         self.notes = notes
         self.isCompleted = isCompleted
     }
+
+    func nextOccurrence(after date: Date) -> Date? {
+        let calendar = Calendar.current
+        switch recurrence {
+        case .none:
+            return nil
+        case .daily:
+            return calendar.date(byAdding: .day, value: 1, to: date)
+        case .weekly:
+            return calendar.date(byAdding: .weekOfYear, value: 1, to: date)
+        case .biweekly:
+            return calendar.date(byAdding: .weekOfYear, value: 2, to: date)
+        case .monthly:
+            return calendar.date(byAdding: .month, value: 1, to: date)
+        }
+    }
 }
 
 enum ReminderRecurrence: String, CaseIterable, Codable, Sendable {

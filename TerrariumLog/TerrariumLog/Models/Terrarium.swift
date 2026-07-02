@@ -7,34 +7,50 @@ final class Terrarium {
     var type: TerrariumType
     var notes: String
     var dimensions: String
+    var substrate: String
+    var decor: String
+    var createdAt: Date
+    var mainPhotoPath: String?
     var targetTemperatureMin: Double?
     var targetTemperatureMax: Double?
     var targetHumidityMin: Double?
     var targetHumidityMax: Double?
 
     @Relationship(deleteRule: .nullify, inverse: \Animal.terrarium)
-    var animal: Animal?
+    var animals: [Animal] = []
+
+    @Relationship(deleteRule: .cascade, inverse: \Plant.terrarium)
+    var plants: [Plant] = []
+
+    @Relationship(deleteRule: .cascade, inverse: \PrintedPart.terrarium)
+    var printedParts: [PrintedPart] = []
 
     init(
         name: String,
         type: TerrariumType,
         notes: String = "",
         dimensions: String = "",
+        substrate: String = "",
+        decor: String = "",
+        createdAt: Date = .now,
+        mainPhotoPath: String? = nil,
         targetTemperatureMin: Double? = nil,
         targetTemperatureMax: Double? = nil,
         targetHumidityMin: Double? = nil,
-        targetHumidityMax: Double? = nil,
-        animal: Animal? = nil
+        targetHumidityMax: Double? = nil
     ) {
         self.name = name
         self.type = type
         self.notes = notes
         self.dimensions = dimensions
+        self.substrate = substrate
+        self.decor = decor
+        self.createdAt = createdAt
+        self.mainPhotoPath = mainPhotoPath
         self.targetTemperatureMin = targetTemperatureMin
         self.targetTemperatureMax = targetTemperatureMax
         self.targetHumidityMin = targetHumidityMin
         self.targetHumidityMax = targetHumidityMax
-        self.animal = animal
     }
 }
 

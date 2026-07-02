@@ -12,7 +12,9 @@ struct PersistenceController {
             ObservationEntry.self,
             Reminder.self,
             MeasurementEntry.self,
-            Terrarium.self
+            Terrarium.self,
+            Plant.self,
+            PrintedPart.self
         ])
 
         let configuration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: inMemory)
@@ -29,97 +31,127 @@ struct PersistenceController {
             return
         }
 
-        let ants1 = Animal(
-            name: "Lasius 1",
-            species: "Lasius niger",
-            type: .antColony,
-            origin: .captured,
-            arrivalDate: Calendar.current.date(byAdding: .month, value: -2, to: Date()) ?? Date(),
-            currentStage: "Fondation",
-            status: .foundation,
-            notes: "Colonie en démarrage"
-        )
+        let calendar = Calendar.current
 
-        let ants2 = Animal(
-            name: "Lasius 2",
-            species: "Lasius niger",
-            type: .antColony,
-            origin: .adopted,
-            arrivalDate: Calendar.current.date(byAdding: .month, value: -1, to: Date()) ?? Date(),
-            currentStage: "Croissance",
-            status: .growth,
-            notes: "Bonne progression"
+        // Terrarium et araignée de l'exemple du cahier des charges
+        let spiderTerrarium = Terrarium(
+            name: "Terrarium Phidippus",
+            type: .terrarium,
+            notes: "Décor cubain/Soroa",
+            dimensions: "20 x 20 x 35 cm",
+            substrate: "Fibre de coco",
+            decor: "Écorce stérile 25-40 cm, mousse verte sèche",
+            createdAt: calendar.date(byAdding: .weekOfYear, value: -2, to: Date()) ?? Date(),
+            targetTemperatureMin: 24,
+            targetTemperatureMax: 28,
+            targetHumidityMin: 55,
+            targetHumidityMax: 70
         )
-
-        let ants3 = Animal(
-            name: "Lasius 3",
-            species: "Lasius flavus",
-            type: .antColony,
-            origin: .purchased,
-            arrivalDate: Calendar.current.date(byAdding: .month, value: -3, to: Date()) ?? Date(),
-            currentStage: "Adultes",
-            status: .adult,
-            notes: "Colonie stable"
-        )
-
-        let messor = Animal(
-            name: "Messor barbarus",
-            species: "Messor barbarus",
-            type: .antColony,
-            origin: .captured,
-            arrivalDate: Calendar.current.date(byAdding: .month, value: -4, to: Date()) ?? Date(),
-            currentStage: "Croissance",
-            status: .growth,
-            notes: "Très active"
-        )
+        context.insert(spiderTerrarium)
 
         let spider = Animal(
-            name: "Phidippus regius Soroa",
+            name: "Soroa",
             species: "Phidippus regius",
+            scientificName: "Phidippus regius",
             type: .jumpingSpider,
+            sex: .unknown,
             origin: .purchased,
-            arrivalDate: Calendar.current.date(byAdding: .weekOfYear, value: -2, to: Date()) ?? Date(),
-            currentStage: "Adulte",
-            status: .adult,
-            notes: "Araignée en bonne santé"
+            locality: "Soroa, Cuba",
+            arrivalDate: calendar.date(byAdding: .weekOfYear, value: -2, to: Date()) ?? Date(),
+            currentStage: "L5",
+            status: .normal,
+            notes: "Acclimatation en cours"
         )
+        spider.terrarium = spiderTerrarium
+        context.insert(spider)
 
-        let terrarium = Terrarium(
+        for plant in [
+            Plant(name: "Fittonia", species: "Fittonia albivenis", terrarium: spiderTerrarium),
+            Plant(name: "Callisia Turtle", species: "Callisia repens", terrarium: spiderTerrarium),
+            Plant(name: "Peperomia", species: "Peperomia sp.", terrarium: spiderTerrarium)
+        ] {
+            context.insert(plant)
+        }
+
+        let arrivalDate = spider.arrivalDate
+        let sprayDate = calendar.date(byAdding: .day, value: 1, to: arrivalDate) ?? arrivalDate
+        let firstFeedingDate = calendar.date(byAdding: .day, value: 3, to: arrivalDate) ?? arrivalDate
+        let moltDate = calendar.date(byAdding: .day, value: 10, to: arrivalDate) ?? arrivalDate
+
+        let arrivalEvent = ObservationEntry(date: arrivalDate, eventType: ObservationEventType.arrival.rawValue, note: "Arrivée de Soroa", animal: spider)
+        let sprayEvent = ObservationEntry(date: sprayDate, eventType: ObservationEventType.humidifying.rawValue, note: "Première pulvérisation", animal: spider)
+        let feedingEvent = ObservationEntry(
+            date: firstFeedingDate,
+            eventType: ObservationEventType.feeding.rawValue,
+            note: "Premier repas proposé",
+            preyType: PreyType.drosophile.rawValue,
+            preyQuantity: 3,
+            eatenStatus: EatenStatus.yes.rawValue,
+            animal: spider
+        )
+        let moltEvent = ObservationEntry(
+            date: moltDate,
+            eventType: ObservationEventType.molt.rawValue,
+            note: "Mue observée",
+            previousStage: "L5",
+            newStage: "L6",
+            animal: spider
+        )
+        for event in [arrivalEvent, sprayEvent, feedingEvent, moltEvent] {
+            context.insert(event)
+        }
+        spider.currentStage = "L6"
+
+        let spiderReminder = Reminder(
+            animal: spider,
+            title: "Nourrir Soroa",
+            reminderDate: Date().addingTimeInterval(86400 * 3),
+            recurrence: .none,
+            category: .feeding
+        )
+        context.insert(spiderReminder)
+
+        // Colonie de fourmis pour illustrer le second cas d'usage
+        let antTerrarium = Terrarium(
             name: "Terrarium principal",
             type: .terrarium,
             notes: "Habitat principal",
             dimensions: "30 x 30 x 40 cm",
-            targetTemperatureMin: 24,
-            targetTemperatureMax: 28,
+            substrate: "Terre de bruyère",
+            targetTemperatureMin: 22,
+            targetTemperatureMax: 26,
             targetHumidityMin: 50,
-            targetHumidityMax: 70,
-            animal: nil
+            targetHumidityMax: 70
         )
+        context.insert(antTerrarium)
 
-        context.insert(terrarium)
-        ants1.terrarium = terrarium
-        ants2.terrarium = terrarium
-        ants3.terrarium = terrarium
-        messor.terrarium = terrarium
-        spider.terrarium = terrarium
+        let ants = Animal(
+            name: "Lasius flavus",
+            species: "Lasius flavus",
+            type: .antColony,
+            origin: .captured,
+            arrivalDate: calendar.date(byAdding: .month, value: -2, to: Date()) ?? Date(),
+            currentStage: "Fondation",
+            status: .foundation,
+            notes: "Colonie en démarrage",
+            estimatedWorkerCount: 5,
+            queenCount: 1,
+            broodPresent: true
+        )
+        ants.terrarium = antTerrarium
+        context.insert(ants)
 
-        context.insert(ants1)
-        context.insert(ants2)
-        context.insert(ants3)
-        context.insert(messor)
-        context.insert(spider)
+        let antsJournal = ObservationEntry(date: Date(), eventType: ObservationEventType.capture.rawValue, note: "Première observation", animal: ants)
+        context.insert(antsJournal)
 
-        let journal1 = ObservationEntry(date: Date(), eventType: ObservationEventType.capture.rawValue, note: "Première observation", animal: ants1)
-        context.insert(journal1)
-
-        let reminder = Reminder(
-            animal: ants1,
+        let antsReminder = Reminder(
+            animal: ants,
             title: "Humidification",
             reminderDate: Date().addingTimeInterval(86400),
             recurrence: .weekly,
             category: .humidification
         )
-        context.insert(reminder)
+        context.insert(antsReminder)
 
         try? context.save()
     }

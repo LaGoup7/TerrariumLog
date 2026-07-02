@@ -17,6 +17,9 @@ final class NotificationService {
     }
 
     func scheduleReminder(_ reminder: Reminder) {
+        let identifier = reminder.notificationIdentifier ?? UUID().uuidString
+        reminder.notificationIdentifier = identifier
+
         let content = UNMutableNotificationContent()
         content.title = reminder.title
         content.body = reminder.animal?.name ?? "Rappel Terrarium"
@@ -24,8 +27,13 @@ final class NotificationService {
 
         let triggerDate = Calendar.current.dateComponents([.year, .month, .day, .hour, .minute], from: reminder.reminderDate)
         let trigger = UNCalendarNotificationTrigger(dateMatching: triggerDate, repeats: false)
-        let request = UNNotificationRequest(identifier: reminder.notificationIdentifier ?? UUID().uuidString, content: content, trigger: trigger)
+        let request = UNNotificationRequest(identifier: identifier, content: content, trigger: trigger)
 
         UNUserNotificationCenter.current().add(request)
+    }
+
+    func cancelReminder(_ reminder: Reminder) {
+        guard let identifier = reminder.notificationIdentifier else { return }
+        UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: [identifier])
     }
 }

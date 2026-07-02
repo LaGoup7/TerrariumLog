@@ -8,14 +8,90 @@ final class ObservationEntry {
     var note: String
     var photoPaths: [String] = []
 
+    // Champs repas, utilisés seulement si eventType == .feeding
+    var preyType: String?
+    var preySize: String?
+    var preyQuantity: Int?
+    var eatenStatus: String?
+    var captureTimeMinutes: Double?
+
+    // Champs mue, utilisés seulement si eventType == .molt
+    var previousStage: String?
+    var newStage: String?
+    var moltSuspectedStartDate: Date?
+
     var animal: Animal?
 
-    init(date: Date, eventType: String, note: String, photoPaths: [String] = [], animal: Animal? = nil) {
+    init(
+        date: Date,
+        eventType: String,
+        note: String,
+        photoPaths: [String] = [],
+        preyType: String? = nil,
+        preySize: String? = nil,
+        preyQuantity: Int? = nil,
+        eatenStatus: String? = nil,
+        captureTimeMinutes: Double? = nil,
+        previousStage: String? = nil,
+        newStage: String? = nil,
+        moltSuspectedStartDate: Date? = nil,
+        animal: Animal? = nil
+    ) {
         self.date = date
         self.eventType = eventType
         self.note = note
         self.photoPaths = photoPaths
+        self.preyType = preyType
+        self.preySize = preySize
+        self.preyQuantity = preyQuantity
+        self.eatenStatus = eatenStatus
+        self.captureTimeMinutes = captureTimeMinutes
+        self.previousStage = previousStage
+        self.newStage = newStage
+        self.moltSuspectedStartDate = moltSuspectedStartDate
         self.animal = animal
+    }
+}
+
+enum PreyType: String, CaseIterable, Codable, Sendable {
+    case drosophile
+    case fly
+    case microCricket
+    case cricket
+    case roach
+    case worm
+    case sugarWater
+    case protein
+    case seeds
+    case other
+
+    var displayName: String {
+        switch self {
+        case .drosophile: return "Drosophile"
+        case .fly: return "Mouche"
+        case .microCricket: return "Micro-grillon"
+        case .cricket: return "Grillon"
+        case .roach: return "Blatte"
+        case .worm: return "Vers"
+        case .sugarWater: return "Eau miellée"
+        case .protein: return "Protéines"
+        case .seeds: return "Graines"
+        case .other: return "Autre"
+        }
+    }
+}
+
+enum EatenStatus: String, CaseIterable, Codable, Sendable {
+    case yes
+    case no
+    case partial
+
+    var displayName: String {
+        switch self {
+        case .yes: return "Mangé"
+        case .no: return "Refusé"
+        case .partial: return "Partiel"
+        }
     }
 }
 
