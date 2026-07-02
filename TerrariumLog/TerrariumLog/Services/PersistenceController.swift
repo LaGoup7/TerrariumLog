@@ -13,8 +13,7 @@ struct PersistenceController {
             Reminder.self,
             MeasurementEntry.self,
             Terrarium.self,
-            Plant.self,
-            PrintedPart.self
+            Plant.self
         ])
 
         let configuration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: inMemory)

@@ -23,9 +23,6 @@ final class Terrarium {
     @Relationship(deleteRule: .cascade, inverse: \Plant.terrarium)
     var plants: [Plant] = []
 
-    @Relationship(deleteRule: .cascade, inverse: \PrintedPart.terrarium)
-    var printedParts: [PrintedPart] = []
-
     init(
         name: String,
         type: TerrariumType,

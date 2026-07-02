@@ -5,13 +5,13 @@ Application SwiftUI iOS pour suivre l'évolution d'animaux en terrarium/vivarium
 ## Architecture
 
 - **SwiftUI + SwiftData**, données 100% locales, hors ligne. Un seul `ModelContainer` (`Services/PersistenceController.swift`) charge le schéma et sème des données de démonstration au premier lancement.
-- **Modèles** (`Models/`) : `Animal`, `Terrarium`, `ObservationEntry` (timeline unifiée : observations, repas et mues sont un seul type d'événement avec des champs optionnels typés selon le cas), `Reminder`, `MeasurementEntry`, `Plant`, `PrintedPart`.
-- **Services** (`Services/`) : `PhotoStorage` (stockage fichier local des photos), `NotificationService` (rappels locaux `UserNotifications`), `ReminderService` (complétion + récurrence des rappels), `FeedingStats`/`MoltStats` (calculs purs sur la timeline), `SensorDataProvider` (mock, point d'extension futur pour capteurs réels).
+- **Modèles** (`Models/`) : `Animal`, `Terrarium`, `ObservationEntry` (timeline unifiée : observations, repas et mues sont un seul type d'événement avec des champs optionnels typés selon le cas), `Reminder`, `MeasurementEntry`, `Plant`.
+- **Services** (`Services/`) : `PhotoStorage` (stockage fichier local des photos), `NotificationService` (rappels locaux `UserNotifications`), `ReminderService` (complétion + récurrence des rappels), `FeedingStats`/`MoltStats` (calculs purs sur la timeline), `WizCommand`/`WizLightService` (contrôle local en UDP d'une ampoule WiZ par terrarium), `SensorDataProvider` (mock, point d'extension futur pour capteurs réels).
 - **Vues** (`Views/`) : tab bar à 5 onglets — Dashboard, Animaux, Terrariums, Timeline, Réglages. Rappels et Mesures restent des écrans à part entière, accessibles par navigation depuis le Dashboard et la fiche Terrarium plutôt que via des onglets dédiés.
 
 ## Portée V1 (MVP)
 
-Fait : CRUD animaux/terrariums, association animal ↔ terrarium, photos, notes, repas, mues, timeline automatique par animal et globale, rappels locaux avec récurrence, dashboard avec indicateur d'état coloré, plantes et pièces imprimées 3D rattachées au terrarium.
+Fait : CRUD (créer/modifier/supprimer) animaux/terrariums, association animal ↔ terrarium, photos, notes, repas, mues, timeline automatique par animal et globale, rappels locaux avec récurrence, dashboard avec indicateur d'état coloré, plantes rattachées au terrarium, contrôle local d'une ampoule WiZ (allumer/éteindre, intensité, teinte).
 
 Volontairement **non implémenté** en V1 (voir cahier des charges complet pour le contexte) :
 
@@ -19,7 +19,6 @@ Volontairement **non implémenté** en V1 (voir cahier des charges complet pour 
 - **Analyse IA par photo** (`AIAnalysis`) : aucun placeholder de modèle n'a été créé volontairement — à concevoir quand un vrai jeu de données de photos annotées existe.
 - **Synchronisation iCloud/CloudKit** : le schéma SwiftData est déjà conçu pour être compatible (relations optionnelles, valeurs par défaut sur toutes les propriétés stockées, aucune contrainte `@Attribute(.unique)`), mais la synchronisation n'est pas activée.
 - **Export/import JSON** : non implémenté.
-- **Bibliothèque de fichiers STL** : le modèle `PrintedPart` stocke des métadonnées (matériau, technologie, usage) mais pas de fichier associé.
 
 ## Lancer sur le simulateur
 

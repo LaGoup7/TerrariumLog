@@ -7,7 +7,6 @@ struct TerrariumDetailView: View {
     let terrarium: Terrarium
 
     @State private var showingAddPlant = false
-    @State private var showingAddPrintedPart = false
     @State private var showingEditSheet = false
     @State private var showingDeleteConfirmation = false
 
@@ -23,7 +22,6 @@ struct TerrariumDetailView: View {
                 lightSection
                 animalsSection
                 plantsSection
-                printedPartsSection
                 measurementsSection
             }
             .padding()
@@ -55,9 +53,6 @@ struct TerrariumDetailView: View {
         }
         .sheet(isPresented: $showingAddPlant) {
             AddPlantView(terrarium: terrarium)
-        }
-        .sheet(isPresented: $showingAddPrintedPart) {
-            AddPrintedPartView(terrarium: terrarium)
         }
         .sheet(isPresented: $showingEditSheet) {
             TerrariumFormView(terrarium: terrarium)
@@ -227,48 +222,6 @@ struct TerrariumDetailView: View {
         .clipShape(RoundedRectangle(cornerRadius: 20))
     }
 
-    private var printedPartsSection: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack {
-                Text("Pièces imprimées 3D")
-                    .font(.headline)
-                Spacer()
-                Button { showingAddPrintedPart = true } label: {
-                    Image(systemName: "plus.circle")
-                }
-            }
-            if terrarium.printedParts.isEmpty {
-                Text("Aucune pièce enregistrée")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-            } else {
-                ForEach(terrarium.printedParts) { part in
-                    HStack {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(part.name)
-                                .font(.subheadline)
-                            Text("\(part.material.displayName) · \(part.technology.displayName)")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                        Spacer()
-                        Button {
-                            context.delete(part)
-                            try? context.save()
-                        } label: {
-                            Image(systemName: "trash")
-                                .foregroundStyle(.red)
-                        }
-                    }
-                    .padding(.vertical, 2)
-                }
-            }
-        }
-        .padding()
-        .background(.ultraThinMaterial)
-        .clipShape(RoundedRectangle(cornerRadius: 20))
-    }
-
     private var measurementsSection: some View {
         let recent = terrarium.animals
             .flatMap(\.measurements)
@@ -350,51 +303,6 @@ struct AddPlantView: View {
                     Button("Enregistrer") {
                         let plant = Plant(name: name, species: species, status: status, notes: notes, terrarium: terrarium)
                         context.insert(plant)
-                        try? context.save()
-                        dismiss()
-                    }
-                    .disabled(name.isEmpty)
-                }
-            }
-        }
-    }
-}
-
-struct AddPrintedPartView: View {
-    @Environment(\.dismiss) private var dismiss
-    @Environment(\.modelContext) private var context
-    let terrarium: Terrarium
-
-    @State private var name = ""
-    @State private var material: PrintMaterial = .petg
-    @State private var technology: PrintTechnology = .fdm
-    @State private var usageNotes = ""
-    @State private var notes = ""
-
-    var body: some View {
-        NavigationStack {
-            Form {
-                TextField("Nom", text: $name)
-                Picker("Matériau", selection: $material) {
-                    ForEach(PrintMaterial.allCases, id: \.self) { material in
-                        Text(material.displayName).tag(material)
-                    }
-                }
-                Picker("Technologie", selection: $technology) {
-                    ForEach(PrintTechnology.allCases, id: \.self) { technology in
-                        Text(technology.displayName).tag(technology)
-                    }
-                }
-                TextField("Usage (ex: couvercle, fond, support capteur)", text: $usageNotes)
-                TextField("Notes", text: $notes)
-            }
-            .navigationTitle("Ajouter une pièce 3D")
-            .toolbar {
-                ToolbarItem(placement: .topBarLeading) { Button("Annuler") { dismiss() } }
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button("Enregistrer") {
-                        let part = PrintedPart(name: name, material: material, technology: technology, usageNotes: usageNotes, printedDate: .now, notes: notes, terrarium: terrarium)
-                        context.insert(part)
                         try? context.save()
                         dismiss()
                     }
