@@ -4,6 +4,7 @@ struct BackupData: Codable {
     var exportedAt: Date
     var terrariums: [TerrariumDTO]
     var unassignedAnimals: [AnimalDTO]
+    var customPreyTypeNames: [String]?
 }
 
 struct TerrariumDTO: Codable {

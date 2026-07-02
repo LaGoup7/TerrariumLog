@@ -465,6 +465,7 @@ struct AnimalDetailView: View {
 struct JournalEntryView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var context
+    @Query(sort: [SortDescriptor<CustomPreyType>(\.name)]) private var customPreyTypes: [CustomPreyType]
     let animal: Animal
 
     @State private var selectedDate = Date()
@@ -474,10 +475,12 @@ struct JournalEntryView: View {
     @State private var photoPaths: [String] = []
 
     // Champs repas
-    @State private var preyType: PreyType = .drosophile
+    @State private var preyTypeRawValue: String = PreyType.drosophile.rawValue
     @State private var preyQuantity = ""
     @State private var eatenStatus: EatenStatus = .yes
     @State private var captureTimeMinutes = ""
+    @State private var showingAddCustomPrey = false
+    @State private var newCustomPreyName = ""
 
     // Champs mue
     @State private var previousStage: String
@@ -507,11 +510,18 @@ struct JournalEntryView: View {
 
                 if eventType == .feeding {
                     Section("Repas") {
-                        Picker("Proie", selection: $preyType) {
+                        Picker("Proie", selection: $preyTypeRawValue) {
                             ForEach(PreyType.allCases.filter { $0.isAvailable(for: animal.type) }, id: \.self) { prey in
-                                Text(prey.displayName).tag(prey)
+                                Text(prey.displayName).tag(prey.rawValue)
+                            }
+                            ForEach(customPreyTypes) { custom in
+                                Text(custom.name).tag(custom.name)
                             }
                         }
+                        Button("Ajouter un type de proie personnalisé") {
+                            showingAddCustomPrey = true
+                        }
+                        .font(.caption)
                         TextField("Quantité", text: $preyQuantity)
                             .keyboardType(.numberPad)
                         Picker("Mangé ?", selection: $eatenStatus) {
@@ -564,6 +574,21 @@ struct JournalEntryView: View {
                 }
                 .ignoresSafeArea()
             }
+            .alert("Nouveau type de proie", isPresented: $showingAddCustomPrey) {
+                TextField("Nom", text: $newCustomPreyName)
+                Button("Ajouter") {
+                    let trimmed = newCustomPreyName.trimmingCharacters(in: .whitespacesAndNewlines)
+                    guard !trimmed.isEmpty else { return }
+                    let custom = CustomPreyType(name: trimmed)
+                    context.insert(custom)
+                    try? context.save()
+                    preyTypeRawValue = trimmed
+                    newCustomPreyName = ""
+                }
+                Button("Annuler", role: .cancel) {
+                    newCustomPreyName = ""
+                }
+            }
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) { Button("Annuler") { dismiss() } }
                 ToolbarItem(placement: .topBarTrailing) {
@@ -573,7 +598,7 @@ struct JournalEntryView: View {
                             eventType: eventType.rawValue,
                             note: note,
                             photoPaths: photoPaths,
-                            preyType: eventType == .feeding ? preyType.rawValue : nil,
+                            preyType: eventType == .feeding ? preyTypeRawValue : nil,
                             preyQuantity: eventType == .feeding ? Int(preyQuantity) : nil,
                             eatenStatus: eventType == .feeding ? eatenStatus.rawValue : nil,
                             captureTimeMinutes: eventType == .feeding ? Double(captureTimeMinutes) : nil,

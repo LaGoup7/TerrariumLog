@@ -14,7 +14,8 @@ struct PersistenceController {
             MeasurementEntry.self,
             Terrarium.self,
             Plant.self,
-            Camera.self
+            Camera.self,
+            CustomPreyType.self
         ])
 
         let configuration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: inMemory)

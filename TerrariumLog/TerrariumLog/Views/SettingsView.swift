@@ -71,6 +71,7 @@ struct SettingsView: View {
     @AppStorage("appAppearance") private var appearanceRawValue = AppAppearance.system.rawValue
     @Query private var animals: [Animal]
     @Query private var terrariums: [Terrarium]
+    @Query(sort: [SortDescriptor<CustomPreyType>(\.name)]) private var customPreyTypes: [CustomPreyType]
     @State private var notificationStatus: UNAuthorizationStatus = .notDetermined
 
     @State private var exportDocument: BackupBundleDocument?
@@ -106,6 +107,15 @@ struct SettingsView: View {
                                 await refreshNotificationStatus()
                             }
                         }
+                    }
+                }
+
+                if !customPreyTypes.isEmpty {
+                    Section("Types de proies personnalisés") {
+                        ForEach(customPreyTypes) { custom in
+                            Text(custom.name)
+                        }
+                        .onDelete(perform: deleteCustomPreyTypes)
                     }
                 }
 
@@ -214,6 +224,13 @@ struct SettingsView: View {
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd"
         return formatter.string(from: .now)
+    }
+
+    private func deleteCustomPreyTypes(at offsets: IndexSet) {
+        for index in offsets {
+            context.delete(customPreyTypes[index])
+        }
+        try? context.save()
     }
 
     private func exportData() {

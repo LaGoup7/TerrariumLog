@@ -36,10 +36,16 @@ final class BackupServiceTests: XCTestCase {
             terrarium: terrarium
         )
         context.insert(camera)
+
+        context.insert(CustomPreyType(name: "Larve de teigne"))
         try context.save()
 
         let data = try BackupService.shared.exportData(context: context)
         try BackupService.shared.importData(data, context: context)
+
+        let customPreyTypes = try context.fetch(FetchDescriptor<CustomPreyType>())
+        XCTAssertEqual(customPreyTypes.count, 1)
+        XCTAssertEqual(customPreyTypes.first?.name, "Larve de teigne")
 
         let animals = try context.fetch(FetchDescriptor<Animal>())
         XCTAssertEqual(animals.count, 1)
@@ -62,5 +68,20 @@ final class BackupServiceTests: XCTestCase {
         let invalidData = "not json".data(using: .utf8)!
 
         XCTAssertThrowsError(try BackupService.shared.importData(invalidData, context: context))
+    }
+
+    func testImportAcceptsBackupWithoutCustomPreyTypeNamesKey() throws {
+        // Simulates a backup exported before customPreyTypeNames existed.
+        let controller = PersistenceController(inMemory: true)
+        let context = controller.container.mainContext
+        let legacyJSON = """
+        {
+            "exportedAt": "2026-01-01T00:00:00Z",
+            "terrariums": [],
+            "unassignedAnimals": []
+        }
+        """.data(using: .utf8)!
+
+        XCTAssertNoThrow(try BackupService.shared.importData(legacyJSON, context: context))
     }
 }

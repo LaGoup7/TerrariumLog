@@ -13,6 +13,7 @@ struct BackupService {
     func exportData(context: ModelContext) throws -> Data {
         let terrariums = (try? context.fetch(FetchDescriptor<Terrarium>())) ?? []
         let animals = (try? context.fetch(FetchDescriptor<Animal>())) ?? []
+        let customPreyTypes = (try? context.fetch(FetchDescriptor<CustomPreyType>())) ?? []
 
         let terrariumDTOs = terrariums.map(makeTerrariumDTO)
         let unassignedAnimalDTOs = animals.filter { $0.terrarium == nil }.map(makeAnimalDTO)
@@ -20,7 +21,8 @@ struct BackupService {
         let backup = BackupData(
             exportedAt: .now,
             terrariums: terrariumDTOs,
-            unassignedAnimals: unassignedAnimalDTOs
+            unassignedAnimals: unassignedAnimalDTOs,
+            customPreyTypeNames: customPreyTypes.map(\.name)
         )
 
         let encoder = JSONEncoder()
@@ -189,6 +191,9 @@ struct BackupService {
         for animal in try context.fetch(FetchDescriptor<Animal>()) {
             context.delete(animal)
         }
+        for customPreyType in try context.fetch(FetchDescriptor<CustomPreyType>()) {
+            context.delete(customPreyType)
+        }
         try context.save()
 
         for terrariumDTO in backup.terrariums {
@@ -196,6 +201,9 @@ struct BackupService {
         }
         for animalDTO in backup.unassignedAnimals {
             insert(animalDTO, terrarium: nil, into: context)
+        }
+        for name in backup.customPreyTypeNames ?? [] {
+            context.insert(CustomPreyType(name: name))
         }
 
         try context.save()
