@@ -1,0 +1,91 @@
+import Foundation
+
+struct BackupData: Codable {
+    var exportedAt: Date
+    var terrariums: [TerrariumDTO]
+    var unassignedAnimals: [AnimalDTO]
+}
+
+struct TerrariumDTO: Codable {
+    var name: String
+    var type: TerrariumType
+    var notes: String
+    var dimensions: String
+    var substrate: String
+    var decor: String
+    var createdAt: Date
+    var mainPhotoPath: String?
+    var wizLightIP: String?
+    var targetTemperatureMin: Double?
+    var targetTemperatureMax: Double?
+    var targetHumidityMin: Double?
+    var targetHumidityMax: Double?
+    var animals: [AnimalDTO]
+    var plants: [PlantDTO]
+}
+
+struct AnimalDTO: Codable {
+    var name: String
+    var species: String
+    var scientificName: String?
+    var type: AnimalType
+    var sex: AnimalSex
+    var origin: AnimalOrigin
+    var locality: String?
+    var breeder: String?
+    var purchasePrice: Double?
+    var arrivalDate: Date
+    var currentStage: String
+    var status: AnimalStatus
+    var notes: String
+    var primaryPhotoPath: String?
+    var estimatedWorkerCount: Int?
+    var queenCount: Int?
+    var broodPresent: Bool
+    var swarmingDateEstimate: Date?
+    var journalEntries: [ObservationEntryDTO]
+    var reminders: [ReminderDTO]
+    var measurements: [MeasurementEntryDTO]
+}
+
+struct ObservationEntryDTO: Codable {
+    var date: Date
+    var eventType: String
+    var note: String
+    var photoPaths: [String]
+    var preyType: String?
+    var preySize: String?
+    var preyQuantity: Int?
+    var eatenStatus: String?
+    var captureTimeMinutes: Double?
+    var previousStage: String?
+    var newStage: String?
+    var moltSuspectedStartDate: Date?
+}
+
+struct ReminderDTO: Codable {
+    var title: String
+    var reminderDate: Date
+    var recurrence: ReminderRecurrence
+    var category: ReminderCategory
+    var notes: String
+    var isCompleted: Bool
+}
+
+struct MeasurementEntryDTO: Codable {
+    var date: Date
+    var temperature: Double?
+    var humidity: Double?
+    var luminosity: Double?
+    var waterLevel: Double?
+    var note: String
+}
+
+struct PlantDTO: Codable {
+    var name: String
+    var species: String
+    var addedDate: Date
+    var lastWatered: Date?
+    var status: PlantStatus
+    var notes: String
+}

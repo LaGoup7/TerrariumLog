@@ -1,6 +1,7 @@
 import SwiftUI
 import SwiftData
 import PhotosUI
+import Charts
 
 struct AnimalDetailView: View {
     @Environment(\.modelContext) private var context
@@ -218,6 +219,7 @@ struct AnimalDetailView: View {
 
     private var moltSection: some View {
         let stats = MoltStats.compute(from: animal.journalEntries)
+        let chartableIntervals = stats.intervals.filter { $0.daysSincePrevious != nil }
         return VStack(alignment: .leading, spacing: 10) {
             Text("Mues")
                 .font(.headline)
@@ -226,6 +228,16 @@ struct AnimalDetailView: View {
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             } else {
+                if !chartableIntervals.isEmpty {
+                    Chart(chartableIntervals) { interval in
+                        BarMark(
+                            x: .value("Mue", interval.toStage),
+                            y: .value("Jours", interval.daysSincePrevious ?? 0)
+                        )
+                        .foregroundStyle(.teal)
+                    }
+                    .frame(height: 140)
+                }
                 ForEach(stats.intervals) { interval in
                     HStack {
                         Text("\(interval.fromStage) → \(interval.toStage)")

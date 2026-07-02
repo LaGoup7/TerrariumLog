@@ -5,11 +5,20 @@ struct AnimalsListView: View {
     @Environment(\.modelContext) private var context
     @Query(sort: [SortDescriptor<Animal>(\.name)]) private var animals: [Animal]
     @State private var showingAddSheet = false
+    @State private var searchText = ""
+
+    private var filteredAnimals: [Animal] {
+        guard !searchText.isEmpty else { return animals }
+        return animals.filter {
+            $0.name.localizedCaseInsensitiveContains(searchText) ||
+            $0.species.localizedCaseInsensitiveContains(searchText)
+        }
+    }
 
     var body: some View {
         NavigationStack {
             List {
-                ForEach(animals) { animal in
+                ForEach(filteredAnimals) { animal in
                     NavigationLink(destination: AnimalDetailView(animal: animal)) {
                         HStack(spacing: 12) {
                             Image(systemName: animal.type == .antColony ? "ant.fill" : "spider.fill")
@@ -39,6 +48,7 @@ struct AnimalsListView: View {
                 }
             }
             .navigationTitle("Animaux")
+            .searchable(text: $searchText, prompt: "Rechercher un animal")
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button { showingAddSheet = true } label: {

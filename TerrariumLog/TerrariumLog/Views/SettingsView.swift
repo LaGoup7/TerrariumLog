@@ -1,6 +1,27 @@
 import SwiftUI
 import SwiftData
 import UserNotifications
+import UniformTypeIdentifiers
+
+struct JSONFileDocument: FileDocument {
+    static var readableContentTypes: [UTType] { [.json] }
+    var data: Data
+
+    init(data: Data) {
+        self.data = data
+    }
+
+    init(configuration: ReadConfiguration) throws {
+        guard let data = configuration.file.regularFileContents else {
+            throw CocoaError(.fileReadCorruptFile)
+        }
+        self.data = data
+    }
+
+    func fileWrapper(configuration: WriteConfiguration) throws -> FileWrapper {
+        FileWrapper(regularFileWithContents: data)
+    }
+}
 
 enum AppAppearance: String, CaseIterable {
     case system
@@ -25,10 +46,18 @@ enum AppAppearance: String, CaseIterable {
 }
 
 struct SettingsView: View {
+    @Environment(\.modelContext) private var context
     @AppStorage("appAppearance") private var appearanceRawValue = AppAppearance.system.rawValue
     @Query private var animals: [Animal]
     @Query private var terrariums: [Terrarium]
     @State private var notificationStatus: UNAuthorizationStatus = .notDetermined
+
+    @State private var exportDocument: JSONFileDocument?
+    @State private var showingExporter = false
+    @State private var showingImporter = false
+    @State private var showingImportConfirmation = false
+    @State private var pendingImportData: Data?
+    @State private var backupMessage: String?
 
     var body: some View {
         NavigationStack {
@@ -61,6 +90,17 @@ struct SettingsView: View {
                 Section("Données") {
                     LabeledContent("Animaux", value: "\(animals.count)")
                     LabeledContent("Terrariums", value: "\(terrariums.count)")
+                    Button("Exporter mes données") {
+                        exportData()
+                    }
+                    Button("Importer une sauvegarde") {
+                        showingImporter = true
+                    }
+                    if let backupMessage {
+                        Text(backupMessage)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
                 }
 
                 Section("À propos") {
@@ -73,6 +113,44 @@ struct SettingsView: View {
             .navigationTitle("Réglages")
             .task {
                 await refreshNotificationStatus()
+            }
+            .fileExporter(
+                isPresented: $showingExporter,
+                document: exportDocument,
+                contentType: .json,
+                defaultFilename: "TerrariumLog-\(exportFilenameDateStamp)"
+            ) { result in
+                switch result {
+                case .success:
+                    backupMessage = "Export réussi."
+                case .failure(let error):
+                    backupMessage = "Échec de l'export : \(error.localizedDescription)"
+                }
+            }
+            .fileImporter(
+                isPresented: $showingImporter,
+                allowedContentTypes: [.json]
+            ) { result in
+                switch result {
+                case .success(let url):
+                    loadImportFile(from: url)
+                case .failure(let error):
+                    backupMessage = "Échec de la sélection : \(error.localizedDescription)"
+                }
+            }
+            .confirmationDialog(
+                "Remplacer toutes les données actuelles ?",
+                isPresented: $showingImportConfirmation,
+                titleVisibility: .visible
+            ) {
+                Button("Importer et remplacer", role: .destructive) {
+                    performImport()
+                }
+                Button("Annuler", role: .cancel) {
+                    pendingImportData = nil
+                }
+            } message: {
+                Text("Cette sauvegarde va remplacer tous les animaux, terrariums et leur historique actuellement enregistrés sur cet appareil. Cette action est irréversible.")
             }
         }
     }
@@ -104,5 +182,47 @@ struct SettingsView: View {
     private func openSystemSettings() {
         guard let url = URL(string: UIApplication.openSettingsURLString) else { return }
         UIApplication.shared.open(url)
+    }
+
+    private var exportFilenameDateStamp: String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd"
+        return formatter.string(from: .now)
+    }
+
+    private func exportData() {
+        do {
+            let data = try BackupService.shared.exportData(context: context)
+            exportDocument = JSONFileDocument(data: data)
+            showingExporter = true
+        } catch {
+            backupMessage = "Échec de l'export : \(error.localizedDescription)"
+        }
+    }
+
+    private func loadImportFile(from url: URL) {
+        let didStartAccessing = url.startAccessingSecurityScopedResource()
+        defer {
+            if didStartAccessing {
+                url.stopAccessingSecurityScopedResource()
+            }
+        }
+        do {
+            pendingImportData = try Data(contentsOf: url)
+            showingImportConfirmation = true
+        } catch {
+            backupMessage = "Impossible de lire le fichier : \(error.localizedDescription)"
+        }
+    }
+
+    private func performImport() {
+        guard let data = pendingImportData else { return }
+        do {
+            try BackupService.shared.importData(data, context: context)
+            backupMessage = "Import réussi."
+        } catch {
+            backupMessage = "Échec de l'import : \(error.localizedDescription)"
+        }
+        pendingImportData = nil
     }
 }

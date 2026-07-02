@@ -5,10 +5,19 @@ struct TimelineView: View {
     @Query(sort: [SortDescriptor<ObservationEntry>(\.date, order: .reverse)]) private var entries: [ObservationEntry]
     @Query(sort: [SortDescriptor<Animal>(\.name)]) private var animals: [Animal]
     @State private var selectedAnimal: Animal?
+    @State private var searchText = ""
 
     private var filteredEntries: [ObservationEntry] {
-        guard let selectedAnimal else { return entries }
-        return entries.filter { $0.animal?.id == selectedAnimal.id }
+        var result = entries
+        if let selectedAnimal {
+            result = result.filter { $0.animal?.id == selectedAnimal.id }
+        }
+        guard !searchText.isEmpty else { return result }
+        return result.filter { entry in
+            entry.note.localizedCaseInsensitiveContains(searchText) ||
+            displayName(for: entry).localizedCaseInsensitiveContains(searchText) ||
+            (entry.animal?.name.localizedCaseInsensitiveContains(searchText) ?? false)
+        }
     }
 
     var body: some View {
@@ -39,6 +48,7 @@ struct TimelineView: View {
                 .padding(.vertical, 4)
             }
             .navigationTitle("Timeline")
+            .searchable(text: $searchText, prompt: "Rechercher dans le journal")
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Menu {
