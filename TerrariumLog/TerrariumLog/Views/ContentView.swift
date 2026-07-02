@@ -4,8 +4,13 @@ import SwiftData
 struct ContentView: View {
     @Environment(\.modelContext) private var context
     @Query(sort: [SortDescriptor<Animal>(\.name)]) private var animals: [Animal]
+    @AppStorage("appAppearance") private var appearanceRawValue = AppAppearance.system.rawValue
 
     @State private var selectedTab = 0
+
+    private var appearance: AppAppearance {
+        AppAppearance(rawValue: appearanceRawValue) ?? .system
+    }
 
     var body: some View {
         TabView(selection: $selectedTab) {
@@ -41,5 +46,6 @@ struct ContentView: View {
         }
         .tint(.teal)
         .background(Color(.systemBackground))
+        .preferredColorScheme(appearance.colorScheme)
     }
 }
