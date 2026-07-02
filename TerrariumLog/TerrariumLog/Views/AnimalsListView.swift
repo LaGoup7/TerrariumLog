@@ -125,6 +125,11 @@ struct AnimalFormView: View {
                             Text(type.displayName).tag(type)
                         }
                     }
+                    .onChange(of: type) { _, newType in
+                        if !status.isAvailable(for: newType) {
+                            status = .normal
+                        }
+                    }
                     Picker("Sexe", selection: $sex) {
                         ForEach(AnimalSex.allCases, id: \.self) { sex in
                             Text(sex.displayName).tag(sex)
@@ -140,7 +145,7 @@ struct AnimalFormView: View {
                     TextField("Prix d’achat", text: $purchasePrice)
                         .keyboardType(.decimalPad)
                     Picker("Statut", selection: $status) {
-                        ForEach(AnimalStatus.allCases, id: \.self) { status in
+                        ForEach(AnimalStatus.allCases.filter { $0.isAvailable(for: type) }, id: \.self) { status in
                             Text(status.displayName).tag(status)
                         }
                     }

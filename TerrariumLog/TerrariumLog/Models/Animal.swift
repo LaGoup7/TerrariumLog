@@ -215,6 +215,21 @@ enum AnimalStatus: String, Codable, CaseIterable, Sendable {
             return .ok
         }
     }
+
+    /// Filtre les statuts pertinents selon l'espèce : une colonie n'a pas de stade "Prémue"
+    /// individuel, un animal suivi individuellement n'a pas de "Fondation"/"Croissance" de colonie.
+    func isAvailable(for animalType: AnimalType) -> Bool {
+        if animalType == .antColony {
+            return self != .premolt && self != .molting
+        }
+        if self == .foundation || self == .growth {
+            return false
+        }
+        if self == .premolt || self == .molting {
+            return animalType.tracksMolting
+        }
+        return true
+    }
 }
 
 enum AnimalAlertLevel: Equatable {

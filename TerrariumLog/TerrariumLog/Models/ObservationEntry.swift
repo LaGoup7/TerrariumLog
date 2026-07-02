@@ -79,6 +79,19 @@ enum PreyType: String, CaseIterable, Codable, Sendable {
         case .other: return "Autre"
         }
     }
+
+    /// Filtre les types de proies pertinents selon l'espèce (une colonie de fourmis ne mange
+    /// pas de grillon, une araignée prédatrice ne mange pas d'eau miellée).
+    func isAvailable(for animalType: AnimalType) -> Bool {
+        switch animalType {
+        case .antColony:
+            return [.sugarWater, .protein, .seeds, .drosophile, .other].contains(self)
+        case .dendrobate:
+            return [.drosophile, .microCricket, .other].contains(self)
+        case .jumpingSpider, .gecko, .insect, .other:
+            return [.drosophile, .fly, .microCricket, .cricket, .roach, .worm, .other].contains(self)
+        }
+    }
 }
 
 enum EatenStatus: String, CaseIterable, Codable, Sendable {

@@ -508,7 +508,7 @@ struct JournalEntryView: View {
                 if eventType == .feeding {
                     Section("Repas") {
                         Picker("Proie", selection: $preyType) {
-                            ForEach(PreyType.allCases, id: \.self) { prey in
+                            ForEach(PreyType.allCases.filter { $0.isAvailable(for: animal.type) }, id: \.self) { prey in
                                 Text(prey.displayName).tag(prey)
                             }
                         }
