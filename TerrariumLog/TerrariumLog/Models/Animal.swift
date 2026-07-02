@@ -144,6 +144,22 @@ enum AnimalType: String, Codable, CaseIterable, Sendable {
             return "pawprint.fill"
         }
     }
+
+    /// Le suivi individuel des mues (exuvie, ancien/nouveau stade) n'a de sens que pour les
+    /// animaux qui muent individuellement — pas pour une colonie de fourmis.
+    var tracksMolting: Bool {
+        switch self {
+        case .jumpingSpider, .gecko, .insect:
+            return true
+        case .antColony, .dendrobate, .other:
+            return false
+        }
+    }
+
+    /// La diapause (dormance saisonnière) se suit au niveau de la colonie, pas de l'individu.
+    var tracksDiapause: Bool {
+        self == .antColony
+    }
 }
 
 enum AnimalOrigin: String, Codable, CaseIterable, Sendable {
@@ -181,7 +197,7 @@ enum AnimalStatus: String, Codable, CaseIterable, Sendable {
         case .adult: return "Adulte"
         case .premolt: return "Prémue"
         case .molting: return "Mue"
-        case .hibernation: return "Hivernation"
+        case .hibernation: return "Diapause"
         case .stressed: return "Stress"
         case .sick: return "Malade"
         case .pause: return "Pause"

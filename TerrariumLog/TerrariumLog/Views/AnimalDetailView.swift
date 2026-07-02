@@ -17,6 +17,7 @@ struct AnimalDetailView: View {
 
     @State private var showingFeedingSheet = false
     @State private var showingMoltSheet = false
+    @State private var showingDiapauseSheet = false
     @State private var showingEditSheet = false
     @State private var showingDeleteConfirmation = false
     @State private var showingCamera = false
@@ -35,7 +36,12 @@ struct AnimalDetailView: View {
                     colonySection
                 }
                 feedingSection
-                moltSection
+                if animal.type.tracksMolting {
+                    moltSection
+                }
+                if animal.type.tracksDiapause {
+                    diapauseSection
+                }
                 journalSection
                 gallerySection
                 measurementsSection
@@ -55,7 +61,12 @@ struct AnimalDetailView: View {
                 Menu {
                     Button("Ajouter une observation") { showingJournalSheet = true }
                     Button("Ajouter un repas") { showingFeedingSheet = true }
-                    Button("Ajouter une mue") { showingMoltSheet = true }
+                    if animal.type.tracksMolting {
+                        Button("Ajouter une mue") { showingMoltSheet = true }
+                    }
+                    if animal.type.tracksDiapause {
+                        Button("Ajouter une diapause") { showingDiapauseSheet = true }
+                    }
                     Button("Ajouter une mesure") { showingMeasurementSheet = true }
                     Divider()
                     Button("Modifier") { showingEditSheet = true }
@@ -86,6 +97,9 @@ struct AnimalDetailView: View {
         }
         .sheet(isPresented: $showingMoltSheet) {
             JournalEntryView(animal: animal, initialEventType: .molt)
+        }
+        .sheet(isPresented: $showingDiapauseSheet) {
+            JournalEntryView(animal: animal, initialEventType: .hibernationStart)
         }
         .sheet(isPresented: $showingMeasurementSheet) {
             MeasurementEntryView(animal: animal)
@@ -288,6 +302,46 @@ struct AnimalDetailView: View {
                 }
                 if let average = stats.averageDaysBetweenMolts {
                     LabeledContent("Intervalle moyen", value: "\(Int(average.rounded())) j")
+                }
+            }
+        }
+        .padding()
+        .background(.ultraThinMaterial)
+        .clipShape(RoundedRectangle(cornerRadius: 20))
+    }
+
+    private var diapauseSection: some View {
+        let stats = DiapauseStats.compute(from: animal.journalEntries)
+        return VStack(alignment: .leading, spacing: 10) {
+            Text("Diapause")
+                .font(.headline)
+            if stats.periods.isEmpty {
+                Text("Aucune diapause enregistrée")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            } else {
+                ForEach(stats.periods) { period in
+                    HStack {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(period.startDate.formatted(date: .abbreviated, time: .omitted))
+                                .font(.subheadline)
+                            if let endDate = period.endDate {
+                                Text("→ \(endDate.formatted(date: .abbreviated, time: .omitted))")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            } else {
+                                Text("En cours")
+                                    .font(.caption)
+                                    .foregroundStyle(.orange)
+                            }
+                        }
+                        Spacer()
+                        if let days = period.durationDays {
+                            Text("\(days) j")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
                 }
             }
         }
