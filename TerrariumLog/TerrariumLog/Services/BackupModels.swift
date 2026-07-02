@@ -22,6 +22,7 @@ struct TerrariumDTO: Codable {
     var targetHumidityMax: Double?
     var animals: [AnimalDTO]
     var plants: [PlantDTO]
+    var cameras: [CameraDTO]
 }
 
 struct AnimalDTO: Codable {
@@ -88,4 +89,17 @@ struct PlantDTO: Codable {
     var lastWatered: Date?
     var status: PlantStatus
     var notes: String
+}
+
+struct CameraDTO: Codable {
+    var name: String
+    var brand: CameraBrand
+    var model: String
+    var connectionType: CameraConnectionType
+    var streamURL: String?
+    var ipAddress: String?
+    var username: String?
+    var password: String?
+    var notes: String
+    var createdAt: Date
 }

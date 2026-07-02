@@ -8,6 +8,7 @@ struct TerrariumDetailView: View {
     let terrarium: Terrarium
 
     @State private var showingAddPlant = false
+    @State private var showingAddCamera = false
     @State private var showingEditSheet = false
     @State private var showingDeleteConfirmation = false
 
@@ -21,6 +22,7 @@ struct TerrariumDetailView: View {
             VStack(alignment: .leading, spacing: 16) {
                 infoSection
                 lightSection
+                camerasSection
                 animalsSection
                 plantsSection
                 measurementsSection
@@ -54,6 +56,9 @@ struct TerrariumDetailView: View {
         }
         .sheet(isPresented: $showingAddPlant) {
             AddPlantView(terrarium: terrarium)
+        }
+        .sheet(isPresented: $showingAddCamera) {
+            CameraConfigView(terrarium: terrarium)
         }
         .sheet(isPresented: $showingEditSheet) {
             TerrariumFormView(terrarium: terrarium)
@@ -145,6 +150,42 @@ struct TerrariumDetailView: View {
             }
             isSendingLightCommand = false
         }
+    }
+
+    private var camerasSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                Text("Caméra(s)")
+                    .font(.headline)
+                Spacer()
+                Button { showingAddCamera = true } label: {
+                    Image(systemName: "plus.circle")
+                }
+            }
+            if terrarium.cameras.isEmpty {
+                Text("Aucune caméra associée")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            } else {
+                ForEach(terrarium.cameras) { camera in
+                    NavigationLink(destination: CameraLiveView(camera: camera)) {
+                        HStack {
+                            Circle()
+                                .fill(camera.isConfigured ? Color.green : Color.orange)
+                                .frame(width: 8, height: 8)
+                            Text(camera.name)
+                            Spacer()
+                            Text(camera.isConfigured ? "Configurée" : "Non configurée")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+            }
+        }
+        .padding()
+        .background(.ultraThinMaterial)
+        .clipShape(RoundedRectangle(cornerRadius: 20))
     }
 
     private var animalsSection: some View {

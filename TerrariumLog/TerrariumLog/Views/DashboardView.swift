@@ -5,6 +5,7 @@ struct DashboardView: View {
     @Environment(\.modelContext) private var context
     @Query(sort: [SortDescriptor<Animal>(\.name)]) private var animals: [Animal]
     @Query(sort: [SortDescriptor<Reminder>(\.reminderDate)]) private var reminders: [Reminder]
+    @Query private var cameras: [Camera]
 
     private var upcomingReminders: [Reminder] {
         Array(reminders.filter { !$0.isCompleted }.prefix(3))
@@ -18,6 +19,10 @@ struct DashboardView: View {
 
                     if !upcomingReminders.isEmpty {
                         remindersSection
+                    }
+
+                    if !cameras.isEmpty {
+                        camerasSection
                     }
 
                     ForEach(animals) { animal in
@@ -68,6 +73,35 @@ struct DashboardView: View {
                     Text(reminder.reminderDate.formatted(date: .abbreviated, time: .omitted))
                         .font(.caption)
                         .foregroundStyle(.secondary)
+                }
+            }
+        }
+        .padding()
+        .background(.ultraThinMaterial)
+        .clipShape(RoundedRectangle(cornerRadius: 20))
+    }
+
+    private var camerasSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Caméras")
+                .font(.headline)
+            ForEach(cameras) { camera in
+                NavigationLink(destination: CameraLiveView(camera: camera)) {
+                    HStack {
+                        Circle()
+                            .fill(camera.isConfigured ? Color.green : Color.orange)
+                            .frame(width: 8, height: 8)
+                        VStack(alignment: .leading) {
+                            Text(camera.name)
+                                .font(.subheadline)
+                            Text(camera.terrarium?.name ?? "Sans terrarium")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        Spacer()
+                        Image(systemName: "play.circle")
+                            .foregroundStyle(.teal)
+                    }
                 }
             }
         }

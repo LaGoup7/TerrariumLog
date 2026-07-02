@@ -71,7 +71,8 @@ struct BackupService {
             targetHumidityMin: terrarium.targetHumidityMin,
             targetHumidityMax: terrarium.targetHumidityMax,
             animals: terrarium.animals.map(makeAnimalDTO),
-            plants: terrarium.plants.map(makePlantDTO)
+            plants: terrarium.plants.map(makePlantDTO),
+            cameras: terrarium.cameras.map(makeCameraDTO)
         )
     }
 
@@ -151,6 +152,21 @@ struct BackupService {
         )
     }
 
+    private func makeCameraDTO(_ camera: Camera) -> CameraDTO {
+        CameraDTO(
+            name: camera.name,
+            brand: camera.brand,
+            model: camera.model,
+            connectionType: camera.connectionType,
+            streamURL: camera.streamURL,
+            ipAddress: camera.ipAddress,
+            username: camera.username,
+            password: camera.password,
+            notes: camera.notes,
+            createdAt: camera.createdAt
+        )
+    }
+
     // MARK: - Import
 
     /// Replaces all existing data with the contents of the backup.
@@ -214,6 +230,23 @@ struct BackupService {
                 terrarium: terrarium
             )
             context.insert(plant)
+        }
+
+        for cameraDTO in dto.cameras {
+            let camera = Camera(
+                name: cameraDTO.name,
+                brand: cameraDTO.brand,
+                model: cameraDTO.model,
+                connectionType: cameraDTO.connectionType,
+                streamURL: cameraDTO.streamURL,
+                ipAddress: cameraDTO.ipAddress,
+                username: cameraDTO.username,
+                password: cameraDTO.password,
+                notes: cameraDTO.notes,
+                createdAt: cameraDTO.createdAt,
+                terrarium: terrarium
+            )
+            context.insert(camera)
         }
 
         for animalDTO in dto.animals {

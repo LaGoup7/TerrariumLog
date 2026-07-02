@@ -26,6 +26,16 @@ final class BackupServiceTests: XCTestCase {
 
         let entry = ObservationEntry(date: .now, eventType: ObservationEventType.arrival.rawValue, note: "arrived", animal: animal)
         context.insert(entry)
+
+        let camera = Camera(
+            name: "Cam Terrarium",
+            brand: .tapo,
+            model: "Tapo C220",
+            connectionType: .rtsp,
+            streamURL: "rtsp://192.168.1.50:554/stream1",
+            terrarium: terrarium
+        )
+        context.insert(camera)
         try context.save()
 
         let data = try BackupService.shared.exportData(context: context)
@@ -40,6 +50,10 @@ final class BackupServiceTests: XCTestCase {
 
         let terrariums = try context.fetch(FetchDescriptor<Terrarium>())
         XCTAssertEqual(terrariums.count, 1)
+        XCTAssertEqual(terrariums.first?.cameras.count, 1)
+        XCTAssertEqual(terrariums.first?.cameras.first?.name, "Cam Terrarium")
+        XCTAssertEqual(terrariums.first?.cameras.first?.streamURL, "rtsp://192.168.1.50:554/stream1")
+        XCTAssertTrue(terrariums.first?.cameras.first?.isConfigured ?? false)
     }
 
     func testImportRejectsInvalidData() {
