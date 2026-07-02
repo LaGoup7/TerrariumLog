@@ -45,6 +45,11 @@ struct RemindersView: View {
         }
         .navigationTitle("Rappels")
         .toolbar {
+            ToolbarItem(placement: .topBarLeading) {
+                NavigationLink("Calendrier") {
+                    ReminderCalendarView()
+                }
+            }
             ToolbarItem(placement: .topBarTrailing) {
                 Button { showingSheet = true } label: { Image(systemName: "plus") }
             }
@@ -62,9 +67,13 @@ struct AddReminderView: View {
 
     @State private var selectedAnimal: Animal?
     @State private var title = ""
-    @State private var reminderDate = Date()
+    @State private var reminderDate: Date
     @State private var recurrence: ReminderRecurrence = .none
     @State private var category: ReminderCategory = .feeding
+
+    init(initialDate: Date = Date()) {
+        _reminderDate = State(initialValue: initialDate)
+    }
 
     var body: some View {
         NavigationStack {
