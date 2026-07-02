@@ -2,6 +2,7 @@ import SwiftUI
 import SwiftData
 import PhotosUI
 import Charts
+import UIKit
 
 struct AnimalDetailView: View {
     @Environment(\.modelContext) private var context
@@ -18,6 +19,11 @@ struct AnimalDetailView: View {
     @State private var showingMoltSheet = false
     @State private var showingEditSheet = false
     @State private var showingDeleteConfirmation = false
+    @State private var showingCamera = false
+
+    private var isCameraAvailable: Bool {
+        UIImagePickerController.isSourceTypeAvailable(.camera)
+    }
 
     var body: some View {
         ScrollView {
@@ -118,18 +124,23 @@ struct AnimalDetailView: View {
                 }
             }
 
-            PhotosPicker(selection: $selectedItems, maxSelectionCount: 1, matching: .images) {
-                Label("Changer la photo principale", systemImage: "photo")
+            HStack {
+                PhotosPicker(selection: $selectedItems, maxSelectionCount: 1, matching: .images) {
+                    Label("Changer la photo principale", systemImage: "photo")
+                }
+                if isCameraAvailable {
+                    Button {
+                        showingCamera = true
+                    } label: {
+                        Label("Prendre une photo", systemImage: "camera")
+                    }
+                }
             }
             .onChange(of: selectedItems) { _, newItems in
                 guard let first = newItems.first else { return }
                 Task {
                     if let data = try? await first.loadTransferable(type: Data.self), let image = UIImage(data: data) {
-                        if let path = try? PhotoStorage.shared.saveImage(image, for: animal.name) {
-                            animal.primaryPhotoPath = path
-                            try? context.save()
-                            primaryImage = image
-                        }
+                        setPrimaryImage(image)
                     }
                 }
             }
@@ -137,6 +148,20 @@ struct AnimalDetailView: View {
         .padding()
         .background(.ultraThinMaterial)
         .clipShape(RoundedRectangle(cornerRadius: 24))
+        .fullScreenCover(isPresented: $showingCamera) {
+            CameraCaptureView { image in
+                setPrimaryImage(image)
+            }
+            .ignoresSafeArea()
+        }
+    }
+
+    private func setPrimaryImage(_ image: UIImage) {
+        if let path = try? PhotoStorage.shared.saveImage(image, for: animal.name) {
+            animal.primaryPhotoPath = path
+            try? context.save()
+            primaryImage = image
+        }
     }
 
     private var infoSection: some View {
@@ -369,6 +394,12 @@ struct JournalEntryView: View {
     @State private var previousStage: String
     @State private var newStage = ""
 
+    @State private var showingCamera = false
+
+    private var isCameraAvailable: Bool {
+        UIImagePickerController.isSourceTypeAvailable(.camera)
+    }
+
     init(animal: Animal, initialEventType: ObservationEventType = .other) {
         self.animal = animal
         _eventType = State(initialValue: initialEventType)
@@ -427,8 +458,23 @@ struct JournalEntryView: View {
                         }
                     }
                 }
+                if isCameraAvailable {
+                    Button {
+                        showingCamera = true
+                    } label: {
+                        Label("Prendre une photo", systemImage: "camera")
+                    }
+                }
             }
             .navigationTitle("Nouvelle observation")
+            .fullScreenCover(isPresented: $showingCamera) {
+                CameraCaptureView { image in
+                    if let path = try? PhotoStorage.shared.saveImage(image, for: animal.name) {
+                        photoPaths.append(path)
+                    }
+                }
+                .ignoresSafeArea()
+            }
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) { Button("Annuler") { dismiss() } }
                 ToolbarItem(placement: .topBarTrailing) {

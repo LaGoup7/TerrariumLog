@@ -29,6 +29,32 @@ struct BackupService {
         return try encoder.encode(backup)
     }
 
+    /// Same as `exportData`, plus the list of photo filenames referenced by the exported records
+    /// (primary/main photos and journal entry photos), so the caller can bundle the actual files.
+    func exportBundle(context: ModelContext) throws -> (data: Data, photoPaths: [String]) {
+        let data = try exportData(context: context)
+
+        let terrariums = (try? context.fetch(FetchDescriptor<Terrarium>())) ?? []
+        let animals = (try? context.fetch(FetchDescriptor<Animal>())) ?? []
+
+        var paths = Set<String>()
+        for terrarium in terrariums {
+            if let path = terrarium.mainPhotoPath {
+                paths.insert(path)
+            }
+        }
+        for animal in animals {
+            if let path = animal.primaryPhotoPath {
+                paths.insert(path)
+            }
+            for entry in animal.journalEntries {
+                paths.formUnion(entry.photoPaths)
+            }
+        }
+
+        return (data, Array(paths))
+    }
+
     private func makeTerrariumDTO(_ terrarium: Terrarium) -> TerrariumDTO {
         TerrariumDTO(
             name: terrarium.name,

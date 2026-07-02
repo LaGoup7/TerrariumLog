@@ -31,4 +31,17 @@ struct PhotoStorage {
             try fileManager.removeItem(at: url)
         }
     }
+
+    func url(for path: String) -> URL {
+        documentsDirectory.appendingPathComponent(path)
+    }
+
+    /// Copies an external file (e.g. from an imported backup) into local photo storage under the given filename.
+    func importPhoto(from sourceURL: URL, filename: String) throws {
+        let destination = documentsDirectory.appendingPathComponent(filename)
+        if fileManager.fileExists(atPath: destination.path) {
+            try fileManager.removeItem(at: destination)
+        }
+        try fileManager.copyItem(at: sourceURL, to: destination)
+    }
 }
