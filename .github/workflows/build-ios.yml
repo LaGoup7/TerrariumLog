@@ -87,3 +87,35 @@ jobs:
         with:
           name: screenshots
           path: screenshots
+
+      - name: Build unsigned app for device
+        run: |
+          cd "$GITHUB_WORKSPACE"
+          xcodebuild -project TerrariumLog.xcodeproj \
+            -scheme TerrariumLog \
+            -sdk iphoneos \
+            -configuration Debug \
+            -derivedDataPath build-device \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            build
+
+      - name: Package unsigned .ipa
+        run: |
+          cd "$GITHUB_WORKSPACE"
+          APP_PATH=$(find build-device -name "TerrariumLog.app" | head -n 1)
+          if [ -z "$APP_PATH" ]; then
+            echo "Device .app not found" >&2
+            exit 1
+          fi
+          mkdir -p ipa/Payload
+          cp -r "$APP_PATH" ipa/Payload/
+          cd ipa
+          zip -r ../TerrariumLog.ipa Payload
+
+      - name: Upload unsigned .ipa
+        uses: actions/upload-artifact@v4
+        with:
+          name: TerrariumLog-unsigned-ipa
+          path: TerrariumLog.ipa

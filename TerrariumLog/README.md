@@ -33,6 +33,18 @@ xcodebuild -project TerrariumLog.xcodeproj -scheme TerrariumLog \
 
 Le workflow GitHub Actions (`.github/workflows/build-ios.yml`) fait exactement ça sur chaque push, plus l'exécution des tests unitaires et une capture d'écran du Dashboard au premier lancement, publiée comme artifact `screenshots`.
 
+## Tester sur son iPhone sans compte Apple Developer payant (Windows/sideloading)
+
+Pas besoin de Mac ni de compte payant pour installer l'app sur son propre iPhone :
+
+1. Le workflow CI génère aussi un `.ipa` non signé à chaque push, publié comme artifact **`TerrariumLog-unsigned-ipa`** (onglet *Actions* du dépôt GitHub → sélectionner le run → section *Artifacts*).
+2. Télécharger ce `.ipa` sur son PC Windows.
+3. Installer [Sideloadly](https://sideloadly.io/) (gratuit) sur Windows, connecter l'iPhone en USB.
+4. Dans Sideloadly, glisser le `.ipa`, se connecter avec un **Apple ID gratuit** (pas besoin du programme payant) : Sideloadly le signe et l'installe directement sur l'iPhone.
+5. Limite d'Apple pour les Apple ID gratuits : l'app expire au bout de **7 jours**, il faut la réinstaller/re-signer (Sideloadly peut automatiser un rafraîchissement périodique en Wi-Fi tant que l'iPhone reste sur le même réseau que le PC).
+
+C'est la solution la plus rapide pour itérer depuis Windows sans compte Developer. TestFlight (ci-dessous) reste préférable pour une distribution plus stable ou à plusieurs testeurs.
+
 ## Publier sur TestFlight
 
 Ces étapes ne peuvent pas être automatisées depuis ce dépôt/CI : elles nécessitent un compte Apple Developer et une configuration locale dans Xcode.
