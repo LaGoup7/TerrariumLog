@@ -3,7 +3,7 @@ import SwiftData
 
 struct MeasurementsView: View {
     @Environment(\.modelContext) private var context
-    @Query(sort: [SortDescriptor(\.date, order: .reverse)]) private var measurements: [MeasurementEntry]
+    @Query(sort: [SortDescriptor<MeasurementEntry>(\.date, order: .reverse)]) private var measurements: [MeasurementEntry]
     @State private var showingSheet = false
 
     var body: some View {

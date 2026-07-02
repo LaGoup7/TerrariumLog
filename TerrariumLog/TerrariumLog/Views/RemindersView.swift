@@ -3,7 +3,7 @@ import SwiftData
 
 struct RemindersView: View {
     @Environment(\.modelContext) private var context
-    @Query(sort: [SortDescriptor(\.reminderDate)]) private var reminders: [Reminder]
+    @Query(sort: [SortDescriptor<Reminder>(\.reminderDate)]) private var reminders: [Reminder]
     @State private var showingSheet = false
 
     var body: some View {
@@ -51,7 +51,7 @@ struct RemindersView: View {
 struct AddReminderView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var context
-    @Query(sort: [SortDescriptor(\.name)]) private var animals: [Animal]
+    @Query(sort: [SortDescriptor<Animal>(\.name)]) private var animals: [Animal]
 
     @State private var selectedAnimal: Animal?
     @State private var title = ""

@@ -3,7 +3,7 @@ import SwiftData
 
 struct DashboardView: View {
     @Environment(\.modelContext) private var context
-    @Query(sort: [SortDescriptor(\.name)]) private var animals: [Animal]
+    @Query(sort: [SortDescriptor<Animal>(\.name)]) private var animals: [Animal]
 
     var body: some View {
         NavigationStack {

@@ -247,7 +247,7 @@ struct JournalEntryView: View {
 struct MeasurementEntryView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var context
-    @Query(sort: [SortDescriptor(\.name)]) private var animals: [Animal]
+    @Query(sort: [SortDescriptor<Animal>(\.name)]) private var animals: [Animal]
     let animal: Animal?
 
     @State private var selectedAnimal: Animal?

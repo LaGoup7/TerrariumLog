@@ -3,7 +3,7 @@ import SwiftData
 
 struct AnimalsListView: View {
     @Environment(\.modelContext) private var context
-    @Query(sort: [SortDescriptor(\.name)]) private var animals: [Animal]
+    @Query(sort: [SortDescriptor<Animal>(\.name)]) private var animals: [Animal]
     @State private var showingAddSheet = false
 
     var body: some View {
