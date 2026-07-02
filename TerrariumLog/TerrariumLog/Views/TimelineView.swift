@@ -80,6 +80,7 @@ struct TimelineView: View {
         case .webBuilding: return "circle.hexagongrid"
         case .laying, .eggs: return "circle.grid.2x2"
         case .larvae, .cocoons, .firstWorkers: return "ant"
+        case .photo: return "photo"
         default: return "note.text"
         }
     }

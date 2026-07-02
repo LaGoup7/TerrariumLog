@@ -159,6 +159,16 @@ struct AnimalDetailView: View {
     private func setPrimaryImage(_ image: UIImage) {
         if let path = try? PhotoStorage.shared.saveImage(image, for: animal.name) {
             animal.primaryPhotoPath = path
+            // Aussi enregistrée comme entrée de journal pour apparaître dans la Galerie et la Timeline,
+            // et pour ne pas perdre l'historique des anciennes photos de profil.
+            let entry = ObservationEntry(
+                date: .now,
+                eventType: ObservationEventType.photo.rawValue,
+                note: "Photo de profil mise à jour",
+                photoPaths: [path],
+                animal: animal
+            )
+            context.insert(entry)
             try? context.save()
             primaryImage = image
         }
@@ -292,7 +302,7 @@ struct AnimalDetailView: View {
             ForEach(animal.journalEntries.sorted { $0.date > $1.date }) { entry in
                 HStack(alignment: .top) {
                     VStack(alignment: .leading, spacing: 6) {
-                        Text(entry.eventType)
+                        Text(ObservationEventType(rawValue: entry.eventType)?.displayName ?? entry.eventType)
                             .font(.subheadline.bold())
                         Text(entry.note.isEmpty ? "Sans commentaire" : entry.note)
                             .font(.footnote)

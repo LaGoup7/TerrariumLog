@@ -114,6 +114,7 @@ enum ObservationEventType: String, CaseIterable, Codable, Sendable {
     case behavior
     case webBuilding
     case cleaning
+    case photo
     case other
 
     var displayName: String {
@@ -136,6 +137,7 @@ enum ObservationEventType: String, CaseIterable, Codable, Sendable {
         case .behavior: return "Comportement"
         case .webBuilding: return "Construction de toile"
         case .cleaning: return "Nettoyage"
+        case .photo: return "Photo"
         case .other: return "Autre"
         }
     }
@@ -143,9 +145,9 @@ enum ObservationEventType: String, CaseIterable, Codable, Sendable {
     func isAvailable(for animalType: AnimalType) -> Bool {
         switch animalType {
         case .antColony:
-            return [.capture, .laying, .eggs, .larvae, .cocoons, .firstWorkers, .feeding, .humidifying, .relocation, .hibernationStart, .hibernationEnd, .death, .other].contains(self)
+            return [.capture, .laying, .eggs, .larvae, .cocoons, .firstWorkers, .feeding, .humidifying, .relocation, .hibernationStart, .hibernationEnd, .death, .photo, .other].contains(self)
         case .jumpingSpider:
-            return [.arrival, .feeding, .foodRefusal, .molt, .behavior, .webBuilding, .humidifying, .cleaning, .death, .other].contains(self)
+            return [.arrival, .feeding, .foodRefusal, .molt, .behavior, .webBuilding, .humidifying, .cleaning, .death, .photo, .other].contains(self)
         }
     }
 }
