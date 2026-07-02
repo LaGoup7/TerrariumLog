@@ -26,6 +26,9 @@ targets:
     deploymentTarget: '17.0'
     sources:
       - TerrariumLog/TerrariumLogTests
+    settings:
+      GENERATE_INFOPLIST_FILE: YES
+      PRODUCT_BUNDLE_IDENTIFIER: com.example.terrariumlogtests
     dependencies:
       - target: TerrariumLog
 
