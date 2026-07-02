@@ -4,6 +4,7 @@ import PhotosUI
 
 struct AnimalDetailView: View {
     @Environment(\.modelContext) private var context
+    @Environment(\.dismiss) private var dismiss
     let animal: Animal
 
     @State private var selectedItems: [PhotosPickerItem] = []
@@ -14,6 +15,8 @@ struct AnimalDetailView: View {
 
     @State private var showingFeedingSheet = false
     @State private var showingMoltSheet = false
+    @State private var showingEditSheet = false
+    @State private var showingDeleteConfirmation = false
 
     var body: some View {
         ScrollView {
@@ -46,10 +49,26 @@ struct AnimalDetailView: View {
                     Button("Ajouter un repas") { showingFeedingSheet = true }
                     Button("Ajouter une mue") { showingMoltSheet = true }
                     Button("Ajouter une mesure") { showingMeasurementSheet = true }
+                    Divider()
+                    Button("Modifier") { showingEditSheet = true }
+                    Button("Supprimer", role: .destructive) { showingDeleteConfirmation = true }
                 } label: {
                     Image(systemName: "plus.circle")
                 }
             }
+        }
+        .confirmationDialog(
+            "Supprimer \(animal.name) ?",
+            isPresented: $showingDeleteConfirmation,
+            titleVisibility: .visible
+        ) {
+            Button("Supprimer", role: .destructive) {
+                context.delete(animal)
+                try? context.save()
+                dismiss()
+            }
+        } message: {
+            Text("Cette action supprime aussi tout son historique (journal, mesures, rappels).")
         }
         .sheet(isPresented: $showingJournalSheet) {
             JournalEntryView(animal: animal)
@@ -62,6 +81,9 @@ struct AnimalDetailView: View {
         }
         .sheet(isPresented: $showingMeasurementSheet) {
             MeasurementEntryView(animal: animal)
+        }
+        .sheet(isPresented: $showingEditSheet) {
+            AnimalFormView(animal: animal)
         }
     }
 
@@ -231,15 +253,25 @@ struct AnimalDetailView: View {
             Text("Journal")
                 .font(.headline)
             ForEach(animal.journalEntries.sorted { $0.date > $1.date }) { entry in
-                VStack(alignment: .leading, spacing: 6) {
-                    Text(entry.eventType)
-                        .font(.subheadline.bold())
-                    Text(entry.note.isEmpty ? "Sans commentaire" : entry.note)
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                    Text(entry.date.formatted(date: .abbreviated, time: .shortened))
-                        .font(.caption)
-                        .foregroundStyle(.tertiary)
+                HStack(alignment: .top) {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text(entry.eventType)
+                            .font(.subheadline.bold())
+                        Text(entry.note.isEmpty ? "Sans commentaire" : entry.note)
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                        Text(entry.date.formatted(date: .abbreviated, time: .shortened))
+                            .font(.caption)
+                            .foregroundStyle(.tertiary)
+                    }
+                    Spacer()
+                    Button {
+                        context.delete(entry)
+                        try? context.save()
+                    } label: {
+                        Image(systemName: "trash")
+                            .foregroundStyle(.red)
+                    }
                 }
                 .padding(.vertical, 4)
             }
@@ -288,6 +320,13 @@ struct AnimalDetailView: View {
                     Spacer()
                     Text("T: \(measurement.temperature.map { String($0) } ?? "—")")
                         .font(.caption)
+                    Button {
+                        context.delete(measurement)
+                        try? context.save()
+                    } label: {
+                        Image(systemName: "trash")
+                            .foregroundStyle(.red)
+                    }
                 }
             }
         }

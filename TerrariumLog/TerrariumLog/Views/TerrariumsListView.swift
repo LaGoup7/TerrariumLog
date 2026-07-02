@@ -8,19 +8,29 @@ struct TerrariumsListView: View {
 
     var body: some View {
         NavigationStack {
-            List(terrariums) { terrarium in
-                NavigationLink(destination: TerrariumDetailView(terrarium: terrarium)) {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(terrarium.name)
-                            .font(.headline)
-                        if !terrarium.dimensions.isEmpty {
-                            Text(terrarium.dimensions)
-                                .font(.subheadline)
-                                .foregroundStyle(.secondary)
+            List {
+                ForEach(terrariums) { terrarium in
+                    NavigationLink(destination: TerrariumDetailView(terrarium: terrarium)) {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(terrarium.name)
+                                .font(.headline)
+                            if !terrarium.dimensions.isEmpty {
+                                Text(terrarium.dimensions)
+                                    .font(.subheadline)
+                                    .foregroundStyle(.secondary)
+                            }
+                            Text("\(terrarium.animals.count) animal(aux) hébergé(s)")
+                                .font(.caption)
+                                .foregroundStyle(.teal)
                         }
-                        Text("\(terrarium.animals.count) animal(aux) hébergé(s)")
-                            .font(.caption)
-                            .foregroundStyle(.teal)
+                    }
+                    .swipeActions {
+                        Button(role: .destructive) {
+                            context.delete(terrarium)
+                            try? context.save()
+                        } label: {
+                            Label("Supprimer", systemImage: "trash")
+                        }
                     }
                 }
             }
@@ -33,22 +43,34 @@ struct TerrariumsListView: View {
                 }
             }
             .sheet(isPresented: $showingAddSheet) {
-                AddTerrariumView()
+                TerrariumFormView(terrarium: nil)
             }
         }
     }
 }
 
-struct AddTerrariumView: View {
+struct TerrariumFormView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var context
 
-    @State private var name = ""
-    @State private var type: TerrariumType = .terrarium
-    @State private var dimensions = ""
-    @State private var substrate = ""
-    @State private var decor = ""
-    @State private var notes = ""
+    let existingTerrarium: Terrarium?
+
+    @State private var name: String
+    @State private var type: TerrariumType
+    @State private var dimensions: String
+    @State private var substrate: String
+    @State private var decor: String
+    @State private var notes: String
+
+    init(terrarium: Terrarium?) {
+        self.existingTerrarium = terrarium
+        _name = State(initialValue: terrarium?.name ?? "")
+        _type = State(initialValue: terrarium?.type ?? .terrarium)
+        _dimensions = State(initialValue: terrarium?.dimensions ?? "")
+        _substrate = State(initialValue: terrarium?.substrate ?? "")
+        _decor = State(initialValue: terrarium?.decor ?? "")
+        _notes = State(initialValue: terrarium?.notes ?? "")
+    }
 
     var body: some View {
         NavigationStack {
@@ -69,22 +91,23 @@ struct AddTerrariumView: View {
                         .frame(minHeight: 100)
                 }
             }
-            .navigationTitle("Ajouter un terrarium")
+            .navigationTitle(existingTerrarium == nil ? "Ajouter un terrarium" : "Modifier le terrarium")
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     Button("Annuler") { dismiss() }
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("Enregistrer") {
-                        let terrarium = Terrarium(
-                            name: name,
-                            type: type,
-                            notes: notes,
-                            dimensions: dimensions,
-                            substrate: substrate,
-                            decor: decor
-                        )
-                        context.insert(terrarium)
+                        let terrarium = existingTerrarium ?? Terrarium(name: "", type: .terrarium)
+                        terrarium.name = name
+                        terrarium.type = type
+                        terrarium.dimensions = dimensions
+                        terrarium.substrate = substrate
+                        terrarium.decor = decor
+                        terrarium.notes = notes
+                        if existingTerrarium == nil {
+                            context.insert(terrarium)
+                        }
                         try? context.save()
                         dismiss()
                     }

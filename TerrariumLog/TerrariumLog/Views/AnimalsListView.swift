@@ -8,23 +8,33 @@ struct AnimalsListView: View {
 
     var body: some View {
         NavigationStack {
-            List(animals) { animal in
-                NavigationLink(destination: AnimalDetailView(animal: animal)) {
-                    HStack(spacing: 12) {
-                        Image(systemName: animal.type == .antColony ? "ant.fill" : "spider.fill")
-                            .font(.title2)
-                            .foregroundStyle(.teal)
-                        VStack(alignment: .leading) {
-                            Text(animal.name)
-                                .font(.headline)
-                            Text(animal.species)
-                                .font(.subheadline)
+            List {
+                ForEach(animals) { animal in
+                    NavigationLink(destination: AnimalDetailView(animal: animal)) {
+                        HStack(spacing: 12) {
+                            Image(systemName: animal.type == .antColony ? "ant.fill" : "spider.fill")
+                                .font(.title2)
+                                .foregroundStyle(.teal)
+                            VStack(alignment: .leading) {
+                                Text(animal.name)
+                                    .font(.headline)
+                                Text(animal.species)
+                                    .font(.subheadline)
+                                    .foregroundStyle(.secondary)
+                            }
+                            Spacer()
+                            Text(animal.status.displayName)
+                                .font(.caption)
                                 .foregroundStyle(.secondary)
                         }
-                        Spacer()
-                        Text(animal.status.displayName)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+                    }
+                    .swipeActions {
+                        Button(role: .destructive) {
+                            context.delete(animal)
+                            try? context.save()
+                        } label: {
+                            Label("Supprimer", systemImage: "trash")
+                        }
                     }
                 }
             }
@@ -37,34 +47,56 @@ struct AnimalsListView: View {
                 }
             }
             .sheet(isPresented: $showingAddSheet) {
-                AddAnimalView()
+                AnimalFormView(animal: nil)
             }
         }
     }
 }
 
-struct AddAnimalView: View {
+struct AnimalFormView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var context
     @Query(sort: [SortDescriptor<Terrarium>(\.name)]) private var terrariums: [Terrarium]
 
-    @State private var name = ""
-    @State private var species = ""
-    @State private var scientificName = ""
-    @State private var type: AnimalType = .antColony
-    @State private var sex: AnimalSex = .unknown
-    @State private var origin: AnimalOrigin = .captured
-    @State private var locality = ""
-    @State private var breeder = ""
-    @State private var purchasePrice = ""
-    @State private var status: AnimalStatus = .foundation
-    @State private var currentStage = ""
-    @State private var notes = ""
+    let existingAnimal: Animal?
+
+    @State private var name: String
+    @State private var species: String
+    @State private var scientificName: String
+    @State private var type: AnimalType
+    @State private var sex: AnimalSex
+    @State private var origin: AnimalOrigin
+    @State private var locality: String
+    @State private var breeder: String
+    @State private var purchasePrice: String
+    @State private var status: AnimalStatus
+    @State private var currentStage: String
+    @State private var notes: String
     @State private var selectedTerrarium: Terrarium?
 
-    @State private var estimatedWorkerCount = ""
-    @State private var queenCount = ""
-    @State private var broodPresent = false
+    @State private var estimatedWorkerCount: String
+    @State private var queenCount: String
+    @State private var broodPresent: Bool
+
+    init(animal: Animal?) {
+        self.existingAnimal = animal
+        _name = State(initialValue: animal?.name ?? "")
+        _species = State(initialValue: animal?.species ?? "")
+        _scientificName = State(initialValue: animal?.scientificName ?? "")
+        _type = State(initialValue: animal?.type ?? .antColony)
+        _sex = State(initialValue: animal?.sex ?? .unknown)
+        _origin = State(initialValue: animal?.origin ?? .captured)
+        _locality = State(initialValue: animal?.locality ?? "")
+        _breeder = State(initialValue: animal?.breeder ?? "")
+        _purchasePrice = State(initialValue: animal?.purchasePrice.map { String($0) } ?? "")
+        _status = State(initialValue: animal?.status ?? .foundation)
+        _currentStage = State(initialValue: animal?.currentStage ?? "")
+        _notes = State(initialValue: animal?.notes ?? "")
+        _selectedTerrarium = State(initialValue: animal?.terrarium)
+        _estimatedWorkerCount = State(initialValue: animal?.estimatedWorkerCount.map { String($0) } ?? "")
+        _queenCount = State(initialValue: animal?.queenCount.map { String($0) } ?? "")
+        _broodPresent = State(initialValue: animal?.broodPresent ?? false)
+    }
 
     var body: some View {
         NavigationStack {
@@ -121,39 +153,54 @@ struct AddAnimalView: View {
                         .frame(minHeight: 120)
                 }
             }
-            .navigationTitle("Ajouter un animal")
+            .navigationTitle(existingAnimal == nil ? "Ajouter un animal" : "Modifier l’animal")
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     Button("Annuler") { dismiss() }
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("Enregistrer") {
-                        let animal = Animal(
-                            name: name,
-                            species: species,
-                            scientificName: scientificName.isEmpty ? nil : scientificName,
-                            type: type,
-                            sex: sex,
-                            origin: origin,
-                            locality: locality.isEmpty ? nil : locality,
-                            breeder: breeder.isEmpty ? nil : breeder,
-                            purchasePrice: Double(purchasePrice),
-                            arrivalDate: Date(),
-                            currentStage: currentStage,
-                            status: status,
-                            notes: notes,
-                            estimatedWorkerCount: Int(estimatedWorkerCount),
-                            queenCount: Int(queenCount),
-                            broodPresent: broodPresent
-                        )
-                        animal.terrarium = selectedTerrarium
-                        context.insert(animal)
-                        try? context.save()
+                        save()
                         dismiss()
                     }
                     .disabled(name.isEmpty)
                 }
             }
         }
+    }
+
+    private func save() {
+        let animal = existingAnimal ?? Animal(
+            name: "",
+            species: "",
+            type: .antColony,
+            origin: .captured,
+            arrivalDate: Date(),
+            currentStage: "",
+            status: .foundation,
+            notes: ""
+        )
+
+        animal.name = name
+        animal.species = species
+        animal.scientificName = scientificName.isEmpty ? nil : scientificName
+        animal.type = type
+        animal.sex = sex
+        animal.origin = origin
+        animal.locality = locality.isEmpty ? nil : locality
+        animal.breeder = breeder.isEmpty ? nil : breeder
+        animal.purchasePrice = Double(purchasePrice)
+        animal.status = status
+        animal.currentStage = currentStage
+        animal.notes = notes
+        animal.terrarium = selectedTerrarium
+        animal.estimatedWorkerCount = Int(estimatedWorkerCount)
+        animal.queenCount = Int(queenCount)
+        animal.broodPresent = broodPresent
+
+        if existingAnimal == nil {
+            context.insert(animal)
+        }
+        try? context.save()
     }
 }

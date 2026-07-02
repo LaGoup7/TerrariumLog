@@ -7,29 +7,39 @@ struct RemindersView: View {
     @State private var showingSheet = false
 
     var body: some View {
-        List(reminders) { reminder in
-            VStack(alignment: .leading, spacing: 6) {
-                HStack {
-                    Text(reminder.title)
-                        .font(.headline)
-                    Spacer()
-                    if reminder.isCompleted {
-                        Image(systemName: "checkmark.circle.fill")
-                            .foregroundStyle(.green)
+        List {
+            ForEach(reminders) { reminder in
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack {
+                        Text(reminder.title)
+                            .font(.headline)
+                        Spacer()
+                        if reminder.isCompleted {
+                            Image(systemName: "checkmark.circle.fill")
+                                .foregroundStyle(.green)
+                        }
                     }
+                    Text(reminder.animal?.name ?? "Sans animal")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                    Text(reminder.reminderDate.formatted(date: .abbreviated, time: .shortened))
+                        .font(.caption)
+                    Text(reminder.recurrence.displayName)
+                        .font(.caption)
+                        .foregroundStyle(.teal)
                 }
-                Text(reminder.animal?.name ?? "Sans animal")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                Text(reminder.reminderDate.formatted(date: .abbreviated, time: .shortened))
-                    .font(.caption)
-                Text(reminder.recurrence.displayName)
-                    .font(.caption)
-                    .foregroundStyle(.teal)
-            }
-            .swipeActions {
-                Button("Terminé") {
-                    ReminderService.shared.complete(reminder, context: context)
+                .swipeActions {
+                    Button(role: .destructive) {
+                        NotificationService.shared.cancelReminder(reminder)
+                        context.delete(reminder)
+                        try? context.save()
+                    } label: {
+                        Label("Supprimer", systemImage: "trash")
+                    }
+                    Button("Terminé") {
+                        ReminderService.shared.complete(reminder, context: context)
+                    }
+                    .tint(.green)
                 }
             }
         }

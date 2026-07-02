@@ -3,10 +3,13 @@ import SwiftData
 
 struct TerrariumDetailView: View {
     @Environment(\.modelContext) private var context
+    @Environment(\.dismiss) private var dismiss
     let terrarium: Terrarium
 
     @State private var showingAddPlant = false
     @State private var showingAddPrintedPart = false
+    @State private var showingEditSheet = false
+    @State private var showingDeleteConfirmation = false
 
     var body: some View {
         ScrollView {
@@ -21,11 +24,37 @@ struct TerrariumDetailView: View {
         }
         .navigationTitle(terrarium.name)
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Menu {
+                    Button("Modifier") { showingEditSheet = true }
+                    Button("Supprimer", role: .destructive) { showingDeleteConfirmation = true }
+                } label: {
+                    Image(systemName: "ellipsis.circle")
+                }
+            }
+        }
+        .confirmationDialog(
+            "Supprimer \(terrarium.name) ?",
+            isPresented: $showingDeleteConfirmation,
+            titleVisibility: .visible
+        ) {
+            Button("Supprimer", role: .destructive) {
+                context.delete(terrarium)
+                try? context.save()
+                dismiss()
+            }
+        } message: {
+            Text("Les animaux hébergés ne seront pas supprimés, mais perdront leur terrarium associé.")
+        }
         .sheet(isPresented: $showingAddPlant) {
             AddPlantView(terrarium: terrarium)
         }
         .sheet(isPresented: $showingAddPrintedPart) {
             AddPrintedPartView(terrarium: terrarium)
+        }
+        .sheet(isPresented: $showingEditSheet) {
+            TerrariumFormView(terrarium: terrarium)
         }
     }
 
@@ -119,6 +148,13 @@ struct TerrariumDetailView: View {
                             .padding(.vertical, 4)
                             .background(plantStatusColor(plant.status).opacity(0.2))
                             .clipShape(Capsule())
+                        Button {
+                            context.delete(plant)
+                            try? context.save()
+                        } label: {
+                            Image(systemName: "trash")
+                                .foregroundStyle(.red)
+                        }
                     }
                 }
             }
@@ -144,12 +180,22 @@ struct TerrariumDetailView: View {
                     .foregroundStyle(.secondary)
             } else {
                 ForEach(terrarium.printedParts) { part in
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(part.name)
-                            .font(.subheadline)
-                        Text("\(part.material.displayName) · \(part.technology.displayName)")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+                    HStack {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(part.name)
+                                .font(.subheadline)
+                            Text("\(part.material.displayName) · \(part.technology.displayName)")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        Spacer()
+                        Button {
+                            context.delete(part)
+                            try? context.save()
+                        } label: {
+                            Image(systemName: "trash")
+                                .foregroundStyle(.red)
+                        }
                     }
                     .padding(.vertical, 2)
                 }

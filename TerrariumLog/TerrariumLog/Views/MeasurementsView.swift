@@ -7,24 +7,34 @@ struct MeasurementsView: View {
     @State private var showingSheet = false
 
     var body: some View {
-        List(measurements) { measurement in
-            VStack(alignment: .leading, spacing: 6) {
-                Text(measurement.animal?.name ?? "Sans animal")
-                    .font(.headline)
-                Text(measurement.date.formatted(date: .abbreviated, time: .shortened))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                if let temperature = measurement.temperature {
-                    Text("Température : \(temperature, specifier: "%.1f")°C")
+        List {
+            ForEach(measurements) { measurement in
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(measurement.animal?.name ?? "Sans animal")
+                        .font(.headline)
+                    Text(measurement.date.formatted(date: .abbreviated, time: .shortened))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    if let temperature = measurement.temperature {
+                        Text("Température : \(temperature, specifier: "%.1f")°C")
+                    }
+                    if let humidity = measurement.humidity {
+                        Text("Humidité : \(humidity, specifier: "%.1f")%")
+                    }
+                    if let luminosity = measurement.luminosity {
+                        Text("Luminosité : \(luminosity, specifier: "%.0f")")
+                    }
+                    if let waterLevel = measurement.waterLevel {
+                        Text("Niveau d’eau : \(waterLevel, specifier: "%.0f")")
+                    }
                 }
-                if let humidity = measurement.humidity {
-                    Text("Humidité : \(humidity, specifier: "%.1f")%")
-                }
-                if let luminosity = measurement.luminosity {
-                    Text("Luminosité : \(luminosity, specifier: "%.0f")")
-                }
-                if let waterLevel = measurement.waterLevel {
-                    Text("Niveau d’eau : \(waterLevel, specifier: "%.0f")")
+                .swipeActions {
+                    Button(role: .destructive) {
+                        context.delete(measurement)
+                        try? context.save()
+                    } label: {
+                        Label("Supprimer", systemImage: "trash")
+                    }
                 }
             }
         }
