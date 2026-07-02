@@ -20,6 +20,7 @@ struct AnimalDetailView: View {
     @State private var showingEditSheet = false
     @State private var showingDeleteConfirmation = false
     @State private var showingCamera = false
+    @State private var selectedGalleryIndex: Int?
 
     private var isCameraAvailable: Bool {
         UIImagePickerController.isSourceTypeAvailable(.camera)
@@ -328,19 +329,37 @@ struct AnimalDetailView: View {
         .clipShape(RoundedRectangle(cornerRadius: 20))
     }
 
+    private var galleryPhotos: [GalleryPhoto] {
+        animal.journalEntries
+            .sorted { $0.date < $1.date }
+            .flatMap { entry in
+                entry.photoPaths.map { GalleryPhoto(path: $0, date: entry.date, eventType: entry.eventType) }
+            }
+    }
+
     private var gallerySection: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        let photos = galleryPhotos
+        return VStack(alignment: .leading, spacing: 10) {
             Text("Galerie")
                 .font(.headline)
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 10) {
-                    ForEach(animal.journalEntries.flatMap(\.photoPaths), id: \.self) { path in
-                        if let image = PhotoStorage.shared.loadImage(from: path) {
-                            Image(uiImage: image)
-                                .resizable()
-                                .scaledToFill()
-                                .frame(width: 110, height: 110)
-                                .clipShape(RoundedRectangle(cornerRadius: 16))
+            if photos.isEmpty {
+                Text("Aucune photo")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            } else {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 10) {
+                        ForEach(Array(photos.enumerated()), id: \.element.id) { index, photo in
+                            if let image = PhotoStorage.shared.loadImage(from: photo.path) {
+                                Image(uiImage: image)
+                                    .resizable()
+                                    .scaledToFill()
+                                    .frame(width: 110, height: 110)
+                                    .clipShape(RoundedRectangle(cornerRadius: 16))
+                                    .onTapGesture {
+                                        selectedGalleryIndex = index
+                                    }
+                            }
                         }
                     }
                 }
@@ -349,6 +368,12 @@ struct AnimalDetailView: View {
         .padding()
         .background(.ultraThinMaterial)
         .clipShape(RoundedRectangle(cornerRadius: 20))
+        .fullScreenCover(isPresented: Binding(
+            get: { selectedGalleryIndex != nil },
+            set: { if !$0 { selectedGalleryIndex = nil } }
+        )) {
+            PhotoGalleryViewer(photos: photos, selectedIndex: selectedGalleryIndex ?? 0)
+        }
     }
 
     private var measurementsSection: some View {
