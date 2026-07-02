@@ -129,6 +129,11 @@ struct AnimalCardView: View {
                         Label(animal.type.displayName, systemImage: animal.type.symbolName)
                             .font(.footnote)
                             .foregroundStyle(.teal)
+                        if let colonySummary = animal.colonySummary {
+                            Text(colonySummary)
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                        }
                     }
                 }
 
@@ -151,7 +156,7 @@ struct AnimalCardView: View {
                     Text("Dernier événement")
                         .font(.caption)
                         .foregroundStyle(.secondary)
-                    Text(animal.journalEntries.sorted { $0.date > $1.date }.first?.eventType ?? "Aucun")
+                    Text(animal.journalEntries.sorted { $0.date > $1.date }.first.map { ObservationEventType(rawValue: $0.eventType)?.displayName ?? $0.eventType } ?? "Aucun")
                         .font(.subheadline)
                 }
 
@@ -195,7 +200,7 @@ struct AnimalCardView: View {
                     .frame(width: 70, height: 70)
                     .clipShape(RoundedRectangle(cornerRadius: 16))
             } else {
-                Image(systemName: animal.type == .antColony ? "ant.fill" : "spider.fill")
+                Image(systemName: animal.type.symbolName)
                     .resizable()
                     .scaledToFit()
                     .frame(width: 70, height: 70)

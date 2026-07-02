@@ -105,7 +105,7 @@ struct AnimalDetailView: View {
                         .frame(width: 100, height: 100)
                         .clipShape(RoundedRectangle(cornerRadius: 20))
                 } else {
-                    Image(systemName: animal.type == .antColony ? "ant.fill" : "spider.fill")
+                    Image(systemName: animal.type.symbolName)
                         .resizable()
                         .scaledToFit()
                         .frame(width: 100, height: 100)

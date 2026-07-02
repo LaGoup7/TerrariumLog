@@ -21,7 +21,7 @@ struct AnimalsListView: View {
                 ForEach(filteredAnimals) { animal in
                     NavigationLink(destination: AnimalDetailView(animal: animal)) {
                         HStack(spacing: 12) {
-                            Image(systemName: animal.type == .antColony ? "ant.fill" : "spider.fill")
+                            Image(systemName: animal.type.symbolName)
                                 .font(.title2)
                                 .foregroundStyle(.teal)
                             VStack(alignment: .leading) {
@@ -30,6 +30,11 @@ struct AnimalsListView: View {
                                 Text(animal.species)
                                     .font(.subheadline)
                                     .foregroundStyle(.secondary)
+                                if let colonySummary = animal.colonySummary {
+                                    Text(colonySummary)
+                                        .font(.caption2)
+                                        .foregroundStyle(.teal)
+                                }
                             }
                             Spacer()
                             Text(animal.status.displayName)

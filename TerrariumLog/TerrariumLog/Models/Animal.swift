@@ -74,6 +74,19 @@ final class Animal {
         self.broodPresent = broodPresent
         self.swarmingDateEstimate = swarmingDateEstimate
     }
+
+    /// Résumé court des effectifs de colonie (ex: "12 ouvrières · 1 reine"), nil hors colonies de fourmis.
+    var colonySummary: String? {
+        guard type == .antColony else { return nil }
+        var parts: [String] = []
+        if let workers = estimatedWorkerCount {
+            parts.append("\(workers) ouvrière\(workers > 1 ? "s" : "")")
+        }
+        if let queens = queenCount {
+            parts.append("\(queens) reine\(queens > 1 ? "s" : "")")
+        }
+        return parts.isEmpty ? nil : parts.joined(separator: " · ")
+    }
 }
 
 enum AnimalSex: String, Codable, CaseIterable, Sendable {
@@ -93,6 +106,10 @@ enum AnimalSex: String, Codable, CaseIterable, Sendable {
 enum AnimalType: String, Codable, CaseIterable, Sendable {
     case antColony = "ant_colony"
     case jumpingSpider = "jumping_spider"
+    case gecko
+    case dendrobate
+    case insect
+    case other
 
     var displayName: String {
         switch self {
@@ -100,6 +117,14 @@ enum AnimalType: String, Codable, CaseIterable, Sendable {
             return "Colonie de fourmis"
         case .jumpingSpider:
             return "Araignée sauteuse"
+        case .gecko:
+            return "Gecko"
+        case .dendrobate:
+            return "Dendrobate"
+        case .insect:
+            return "Insecte"
+        case .other:
+            return "Autre"
         }
     }
 
@@ -109,6 +134,14 @@ enum AnimalType: String, Codable, CaseIterable, Sendable {
             return "ant.fill"
         case .jumpingSpider:
             return "spider.fill"
+        case .gecko:
+            return "lizard.fill"
+        case .dendrobate:
+            return "leaf.fill"
+        case .insect:
+            return "ladybug.fill"
+        case .other:
+            return "pawprint.fill"
         }
     }
 }

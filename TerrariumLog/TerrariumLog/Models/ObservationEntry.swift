@@ -148,6 +148,12 @@ enum ObservationEventType: String, CaseIterable, Codable, Sendable {
             return [.capture, .laying, .eggs, .larvae, .cocoons, .firstWorkers, .feeding, .humidifying, .relocation, .hibernationStart, .hibernationEnd, .death, .photo, .other].contains(self)
         case .jumpingSpider:
             return [.arrival, .feeding, .foodRefusal, .molt, .behavior, .webBuilding, .humidifying, .cleaning, .death, .photo, .other].contains(self)
+        case .gecko:
+            return [.arrival, .feeding, .foodRefusal, .molt, .behavior, .humidifying, .cleaning, .death, .photo, .other].contains(self)
+        case .dendrobate:
+            return [.arrival, .feeding, .foodRefusal, .laying, .eggs, .behavior, .humidifying, .cleaning, .death, .photo, .other].contains(self)
+        case .insect, .other:
+            return [.arrival, .capture, .feeding, .foodRefusal, .molt, .laying, .eggs, .behavior, .humidifying, .cleaning, .death, .photo, .other].contains(self)
         }
     }
 }
