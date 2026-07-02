@@ -11,6 +11,7 @@ final class Terrarium {
     var decor: String
     var createdAt: Date
     var mainPhotoPath: String?
+    var wizLightIP: String?
     var targetTemperatureMin: Double?
     var targetTemperatureMax: Double?
     var targetHumidityMin: Double?
@@ -34,6 +35,7 @@ final class Terrarium {
         decor: String = "",
         createdAt: Date = .now,
         mainPhotoPath: String? = nil,
+        wizLightIP: String? = nil,
         targetTemperatureMin: Double? = nil,
         targetTemperatureMax: Double? = nil,
         targetHumidityMin: Double? = nil,
@@ -47,6 +49,7 @@ final class Terrarium {
         self.decor = decor
         self.createdAt = createdAt
         self.mainPhotoPath = mainPhotoPath
+        self.wizLightIP = wizLightIP
         self.targetTemperatureMin = targetTemperatureMin
         self.targetTemperatureMax = targetTemperatureMax
         self.targetHumidityMin = targetHumidityMin

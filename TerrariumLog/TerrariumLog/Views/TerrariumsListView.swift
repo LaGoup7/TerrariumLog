@@ -61,6 +61,7 @@ struct TerrariumFormView: View {
     @State private var substrate: String
     @State private var decor: String
     @State private var notes: String
+    @State private var wizLightIP: String
 
     init(terrarium: Terrarium?) {
         self.existingTerrarium = terrarium
@@ -70,6 +71,7 @@ struct TerrariumFormView: View {
         _substrate = State(initialValue: terrarium?.substrate ?? "")
         _decor = State(initialValue: terrarium?.decor ?? "")
         _notes = State(initialValue: terrarium?.notes ?? "")
+        _wizLightIP = State(initialValue: terrarium?.wizLightIP ?? "")
     }
 
     var body: some View {
@@ -85,6 +87,12 @@ struct TerrariumFormView: View {
                     TextField("Dimensions (ex: 20 x 20 x 35 cm)", text: $dimensions)
                     TextField("Substrat", text: $substrate)
                     TextField("Décor", text: $decor)
+                }
+                Section("Éclairage") {
+                    TextField("Adresse IP lampe WiZ (ex: 192.168.1.42)", text: $wizLightIP)
+                        .keyboardType(.numbersAndPunctuation)
+                        .autocorrectionDisabled()
+                        .textInputAutocapitalization(.never)
                 }
                 Section("Notes") {
                     TextEditor(text: $notes)
@@ -105,6 +113,7 @@ struct TerrariumFormView: View {
                         terrarium.substrate = substrate
                         terrarium.decor = decor
                         terrarium.notes = notes
+                        terrarium.wizLightIP = wizLightIP.isEmpty ? nil : wizLightIP
                         if existingTerrarium == nil {
                             context.insert(terrarium)
                         }

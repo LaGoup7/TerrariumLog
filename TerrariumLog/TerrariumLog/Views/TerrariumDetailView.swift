@@ -11,10 +11,16 @@ struct TerrariumDetailView: View {
     @State private var showingEditSheet = false
     @State private var showingDeleteConfirmation = false
 
+    @State private var lightIsOn = false
+    @State private var lightBrightness: Double = 100
+    @State private var lightError: String?
+    @State private var isSendingLightCommand = false
+
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
                 infoSection
+                lightSection
                 animalsSection
                 plantsSection
                 printedPartsSection
@@ -86,6 +92,63 @@ struct TerrariumDetailView: View {
         .padding()
         .background(.ultraThinMaterial)
         .clipShape(RoundedRectangle(cornerRadius: 20))
+    }
+
+    private var lightSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Lumière")
+                .font(.headline)
+            if let ip = terrarium.wizLightIP, !ip.isEmpty {
+                Toggle("Allumée", isOn: $lightIsOn)
+                    .disabled(isSendingLightCommand)
+                    .onChange(of: lightIsOn) { _, newValue in
+                        sendLightCommand(WizCommandBuilder.power(newValue), ip: ip)
+                    }
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Intensité : \(Int(lightBrightness))%")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Slider(value: $lightBrightness, in: 10...100, step: 5) { editing in
+                        if !editing {
+                            sendLightCommand(WizCommandBuilder.brightness(Int(lightBrightness)), ip: ip)
+                        }
+                    }
+                    .disabled(isSendingLightCommand)
+                }
+                HStack {
+                    Button("Chaud") { sendLightCommand(WizCommandBuilder.colorTemperature(2700), ip: ip) }
+                    Button("Neutre") { sendLightCommand(WizCommandBuilder.colorTemperature(4000), ip: ip) }
+                    Button("Froid") { sendLightCommand(WizCommandBuilder.colorTemperature(6500), ip: ip) }
+                }
+                .buttonStyle(.bordered)
+                .disabled(isSendingLightCommand)
+                if let lightError {
+                    Text(lightError)
+                        .font(.caption)
+                        .foregroundStyle(.red)
+                }
+            } else {
+                Text("Aucune lampe WiZ configurée. Ajoute son adresse IP locale dans « Modifier ».")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .padding()
+        .background(.ultraThinMaterial)
+        .clipShape(RoundedRectangle(cornerRadius: 20))
+    }
+
+    private func sendLightCommand(_ command: WizCommand, ip: String) {
+        isSendingLightCommand = true
+        Task {
+            do {
+                try await WizLightService.shared.send(command, to: ip)
+                lightError = nil
+            } catch {
+                lightError = "Lampe injoignable à \(ip). Vérifie qu'elle est sur le même Wi-Fi."
+            }
+            isSendingLightCommand = false
+        }
     }
 
     private var animalsSection: some View {
