@@ -16,10 +16,36 @@ targets:
     deploymentTarget: '17.0'
     sources:
       - TerrariumLog/TerrariumLog
+      - TerrariumLog/Shared
     settings:
       INFO_PLIST_FILE: TerrariumLog/TerrariumLog/Info.plist
       PRODUCT_BUNDLE_IDENTIFIER: com.example.terrariumlog
       ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+    entitlements:
+      path: TerrariumLog/TerrariumLog/TerrariumLog.entitlements
+      properties:
+        com.apple.security.application-groups:
+          - group.com.example.terrariumlog
+    dependencies:
+      - target: TerrariumLogWidgetExtension
+        embed: true
+
+  TerrariumLogWidgetExtension:
+    type: app-extension
+    platform: iOS
+    deploymentTarget: '17.0'
+    sources:
+      - TerrariumLog/TerrariumLogWidget
+      - TerrariumLog/Shared
+    settings:
+      INFO_PLIST_FILE: TerrariumLog/TerrariumLogWidget/Info.plist
+      PRODUCT_BUNDLE_IDENTIFIER: com.example.terrariumlog.widget
+      PRODUCT_NAME: TerrariumLogWidget
+    entitlements:
+      path: TerrariumLog/TerrariumLogWidget/TerrariumLogWidget.entitlements
+      properties:
+        com.apple.security.application-groups:
+          - group.com.example.terrariumlog
 
   TerrariumLogTests:
     type: bundle.unit-test
@@ -38,6 +64,7 @@ schemes:
     build:
       targets:
         TerrariumLog: all
+        TerrariumLogWidgetExtension: all
         TerrariumLogTests: [test]
     test:
       targets:

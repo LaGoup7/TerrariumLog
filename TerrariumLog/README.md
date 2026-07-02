@@ -8,17 +8,17 @@ Application SwiftUI iOS pour suivre l'évolution d'animaux en terrarium/vivarium
 - **Modèles** (`Models/`) : `Animal`, `Terrarium`, `ObservationEntry` (timeline unifiée : observations, repas et mues sont un seul type d'événement avec des champs optionnels typés selon le cas), `Reminder`, `MeasurementEntry`, `Plant`.
 - **Services** (`Services/`) : `PhotoStorage` (stockage fichier local des photos), `NotificationService` (rappels locaux `UserNotifications`), `ReminderService` (complétion + récurrence des rappels), `FeedingStats`/`MoltStats` (calculs purs sur la timeline), `WizCommand`/`WizLightService` (contrôle local en UDP d'une ampoule WiZ par terrarium), `SensorDataProvider` (mock, point d'extension futur pour capteurs réels).
 - **Vues** (`Views/`) : tab bar à 5 onglets — Dashboard, Animaux, Terrariums, Timeline, Réglages. Rappels et Mesures restent des écrans à part entière, accessibles par navigation depuis le Dashboard et la fiche Terrarium plutôt que via des onglets dédiés.
+- **Widget** (`TerrariumLogWidget/`) : extension WidgetKit affichant les prochains rappels sur l'écran d'accueil. Ne lit **jamais** le store SwiftData principal directement — elle lit un petit instantané JSON (`Shared/WidgetSnapshot.swift`) écrit par l'app via un App Group (`group.com.example.terrariumlog`) à chaque création/suppression/complétion de rappel. Ce choix est délibéré : si l'App Group n'est pas disponible avec la signature utilisée (voir plus bas), la sauvegarde/lecture du snapshot échoue silencieusement sans jamais toucher aux vraies données de l'utilisateur — seul le widget reste vide.
 
 ## Portée V1 (MVP)
 
-Fait : CRUD (créer/modifier/supprimer) animaux/terrariums, association animal ↔ terrarium, photos, notes, repas, mues, timeline automatique par animal et globale, rappels locaux avec récurrence, dashboard avec indicateur d'état coloré, plantes rattachées au terrarium, contrôle local d'une ampoule WiZ (allumer/éteindre, intensité, teinte).
+Fait : CRUD (créer/modifier/supprimer) animaux/terrariums, association animal ↔ terrarium, photos (animaux et terrariums), notes, repas, mues/diapause selon l'espèce, timeline automatique par animal et globale, rappels locaux avec récurrence et complétion directe depuis la notification, calendrier des rappels, dashboard avec indicateur d'état coloré, plantes et caméras rattachées au terrarium, contrôle local d'une ampoule WiZ (allumer/éteindre, intensité, teinte), export/import JSON des données (avec photos), widget d'écran d'accueil pour les prochains rappels.
 
 Volontairement **non implémenté** en V1 (voir cahier des charges complet pour le contexte) :
 
 - **Capteurs ESP32 / automatisation** (`Device`, `Sensor`, `Actuator`) : `SensorDataProvider` est un point d'extension déjà en place (protocole + implémentation mock). Les vrais modèles de données ne seront créés qu'une fois le firmware ESP32 et le format des payloads connus, pour éviter une migration de schéma prématurée.
 - **Analyse IA par photo** (`AIAnalysis`) : aucun placeholder de modèle n'a été créé volontairement — à concevoir quand un vrai jeu de données de photos annotées existe.
 - **Synchronisation iCloud/CloudKit** : le schéma SwiftData est déjà conçu pour être compatible (relations optionnelles, valeurs par défaut sur toutes les propriétés stockées, aucune contrainte `@Attribute(.unique)`), mais la synchronisation n'est pas activée.
-- **Export/import JSON** : non implémenté.
 
 ## Lancer sur le simulateur
 
@@ -43,6 +43,10 @@ Pas besoin de Mac ni de compte payant pour installer l'app sur son propre iPhone
 5. Limite d'Apple pour les Apple ID gratuits : l'app expire au bout de **7 jours**, il faut la réinstaller/re-signer (Sideloadly peut automatiser un rafraîchissement périodique en Wi-Fi tant que l'iPhone reste sur le même réseau que le PC).
 
 C'est la solution la plus rapide pour itérer depuis Windows sans compte Developer. TestFlight (ci-dessous) reste préférable pour une distribution plus stable ou à plusieurs testeurs.
+
+### Statut connu : widget + App Group sur signature gratuite
+
+Les App Groups (nécessaires pour que le widget lise les données de l'app) sont une capacité qui doit normalement être activée sur un App ID via le portail développeur Apple. Sans compte payant, il n'est pas certain que ça fonctionne avec un Apple ID gratuit signé via Sideloadly — ni ce dépôt/CI (build non signé, simulateur uniquement) ni l'auteur de ce code n'ont pu le vérifier sur un vrai appareil. Si le widget reste vide une fois installé (aucun crash attendu, voir plus haut), c'est probablement cette limitation ; le reste de l'app continue de fonctionner normalement dans ce cas.
 
 ## Publier sur TestFlight
 

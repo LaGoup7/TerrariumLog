@@ -207,6 +207,7 @@ struct BackupService {
         }
 
         try context.save()
+        ReminderService.shared.refreshWidgetSnapshot(context: context)
     }
 
     private func insert(_ dto: TerrariumDTO, into context: ModelContext) {

@@ -33,6 +33,7 @@ struct RemindersView: View {
                         NotificationService.shared.cancelReminder(reminder)
                         context.delete(reminder)
                         try? context.save()
+                        ReminderService.shared.refreshWidgetSnapshot(context: context)
                     } label: {
                         Label("Supprimer", systemImage: "trash")
                     }
@@ -106,6 +107,7 @@ struct AddReminderView: View {
                         context.insert(reminder)
                         NotificationService.shared.scheduleReminder(reminder)
                         try? context.save()
+                        ReminderService.shared.refreshWidgetSnapshot(context: context)
                         dismiss()
                     }
                 }

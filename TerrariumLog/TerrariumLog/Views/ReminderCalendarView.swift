@@ -137,6 +137,7 @@ struct ReminderCalendarView: View {
                             NotificationService.shared.cancelReminder(reminder)
                             context.delete(reminder)
                             try? context.save()
+                            ReminderService.shared.refreshWidgetSnapshot(context: context)
                         } label: {
                             Image(systemName: "trash")
                                 .foregroundStyle(.red)

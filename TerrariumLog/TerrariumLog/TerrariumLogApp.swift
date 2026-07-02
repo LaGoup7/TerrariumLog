@@ -14,6 +14,7 @@ struct TerrariumLogApp: App {
 
         UNUserNotificationCenter.current().delegate = NotificationDelegate.shared
         NotificationService.shared.registerNotificationCategories()
+        ReminderService.shared.refreshWidgetSnapshot(context: context)
     }
 
     var body: some Scene {
