@@ -55,6 +55,14 @@ jobs:
             -configuration Debug \
             -derivedDataPath build build
 
+      - name: Run unit tests
+        run: |
+          cd "$GITHUB_WORKSPACE"
+          xcodebuild -project TerrariumLog.xcodeproj \
+            -scheme TerrariumLog \
+            -destination "platform=iOS Simulator,name=$SIMULATOR_NAME" \
+            -derivedDataPath build test
+
       - name: Boot simulator and install app
         run: |
           set -e

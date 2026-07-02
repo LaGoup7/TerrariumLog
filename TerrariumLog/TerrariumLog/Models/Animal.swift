@@ -168,7 +168,7 @@ enum AnimalStatus: String, Codable, CaseIterable, Sendable {
     }
 }
 
-enum AnimalAlertLevel {
+enum AnimalAlertLevel: Equatable {
     case ok
     case warning
     case critical

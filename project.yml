@@ -19,3 +19,24 @@ targets:
     settings:
       INFO_PLIST_FILE: TerrariumLog/TerrariumLog/Info.plist
       PRODUCT_BUNDLE_IDENTIFIER: com.example.terrariumlog
+
+  TerrariumLogTests:
+    type: bundle.unit-test
+    platform: iOS
+    deploymentTarget: '17.0'
+    sources:
+      - TerrariumLog/TerrariumLogTests
+    dependencies:
+      - target: TerrariumLog
+
+schemes:
+  TerrariumLog:
+    build:
+      targets:
+        TerrariumLog: all
+        TerrariumLogTests: [test]
+    test:
+      targets:
+        - TerrariumLogTests
+    run:
+      config: Debug

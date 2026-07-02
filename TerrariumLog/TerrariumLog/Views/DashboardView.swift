@@ -4,12 +4,21 @@ import SwiftData
 struct DashboardView: View {
     @Environment(\.modelContext) private var context
     @Query(sort: [SortDescriptor<Animal>(\.name)]) private var animals: [Animal]
+    @Query(sort: [SortDescriptor<Reminder>(\.reminderDate)]) private var reminders: [Reminder]
+
+    private var upcomingReminders: [Reminder] {
+        Array(reminders.filter { !$0.isCompleted }.prefix(3))
+    }
 
     var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 16) {
                     headerSection
+
+                    if !upcomingReminders.isEmpty {
+                        remindersSection
+                    }
 
                     ForEach(animals) { animal in
                         AnimalCardView(animal: animal)
@@ -31,6 +40,40 @@ struct DashboardView: View {
                 .font(.title2.bold())
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var remindersSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                Text("Prochains rappels")
+                    .font(.headline)
+                Spacer()
+                NavigationLink("Voir tout") {
+                    RemindersView()
+                }
+                .font(.caption)
+            }
+            ForEach(upcomingReminders) { reminder in
+                HStack {
+                    Image(systemName: "bell.fill")
+                        .foregroundStyle(.orange)
+                    VStack(alignment: .leading) {
+                        Text(reminder.title)
+                            .font(.subheadline)
+                        Text(reminder.animal?.name ?? "Général")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                    Text(reminder.reminderDate.formatted(date: .abbreviated, time: .omitted))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+        }
+        .padding()
+        .background(.ultraThinMaterial)
+        .clipShape(RoundedRectangle(cornerRadius: 20))
     }
 }
 
@@ -56,6 +99,9 @@ struct AnimalCardView: View {
                 }
 
                 HStack {
+                    Circle()
+                        .fill(alertColor)
+                        .frame(width: 10, height: 10)
                     Label(animal.currentStage, systemImage: "leaf")
                         .font(.footnote)
                     Spacer()
@@ -89,6 +135,20 @@ struct AnimalCardView: View {
             if let path = animal.primaryPhotoPath {
                 image = PhotoStorage.shared.loadImage(from: path)
             }
+        }
+    }
+
+    private var alertColor: Color {
+        switch animal.status.alertLevel {
+        case .critical:
+            return .red
+        case .warning:
+            return .orange
+        case .ok:
+            let reminderSoon = animal.reminders.contains { reminder in
+                !reminder.isCompleted && reminder.reminderDate.timeIntervalSinceNow < 48 * 3600
+            }
+            return reminderSoon ? .orange : .green
         }
     }
 

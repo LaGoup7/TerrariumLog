@@ -21,15 +21,15 @@ struct ContentView: View {
                 }
                 .tag(1)
 
-            RemindersView()
+            TerrariumsListView()
                 .tabItem {
-                    Label("Rappels", systemImage: "bell")
+                    Label("Terrariums", systemImage: "leaf")
                 }
                 .tag(2)
 
-            MeasurementsView()
+            TimelineView()
                 .tabItem {
-                    Label("Mesures", systemImage: "gauge")
+                    Label("Timeline", systemImage: "clock.arrow.circlepath")
                 }
                 .tag(3)
 

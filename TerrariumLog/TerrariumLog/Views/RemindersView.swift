@@ -7,43 +7,40 @@ struct RemindersView: View {
     @State private var showingSheet = false
 
     var body: some View {
-        NavigationStack {
-            List(reminders) { reminder in
-                VStack(alignment: .leading, spacing: 6) {
-                    HStack {
-                        Text(reminder.title)
-                            .font(.headline)
-                        Spacer()
-                        if reminder.isCompleted {
-                            Image(systemName: "checkmark.circle.fill")
-                                .foregroundStyle(.green)
-                        }
-                    }
-                    Text(reminder.animal?.name ?? "Sans animal")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                    Text(reminder.reminderDate.formatted(date: .abbreviated, time: .shortened))
-                        .font(.caption)
-                    Text(reminder.recurrence.displayName)
-                        .font(.caption)
-                        .foregroundStyle(.teal)
-                }
-                .swipeActions {
-                    Button("Terminé") {
-                        reminder.isCompleted = true
-                        try? context.save()
+        List(reminders) { reminder in
+            VStack(alignment: .leading, spacing: 6) {
+                HStack {
+                    Text(reminder.title)
+                        .font(.headline)
+                    Spacer()
+                    if reminder.isCompleted {
+                        Image(systemName: "checkmark.circle.fill")
+                            .foregroundStyle(.green)
                     }
                 }
+                Text(reminder.animal?.name ?? "Sans animal")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                Text(reminder.reminderDate.formatted(date: .abbreviated, time: .shortened))
+                    .font(.caption)
+                Text(reminder.recurrence.displayName)
+                    .font(.caption)
+                    .foregroundStyle(.teal)
             }
-            .navigationTitle("Rappels")
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button { showingSheet = true } label: { Image(systemName: "plus") }
+            .swipeActions {
+                Button("Terminé") {
+                    ReminderService.shared.complete(reminder, context: context)
                 }
             }
-            .sheet(isPresented: $showingSheet) {
-                AddReminderView()
+        }
+        .navigationTitle("Rappels")
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button { showingSheet = true } label: { Image(systemName: "plus") }
             }
+        }
+        .sheet(isPresented: $showingSheet) {
+            AddReminderView()
         }
     }
 }

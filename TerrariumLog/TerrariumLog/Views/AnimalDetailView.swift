@@ -12,11 +12,19 @@ struct AnimalDetailView: View {
     @State private var notes = ""
     @State private var primaryImage: UIImage?
 
+    @State private var showingFeedingSheet = false
+    @State private var showingMoltSheet = false
+
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
                 headerSection
                 infoSection
+                if animal.type == .antColony {
+                    colonySection
+                }
+                feedingSection
+                moltSection
                 journalSection
                 gallerySection
                 measurementsSection
@@ -35,6 +43,8 @@ struct AnimalDetailView: View {
             ToolbarItem(placement: .topBarTrailing) {
                 Menu {
                     Button("Ajouter une observation") { showingJournalSheet = true }
+                    Button("Ajouter un repas") { showingFeedingSheet = true }
+                    Button("Ajouter une mue") { showingMoltSheet = true }
                     Button("Ajouter une mesure") { showingMeasurementSheet = true }
                 } label: {
                     Image(systemName: "plus.circle")
@@ -43,6 +53,12 @@ struct AnimalDetailView: View {
         }
         .sheet(isPresented: $showingJournalSheet) {
             JournalEntryView(animal: animal)
+        }
+        .sheet(isPresented: $showingFeedingSheet) {
+            JournalEntryView(animal: animal, initialEventType: .feeding)
+        }
+        .sheet(isPresented: $showingMoltSheet) {
+            JournalEntryView(animal: animal, initialEventType: .molt)
         }
         .sheet(isPresented: $showingMeasurementSheet) {
             MeasurementEntryView(animal: animal)
@@ -104,16 +120,106 @@ struct AnimalDetailView: View {
         VStack(alignment: .leading, spacing: 10) {
             Text("Informations")
                 .font(.headline)
+            if let scientificName = animal.scientificName, !scientificName.isEmpty {
+                LabeledContent("Nom scientifique", value: scientificName)
+            }
+            LabeledContent("Sexe", value: animal.sex.displayName)
             LabeledContent("Origine", value: animal.origin.displayName)
+            if let locality = animal.locality, !locality.isEmpty {
+                LabeledContent("Localité", value: locality)
+            }
+            if let breeder = animal.breeder, !breeder.isEmpty {
+                LabeledContent("Éleveur", value: breeder)
+            }
+            if let price = animal.purchasePrice {
+                LabeledContent("Prix d’achat", value: price.formatted(.currency(code: "EUR")))
+            }
             LabeledContent("Date d’arrivée", value: animal.arrivalDate.formatted(date: .abbreviated, time: .omitted))
             LabeledContent("Stade actuel", value: animal.currentStage)
             LabeledContent("Statut", value: animal.status.displayName)
+            if let terrarium = animal.terrarium {
+                LabeledContent("Terrarium", value: terrarium.name)
+            }
             TextEditor(text: $notes)
                 .frame(minHeight: 90)
                 .onChange(of: notes) { _, newValue in
                     animal.notes = newValue
                     try? context.save()
                 }
+        }
+        .padding()
+        .background(.ultraThinMaterial)
+        .clipShape(RoundedRectangle(cornerRadius: 20))
+    }
+
+    private var colonySection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Colonie")
+                .font(.headline)
+            if let workers = animal.estimatedWorkerCount {
+                LabeledContent("Ouvrières estimées", value: "\(workers)")
+            }
+            if let queens = animal.queenCount {
+                LabeledContent("Reines", value: "\(queens)")
+            }
+            LabeledContent("Couvain", value: animal.broodPresent ? "Présent" : "Absent")
+            if let swarming = animal.swarmingDateEstimate {
+                LabeledContent("Essaimage estimé", value: swarming.formatted(date: .abbreviated, time: .omitted))
+            }
+        }
+        .padding()
+        .background(.ultraThinMaterial)
+        .clipShape(RoundedRectangle(cornerRadius: 20))
+    }
+
+    private var feedingSection: some View {
+        let stats = FeedingStats.compute(from: animal.journalEntries)
+        return VStack(alignment: .leading, spacing: 10) {
+            Text("Repas")
+                .font(.headline)
+            if let lastFeeding = stats.lastFeedingDate {
+                LabeledContent("Dernier repas", value: lastFeeding.formatted(date: .abbreviated, time: .omitted))
+            } else {
+                Text("Aucun repas enregistré")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
+            if let average = stats.averageIntervalDays {
+                LabeledContent("Intervalle moyen", value: "\(Int(average.rounded())) j")
+            }
+            LabeledContent("Refus", value: "\(stats.refusalCount)")
+        }
+        .padding()
+        .background(.ultraThinMaterial)
+        .clipShape(RoundedRectangle(cornerRadius: 20))
+    }
+
+    private var moltSection: some View {
+        let stats = MoltStats.compute(from: animal.journalEntries)
+        return VStack(alignment: .leading, spacing: 10) {
+            Text("Mues")
+                .font(.headline)
+            if stats.intervals.isEmpty {
+                Text("Aucune mue enregistrée")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            } else {
+                ForEach(stats.intervals) { interval in
+                    HStack {
+                        Text("\(interval.fromStage) → \(interval.toStage)")
+                            .font(.subheadline)
+                        Spacer()
+                        if let days = interval.daysSincePrevious {
+                            Text("\(Int(days.rounded())) j")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+                if let average = stats.averageDaysBetweenMolts {
+                    LabeledContent("Intervalle moyen", value: "\(Int(average.rounded())) j")
+                }
+            }
         }
         .padding()
         .background(.ultraThinMaterial)
@@ -197,10 +303,26 @@ struct JournalEntryView: View {
     let animal: Animal
 
     @State private var selectedDate = Date()
-    @State private var eventType: ObservationEventType = .other
+    @State private var eventType: ObservationEventType
     @State private var note = ""
     @State private var selectedItems: [PhotosPickerItem] = []
     @State private var photoPaths: [String] = []
+
+    // Champs repas
+    @State private var preyType: PreyType = .drosophile
+    @State private var preyQuantity = ""
+    @State private var eatenStatus: EatenStatus = .yes
+    @State private var captureTimeMinutes = ""
+
+    // Champs mue
+    @State private var previousStage: String
+    @State private var newStage = ""
+
+    init(animal: Animal, initialEventType: ObservationEventType = .other) {
+        self.animal = animal
+        _eventType = State(initialValue: initialEventType)
+        _previousStage = State(initialValue: animal.currentStage)
+    }
 
     var body: some View {
         NavigationStack {
@@ -211,6 +333,33 @@ struct JournalEntryView: View {
                         Text(type.displayName).tag(type)
                     }
                 }
+
+                if eventType == .feeding {
+                    Section("Repas") {
+                        Picker("Proie", selection: $preyType) {
+                            ForEach(PreyType.allCases, id: \.self) { prey in
+                                Text(prey.displayName).tag(prey)
+                            }
+                        }
+                        TextField("Quantité", text: $preyQuantity)
+                            .keyboardType(.numberPad)
+                        Picker("Mangé ?", selection: $eatenStatus) {
+                            ForEach(EatenStatus.allCases, id: \.self) { status in
+                                Text(status.displayName).tag(status)
+                            }
+                        }
+                        TextField("Temps avant capture (min)", text: $captureTimeMinutes)
+                            .keyboardType(.decimalPad)
+                    }
+                }
+
+                if eventType == .molt {
+                    Section("Mue") {
+                        TextField("Ancien stade", text: $previousStage)
+                        TextField("Nouveau stade", text: $newStage)
+                    }
+                }
+
                 TextEditor(text: $note)
                     .frame(minHeight: 120)
                 PhotosPicker(selection: $selectedItems, matching: .images) {
@@ -233,8 +382,23 @@ struct JournalEntryView: View {
                 ToolbarItem(placement: .topBarLeading) { Button("Annuler") { dismiss() } }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("Enregistrer") {
-                        let entry = ObservationEntry(date: selectedDate, eventType: eventType.rawValue, note: note, photoPaths: photoPaths, animal: animal)
+                        let entry = ObservationEntry(
+                            date: selectedDate,
+                            eventType: eventType.rawValue,
+                            note: note,
+                            photoPaths: photoPaths,
+                            preyType: eventType == .feeding ? preyType.rawValue : nil,
+                            preyQuantity: eventType == .feeding ? Int(preyQuantity) : nil,
+                            eatenStatus: eventType == .feeding ? eatenStatus.rawValue : nil,
+                            captureTimeMinutes: eventType == .feeding ? Double(captureTimeMinutes) : nil,
+                            previousStage: eventType == .molt ? previousStage : nil,
+                            newStage: eventType == .molt ? newStage : nil,
+                            animal: animal
+                        )
                         context.insert(entry)
+                        if eventType == .molt, !newStage.isEmpty {
+                            animal.currentStage = newStage
+                        }
                         try? context.save()
                         dismiss()
                     }
