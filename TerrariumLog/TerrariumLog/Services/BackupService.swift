@@ -138,8 +138,16 @@ struct BackupService {
             throw BackupError.decodingFailed
         }
 
-        try context.delete(model: Animal.self)
-        try context.delete(model: Terrarium.self)
+        // Deleted individually rather than via the type-based batch delete API:
+        // batch-deleting Animal while Terrarium still references it through the
+        // nullify inverse relationship trips a CoreData constraint trigger violation.
+        for terrarium in try context.fetch(FetchDescriptor<Terrarium>()) {
+            context.delete(terrarium)
+        }
+        for animal in try context.fetch(FetchDescriptor<Animal>()) {
+            context.delete(animal)
+        }
+        try context.save()
 
         for terrariumDTO in backup.terrariums {
             insert(terrariumDTO, into: context)
