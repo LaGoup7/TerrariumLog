@@ -1,6 +1,8 @@
 import SwiftUI
 import SwiftData
 import Charts
+import PhotosUI
+import UIKit
 
 struct TerrariumDetailView: View {
     @Environment(\.modelContext) private var context
@@ -17,9 +19,18 @@ struct TerrariumDetailView: View {
     @State private var lightError: String?
     @State private var isSendingLightCommand = false
 
+    @State private var selectedItems: [PhotosPickerItem] = []
+    @State private var mainImage: UIImage?
+    @State private var showingCamera = false
+
+    private var isCameraAvailable: Bool {
+        UIImagePickerController.isSourceTypeAvailable(.camera)
+    }
+
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
+                photoSection
                 infoSection
                 lightSection
                 camerasSection
@@ -31,6 +42,11 @@ struct TerrariumDetailView: View {
         }
         .navigationTitle(terrarium.name)
         .navigationBarTitleDisplayMode(.inline)
+        .onAppear {
+            if let path = terrarium.mainPhotoPath {
+                mainImage = PhotoStorage.shared.loadImage(from: path)
+            }
+        }
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Menu {
@@ -62,6 +78,64 @@ struct TerrariumDetailView: View {
         }
         .sheet(isPresented: $showingEditSheet) {
             TerrariumFormView(terrarium: terrarium)
+        }
+        .fullScreenCover(isPresented: $showingCamera) {
+            CameraCaptureView { image in
+                setMainImage(image)
+            }
+            .ignoresSafeArea()
+        }
+    }
+
+    private var photoSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            if let mainImage {
+                Image(uiImage: mainImage)
+                    .resizable()
+                    .scaledToFill()
+                    .frame(height: 180)
+                    .frame(maxWidth: .infinity)
+                    .clipShape(RoundedRectangle(cornerRadius: 20))
+                    .clipped()
+            } else {
+                RoundedRectangle(cornerRadius: 20)
+                    .fill(Color.teal.opacity(0.15))
+                    .frame(height: 180)
+                    .overlay(
+                        Image(systemName: "photo")
+                            .font(.largeTitle)
+                            .foregroundStyle(.teal)
+                    )
+            }
+            HStack {
+                PhotosPicker(selection: $selectedItems, maxSelectionCount: 1, matching: .images) {
+                    Label("Changer la photo", systemImage: "photo")
+                }
+                if isCameraAvailable {
+                    Button {
+                        showingCamera = true
+                    } label: {
+                        Label("Prendre une photo", systemImage: "camera")
+                    }
+                }
+            }
+            .font(.caption)
+        }
+        .onChange(of: selectedItems) { _, newItems in
+            guard let first = newItems.first else { return }
+            Task {
+                if let data = try? await first.loadTransferable(type: Data.self), let image = UIImage(data: data) {
+                    setMainImage(image)
+                }
+            }
+        }
+    }
+
+    private func setMainImage(_ image: UIImage) {
+        if let path = try? PhotoStorage.shared.saveImage(image, for: terrarium.name) {
+            terrarium.mainPhotoPath = path
+            try? context.save()
+            mainImage = image
         }
     }
 

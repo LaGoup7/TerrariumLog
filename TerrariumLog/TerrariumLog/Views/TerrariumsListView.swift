@@ -1,6 +1,35 @@
 import SwiftUI
 import SwiftData
 
+struct TerrariumThumbnail: View {
+    let terrarium: Terrarium
+    @State private var image: UIImage?
+
+    var body: some View {
+        Group {
+            if let image {
+                Image(uiImage: image)
+                    .resizable()
+                    .scaledToFill()
+                    .frame(width: 50, height: 50)
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+            } else {
+                Image(systemName: "leaf.fill")
+                    .font(.title2)
+                    .foregroundStyle(.teal)
+                    .frame(width: 50, height: 50)
+                    .background(Color.teal.opacity(0.15))
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+            }
+        }
+        .onAppear {
+            if let path = terrarium.mainPhotoPath {
+                image = PhotoStorage.shared.loadImage(from: path)
+            }
+        }
+    }
+}
+
 struct TerrariumsListView: View {
     @Environment(\.modelContext) private var context
     @Query(sort: [SortDescriptor<Terrarium>(\.name)]) private var terrariums: [Terrarium]
@@ -11,17 +40,20 @@ struct TerrariumsListView: View {
             List {
                 ForEach(terrariums) { terrarium in
                     NavigationLink(destination: TerrariumDetailView(terrarium: terrarium)) {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text(terrarium.name)
-                                .font(.headline)
-                            if !terrarium.dimensions.isEmpty {
-                                Text(terrarium.dimensions)
-                                    .font(.subheadline)
-                                    .foregroundStyle(.secondary)
+                        HStack(spacing: 12) {
+                            TerrariumThumbnail(terrarium: terrarium)
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(terrarium.name)
+                                    .font(.headline)
+                                if !terrarium.dimensions.isEmpty {
+                                    Text(terrarium.dimensions)
+                                        .font(.subheadline)
+                                        .foregroundStyle(.secondary)
+                                }
+                                Text("\(terrarium.animals.count) animal(aux) hébergé(s)")
+                                    .font(.caption)
+                                    .foregroundStyle(.teal)
                             }
-                            Text("\(terrarium.animals.count) animal(aux) hébergé(s)")
-                                .font(.caption)
-                                .foregroundStyle(.teal)
                         }
                     }
                     .swipeActions {
