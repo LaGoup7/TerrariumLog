@@ -27,6 +27,9 @@ final class Animal {
     /// reçoivent la valeur max+1 existante à la création (voir AnimalFormView).
     var dashboardSortOrder: Int = 0
 
+    /// Masque l'animal de la liste du Dashboard sans le supprimer (voir AnimalVisibilityView).
+    var isHiddenFromDashboard: Bool = false
+
     // Champs colonie (fourmis), utilisés seulement si type == .antColony
     var estimatedWorkerCount: Int?
     var queenCount: Int?
@@ -65,6 +68,7 @@ final class Animal {
         primaryPhotoOffsetX: Double = 0,
         primaryPhotoOffsetY: Double = 0,
         dashboardSortOrder: Int = 0,
+        isHiddenFromDashboard: Bool = false,
         estimatedWorkerCount: Int? = nil,
         queenCount: Int? = nil,
         broodPresent: Bool = false,
@@ -87,6 +91,7 @@ final class Animal {
         self.primaryPhotoOffsetX = primaryPhotoOffsetX
         self.primaryPhotoOffsetY = primaryPhotoOffsetY
         self.dashboardSortOrder = dashboardSortOrder
+        self.isHiddenFromDashboard = isHiddenFromDashboard
         self.estimatedWorkerCount = estimatedWorkerCount
         self.queenCount = queenCount
         self.broodPresent = broodPresent
@@ -151,7 +156,7 @@ enum AnimalType: String, Codable, CaseIterable, Sendable {
         case .antColony:
             return "ant.fill"
         case .jumpingSpider:
-            return "spider.fill"
+            return "circle.hexagongrid.fill"
         case .gecko:
             return "lizard.fill"
         case .dendrobate:

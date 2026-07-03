@@ -25,6 +25,7 @@ struct AnimalDetailView: View {
     @State private var selectedGalleryFilter: String?
     @State private var primaryPhotoOffsetX: Double = 0
     @State private var primaryPhotoOffsetY: Double = 0
+    @State private var selectedGalleryItems: [PhotosPickerItem] = []
 
     private var isCameraAvailable: Bool {
         UIImagePickerController.isSourceTypeAvailable(.camera)
@@ -432,8 +433,14 @@ struct AnimalDetailView: View {
     private var gallerySection: some View {
         let photos = filteredGalleryPhotos
         return VStack(alignment: .leading, spacing: 10) {
-            Text("Galerie")
-                .font(.headline)
+            HStack {
+                Text("Galerie")
+                    .font(.headline)
+                Spacer()
+                PhotosPicker(selection: $selectedGalleryItems, matching: .images) {
+                    Image(systemName: "plus.circle")
+                }
+            }
             if galleryPhotos.isEmpty {
                 Text("Aucune photo")
                     .font(.footnote)
@@ -489,6 +496,30 @@ struct AnimalDetailView: View {
         )) {
             PhotoGalleryViewer(photos: photos, selectedIndex: selectedGalleryIndex ?? 0)
         }
+        .onChange(of: selectedGalleryItems) { _, newItems in
+            guard !newItems.isEmpty else { return }
+            Task {
+                for item in newItems {
+                    if let data = try? await item.loadTransferable(type: Data.self), let image = UIImage(data: data) {
+                        addGalleryPhoto(image)
+                    }
+                }
+                selectedGalleryItems = []
+            }
+        }
+    }
+
+    private func addGalleryPhoto(_ image: UIImage) {
+        guard let path = try? PhotoStorage.shared.saveImage(image, for: animal.name) else { return }
+        let entry = ObservationEntry(
+            date: .now,
+            eventType: ObservationEventType.photo.rawValue,
+            note: "",
+            photoPaths: [path],
+            animal: animal
+        )
+        context.insert(entry)
+        try? context.save()
     }
 
     private func galleryFilterChip(label: String, isSelected: Bool, action: @escaping () -> Void) -> some View {

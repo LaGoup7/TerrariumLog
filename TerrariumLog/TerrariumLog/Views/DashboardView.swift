@@ -8,8 +8,15 @@ struct DashboardView: View {
     @Query private var cameras: [Camera]
     @Query(sort: [SortDescriptor<Terrarium>(\.name)]) private var terrariums: [Terrarium]
 
+    @State private var showingAddReminder = false
+    @State private var showingAnimalVisibility = false
+
     private var upcomingReminders: [Reminder] {
         Array(reminders.filter { !$0.isCompleted }.prefix(3))
+    }
+
+    private var visibleAnimals: [Animal] {
+        animals.filter { !$0.isHiddenFromDashboard }
     }
 
     var body: some View {
@@ -22,14 +29,12 @@ struct DashboardView: View {
                 .listRowBackground(Color.clear)
                 .listRowInsets(EdgeInsets())
 
-                if !upcomingReminders.isEmpty {
-                    Section {
-                        remindersSection
-                    }
-                    .listRowSeparator(.hidden)
-                    .listRowBackground(Color.clear)
-                    .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
+                Section {
+                    remindersSection
                 }
+                .listRowSeparator(.hidden)
+                .listRowBackground(Color.clear)
+                .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
 
                 if !cameras.isEmpty {
                     Section {
@@ -50,7 +55,7 @@ struct DashboardView: View {
                 }
 
                 Section {
-                    ForEach(animals) { animal in
+                    ForEach(visibleAnimals) { animal in
                         AnimalCardView(animal: animal)
                             .listRowSeparator(.hidden)
                             .listRowBackground(Color.clear)
@@ -58,7 +63,7 @@ struct DashboardView: View {
                     }
                     .onMove(perform: moveAnimals)
                 } header: {
-                    if !animals.isEmpty {
+                    if !visibleAnimals.isEmpty {
                         Text("Glisse-dépose pour réordonner")
                     }
                 }
@@ -69,14 +74,24 @@ struct DashboardView: View {
             .navigationTitle("Terrarium Log")
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        showingAnimalVisibility = true
+                    } label: {
+                        Image(systemName: "eye")
+                    }
+                }
+                ToolbarItem(placement: .topBarTrailing) {
                     EditButton()
                 }
+            }
+            .sheet(isPresented: $showingAnimalVisibility) {
+                AnimalVisibilityView()
             }
         }
     }
 
     private func moveAnimals(from source: IndexSet, to destination: Int) {
-        var reordered = animals
+        var reordered = visibleAnimals
         reordered.move(fromOffsets: source, toOffset: destination)
         for (index, animal) in reordered.enumerated() {
             animal.dashboardSortOrder = index
@@ -101,32 +116,49 @@ struct DashboardView: View {
                 Text("Prochains rappels")
                     .font(.headline)
                 Spacer()
+                Button {
+                    showingAddReminder = true
+                } label: {
+                    Image(systemName: "plus.circle")
+                }
+                NavigationLink(destination: ReminderCalendarView()) {
+                    Image(systemName: "calendar")
+                }
                 NavigationLink("Voir tout") {
                     RemindersView()
                 }
                 .font(.caption)
             }
-            ForEach(upcomingReminders) { reminder in
-                HStack {
-                    Image(systemName: "bell.fill")
-                        .foregroundStyle(.orange)
-                    VStack(alignment: .leading) {
-                        Text(reminder.title)
-                            .font(.subheadline)
-                        Text(reminder.animal?.name ?? "Général")
+            if upcomingReminders.isEmpty {
+                Text("Aucun rappel à venir")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            } else {
+                ForEach(upcomingReminders) { reminder in
+                    HStack {
+                        Image(systemName: "bell.fill")
+                            .foregroundStyle(.orange)
+                        VStack(alignment: .leading) {
+                            Text(reminder.title)
+                                .font(.subheadline)
+                            Text(reminder.animal?.name ?? "Général")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        Spacer()
+                        Text(reminder.reminderDate.formatted(date: .abbreviated, time: .omitted))
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
-                    Spacer()
-                    Text(reminder.reminderDate.formatted(date: .abbreviated, time: .omitted))
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
                 }
             }
         }
         .padding()
         .background(.ultraThinMaterial)
         .clipShape(RoundedRectangle(cornerRadius: 20))
+        .sheet(isPresented: $showingAddReminder) {
+            AddReminderView()
+        }
     }
 
     private var camerasSection: some View {
@@ -333,6 +365,40 @@ struct AnimalCardView: View {
                     .padding(12)
                     .background(Color.teal.opacity(0.15))
                     .clipShape(RoundedRectangle(cornerRadius: 16))
+            }
+        }
+    }
+}
+
+struct AnimalVisibilityView: View {
+    @Environment(\.dismiss) private var dismiss
+    @Environment(\.modelContext) private var context
+    @Query(sort: [SortDescriptor<Animal>(\.dashboardSortOrder)]) private var animals: [Animal]
+
+    var body: some View {
+        NavigationStack {
+            List(animals) { animal in
+                Toggle(isOn: Binding(
+                    get: { !animal.isHiddenFromDashboard },
+                    set: { isVisible in
+                        animal.isHiddenFromDashboard = !isVisible
+                        try? context.save()
+                    }
+                )) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(animal.name)
+                            .font(.subheadline)
+                        Text(animal.species)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+            .navigationTitle("Animaux affichés")
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Fermer") { dismiss() }
+                }
             }
         }
     }

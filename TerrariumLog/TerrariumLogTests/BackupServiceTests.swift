@@ -22,7 +22,8 @@ final class BackupServiceTests: XCTestCase {
             notes: "notes",
             primaryPhotoOffsetX: 12,
             primaryPhotoOffsetY: -8,
-            dashboardSortOrder: 3
+            dashboardSortOrder: 3,
+            isHiddenFromDashboard: true
         )
         animal.terrarium = terrarium
         context.insert(animal)
@@ -65,6 +66,7 @@ final class BackupServiceTests: XCTestCase {
         XCTAssertEqual(animals.first?.videos.first?.videoPath, "test_video.mov")
         XCTAssertEqual(animals.first?.primaryPhotoOffsetX, 12)
         XCTAssertEqual(animals.first?.primaryPhotoOffsetY, -8)
+        XCTAssertEqual(animals.first?.isHiddenFromDashboard, true)
 
         let terrariums = try context.fetch(FetchDescriptor<Terrarium>())
         XCTAssertEqual(terrariums.count, 1)
