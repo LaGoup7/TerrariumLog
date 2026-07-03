@@ -6,6 +6,7 @@ struct DashboardView: View {
     @Query(sort: [SortDescriptor<Animal>(\.dashboardSortOrder)]) private var animals: [Animal]
     @Query(sort: [SortDescriptor<Reminder>(\.reminderDate)]) private var reminders: [Reminder]
     @Query private var cameras: [Camera]
+    @Query(sort: [SortDescriptor<Terrarium>(\.name)]) private var terrariums: [Terrarium]
 
     private var upcomingReminders: [Reminder] {
         Array(reminders.filter { !$0.isCompleted }.prefix(3))
@@ -33,6 +34,15 @@ struct DashboardView: View {
                 if !cameras.isEmpty {
                     Section {
                         camerasSection
+                    }
+                    .listRowSeparator(.hidden)
+                    .listRowBackground(Color.clear)
+                    .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
+                }
+
+                if !terrariums.isEmpty {
+                    Section {
+                        terrariumsSection
                     }
                     .listRowSeparator(.hidden)
                     .listRowBackground(Color.clear)
@@ -139,6 +149,34 @@ struct DashboardView: View {
                         Spacer()
                         Image(systemName: "play.circle")
                             .foregroundStyle(.teal)
+                    }
+                }
+            }
+        }
+        .padding()
+        .background(.ultraThinMaterial)
+        .clipShape(RoundedRectangle(cornerRadius: 20))
+    }
+
+    private var terrariumsSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Terrariums")
+                .font(.headline)
+            ForEach(terrariums) { terrarium in
+                NavigationLink(destination: TerrariumDetailView(terrarium: terrarium)) {
+                    HStack(spacing: 12) {
+                        TerrariumThumbnail(terrarium: terrarium)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(terrarium.name)
+                                .font(.subheadline)
+                            Text("\(terrarium.animals.count) animal(aux) hébergé(s)")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        Spacer()
+                        Image(systemName: "chevron.right")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
                     }
                 }
             }
