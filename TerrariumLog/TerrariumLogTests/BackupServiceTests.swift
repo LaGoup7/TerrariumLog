@@ -38,6 +38,9 @@ final class BackupServiceTests: XCTestCase {
         )
         context.insert(camera)
 
+        let video = AnimalVideo(title: "Chasse", notes: "Belle capture", date: .now, videoPath: "test_video.mov", animal: animal)
+        context.insert(video)
+
         context.insert(CustomPreyType(name: "Larve de teigne"))
         try context.save()
 
@@ -55,6 +58,9 @@ final class BackupServiceTests: XCTestCase {
         XCTAssertEqual(animals.first?.terrarium?.name, "Terrarium Test")
         XCTAssertEqual(animals.first?.journalEntries.count, 1)
         XCTAssertEqual(animals.first?.journalEntries.first?.note, "arrived")
+        XCTAssertEqual(animals.first?.videos.count, 1)
+        XCTAssertEqual(animals.first?.videos.first?.title, "Chasse")
+        XCTAssertEqual(animals.first?.videos.first?.videoPath, "test_video.mov")
 
         let terrariums = try context.fetch(FetchDescriptor<Terrarium>())
         XCTAssertEqual(terrariums.count, 1)
@@ -85,5 +91,39 @@ final class BackupServiceTests: XCTestCase {
         """.data(using: .utf8)!
 
         XCTAssertNoThrow(try BackupService.shared.importData(legacyJSON, context: context))
+    }
+
+    func testImportAcceptsAnimalWithoutVideosKey() throws {
+        // Simulates a backup exported before AnimalDTO.videos existed.
+        let controller = PersistenceController(inMemory: true)
+        let context = controller.container.mainContext
+        let legacyJSON = """
+        {
+            "exportedAt": "2026-01-01T00:00:00Z",
+            "terrariums": [],
+            "unassignedAnimals": [
+                {
+                    "name": "Legacy",
+                    "species": "Test",
+                    "type": "jumping_spider",
+                    "sex": "unknown",
+                    "origin": "captured",
+                    "arrivalDate": "2026-01-01T00:00:00Z",
+                    "currentStage": "L5",
+                    "status": "normal",
+                    "notes": "",
+                    "broodPresent": false,
+                    "journalEntries": [],
+                    "reminders": [],
+                    "measurements": []
+                }
+            ]
+        }
+        """.data(using: .utf8)!
+
+        try BackupService.shared.importData(legacyJSON, context: context)
+
+        let animals = try context.fetch(FetchDescriptor<Animal>())
+        XCTAssertEqual(animals.first?.videos.count ?? -1, 0)
     }
 }

@@ -46,6 +46,7 @@ struct AnimalDetailView: View {
                 }
                 journalSection
                 gallerySection
+                AnimalVideosSection(animal: animal)
                 measurementsSection
                 statisticsSection
             }

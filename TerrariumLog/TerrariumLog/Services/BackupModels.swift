@@ -49,6 +49,14 @@ struct AnimalDTO: Codable {
     var journalEntries: [ObservationEntryDTO]
     var reminders: [ReminderDTO]
     var measurements: [MeasurementEntryDTO]
+    var videos: [AnimalVideoDTO]?
+}
+
+struct AnimalVideoDTO: Codable {
+    var title: String
+    var notes: String
+    var date: Date
+    var videoPath: String
 }
 
 struct ObservationEntryDTO: Codable {

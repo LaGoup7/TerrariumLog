@@ -31,30 +31,35 @@ struct BackupService {
         return try encoder.encode(backup)
     }
 
-    /// Same as `exportData`, plus the list of photo filenames referenced by the exported records
-    /// (primary/main photos and journal entry photos), so the caller can bundle the actual files.
-    func exportBundle(context: ModelContext) throws -> (data: Data, photoPaths: [String]) {
+    /// Same as `exportData`, plus the list of photo and video filenames referenced by the exported
+    /// records (primary/main photos, journal entry photos, animal videos), so the caller can bundle
+    /// the actual files.
+    func exportBundle(context: ModelContext) throws -> (data: Data, photoPaths: [String], videoPaths: [String]) {
         let data = try exportData(context: context)
 
         let terrariums = (try? context.fetch(FetchDescriptor<Terrarium>())) ?? []
         let animals = (try? context.fetch(FetchDescriptor<Animal>())) ?? []
 
-        var paths = Set<String>()
+        var photoPaths = Set<String>()
+        var videoPaths = Set<String>()
         for terrarium in terrariums {
             if let path = terrarium.mainPhotoPath {
-                paths.insert(path)
+                photoPaths.insert(path)
             }
         }
         for animal in animals {
             if let path = animal.primaryPhotoPath {
-                paths.insert(path)
+                photoPaths.insert(path)
             }
             for entry in animal.journalEntries {
-                paths.formUnion(entry.photoPaths)
+                photoPaths.formUnion(entry.photoPaths)
+            }
+            for video in animal.videos {
+                videoPaths.insert(video.videoPath)
             }
         }
 
-        return (data, Array(paths))
+        return (data, Array(photoPaths), Array(videoPaths))
     }
 
     private func makeTerrariumDTO(_ terrarium: Terrarium) -> TerrariumDTO {
@@ -101,7 +106,17 @@ struct BackupService {
             swarmingDateEstimate: animal.swarmingDateEstimate,
             journalEntries: animal.journalEntries.map(makeObservationEntryDTO),
             reminders: animal.reminders.map(makeReminderDTO),
-            measurements: animal.measurements.map(makeMeasurementDTO)
+            measurements: animal.measurements.map(makeMeasurementDTO),
+            videos: animal.videos.map(makeAnimalVideoDTO)
+        )
+    }
+
+    private func makeAnimalVideoDTO(_ video: AnimalVideo) -> AnimalVideoDTO {
+        AnimalVideoDTO(
+            title: video.title,
+            notes: video.notes,
+            date: video.date,
+            videoPath: video.videoPath
         )
     }
 
@@ -335,6 +350,17 @@ struct BackupService {
                 animal: animal
             )
             context.insert(measurement)
+        }
+
+        for videoDTO in dto.videos ?? [] {
+            let video = AnimalVideo(
+                title: videoDTO.title,
+                notes: videoDTO.notes,
+                date: videoDTO.date,
+                videoPath: videoDTO.videoPath,
+                animal: animal
+            )
+            context.insert(video)
         }
     }
 }

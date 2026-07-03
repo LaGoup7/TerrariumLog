@@ -39,6 +39,9 @@ final class Animal {
     @Relationship(deleteRule: .cascade, inverse: \MeasurementEntry.animal)
     var measurements: [MeasurementEntry] = []
 
+    @Relationship(deleteRule: .cascade, inverse: \AnimalVideo.animal)
+    var videos: [AnimalVideo] = []
+
     init(
         name: String,
         species: String,

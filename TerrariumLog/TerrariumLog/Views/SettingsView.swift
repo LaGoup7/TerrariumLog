@@ -3,19 +3,21 @@ import SwiftData
 import UserNotifications
 import UniformTypeIdentifiers
 
-/// Exports as a folder containing `data.json` plus a `Photos/` subfolder with the
-/// actual image files, so a restored backup doesn't lose photos (only the JSON's
-/// file path references would otherwise survive).
+/// Exports as a folder containing `data.json` plus `Photos/` and `Videos/` subfolders with
+/// the actual media files, so a restored backup doesn't lose them (only the JSON's file path
+/// references would otherwise survive).
 struct BackupBundleDocument: FileDocument {
     static var readableContentTypes: [UTType] { [.folder] }
     static var writableContentTypes: [UTType] { [.folder] }
 
     var jsonData: Data
     var photoURLs: [URL]
+    var videoURLs: [URL]
 
-    init(jsonData: Data, photoURLs: [URL]) {
+    init(jsonData: Data, photoURLs: [URL], videoURLs: [URL] = []) {
         self.jsonData = jsonData
         self.photoURLs = photoURLs
+        self.videoURLs = videoURLs
     }
 
     init(configuration: ReadConfiguration) throws {
@@ -26,20 +28,24 @@ struct BackupBundleDocument: FileDocument {
         let jsonWrapper = FileWrapper(regularFileWithContents: jsonData)
         jsonWrapper.preferredFilename = "data.json"
 
-        var photoWrappers: [String: FileWrapper] = [:]
-        for url in photoURLs {
-            if let data = try? Data(contentsOf: url) {
-                let wrapper = FileWrapper(regularFileWithContents: data)
-                wrapper.preferredFilename = url.lastPathComponent
-                photoWrappers[url.lastPathComponent] = wrapper
+        func mediaFolder(named name: String, urls: [URL]) -> FileWrapper {
+            var wrappers: [String: FileWrapper] = [:]
+            for url in urls {
+                if let data = try? Data(contentsOf: url) {
+                    let wrapper = FileWrapper(regularFileWithContents: data)
+                    wrapper.preferredFilename = url.lastPathComponent
+                    wrappers[url.lastPathComponent] = wrapper
+                }
             }
+            let folder = FileWrapper(directoryWithFileWrappers: wrappers)
+            folder.preferredFilename = name
+            return folder
         }
-        let photosFolder = FileWrapper(directoryWithFileWrappers: photoWrappers)
-        photosFolder.preferredFilename = "Photos"
 
         return FileWrapper(directoryWithFileWrappers: [
             "data.json": jsonWrapper,
-            "Photos": photosFolder
+            "Photos": mediaFolder(named: "Photos", urls: photoURLs),
+            "Videos": mediaFolder(named: "Videos", urls: videoURLs)
         ])
     }
 }
@@ -80,6 +86,7 @@ struct SettingsView: View {
     @State private var showingImportConfirmation = false
     @State private var pendingImportData: Data?
     @State private var pendingImportPhotosStagingURL: URL?
+    @State private var pendingImportVideosStagingURL: URL?
     @State private var backupMessage: String?
 
     var body: some View {
@@ -182,8 +189,12 @@ struct SettingsView: View {
                     if let stagingURL = pendingImportPhotosStagingURL {
                         try? FileManager.default.removeItem(at: stagingURL)
                     }
+                    if let stagingURL = pendingImportVideosStagingURL {
+                        try? FileManager.default.removeItem(at: stagingURL)
+                    }
                     pendingImportData = nil
                     pendingImportPhotosStagingURL = nil
+                    pendingImportVideosStagingURL = nil
                 }
             } message: {
                 Text("Cette sauvegarde va remplacer tous les animaux, terrariums et leur historique actuellement enregistrés sur cet appareil. Cette action est irréversible.")
@@ -237,7 +248,8 @@ struct SettingsView: View {
         do {
             let bundle = try BackupService.shared.exportBundle(context: context)
             let photoURLs = bundle.photoPaths.map { PhotoStorage.shared.url(for: $0) }
-            exportDocument = BackupBundleDocument(jsonData: bundle.data, photoURLs: photoURLs)
+            let videoURLs = bundle.videoPaths.map { VideoStorage.shared.url(for: $0) }
+            exportDocument = BackupBundleDocument(jsonData: bundle.data, photoURLs: photoURLs, videoURLs: videoURLs)
             showingExporter = true
         } catch {
             backupMessage = "Échec de l'export : \(error.localizedDescription)"
@@ -255,18 +267,22 @@ struct SettingsView: View {
             let jsonURL = url.appendingPathComponent("data.json")
             pendingImportData = try Data(contentsOf: jsonURL)
 
-            // Photos are staged into a local temp folder now, while we still have
+            // Photos/videos are staged into local temp folders now, while we still have
             // access to the picked folder (the confirmation dialog delays the
             // actual import, by which point security-scoped access would be gone).
-            let photosSourceURL = url.appendingPathComponent("Photos")
-            let stagingURL = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
-            try? FileManager.default.createDirectory(at: stagingURL, withIntermediateDirectories: true)
-            if let files = try? FileManager.default.contentsOfDirectory(at: photosSourceURL, includingPropertiesForKeys: nil) {
-                for file in files {
-                    try? FileManager.default.copyItem(at: file, to: stagingURL.appendingPathComponent(file.lastPathComponent))
+            func stageMedia(from folderName: String) -> URL {
+                let sourceURL = url.appendingPathComponent(folderName)
+                let stagingURL = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+                try? FileManager.default.createDirectory(at: stagingURL, withIntermediateDirectories: true)
+                if let files = try? FileManager.default.contentsOfDirectory(at: sourceURL, includingPropertiesForKeys: nil) {
+                    for file in files {
+                        try? FileManager.default.copyItem(at: file, to: stagingURL.appendingPathComponent(file.lastPathComponent))
+                    }
                 }
+                return stagingURL
             }
-            pendingImportPhotosStagingURL = stagingURL
+            pendingImportPhotosStagingURL = stageMedia(from: "Photos")
+            pendingImportVideosStagingURL = stageMedia(from: "Videos")
 
             showingImportConfirmation = true
         } catch {
@@ -285,11 +301,19 @@ struct SettingsView: View {
                 }
                 try? FileManager.default.removeItem(at: stagingURL)
             }
+            if let stagingURL = pendingImportVideosStagingURL,
+               let files = try? FileManager.default.contentsOfDirectory(at: stagingURL, includingPropertiesForKeys: nil) {
+                for file in files {
+                    try? VideoStorage.shared.importVideo(from: file, filename: file.lastPathComponent)
+                }
+                try? FileManager.default.removeItem(at: stagingURL)
+            }
             backupMessage = "Import réussi."
         } catch {
             backupMessage = "Échec de l'import : \(error.localizedDescription)"
         }
         pendingImportData = nil
         pendingImportPhotosStagingURL = nil
+        pendingImportVideosStagingURL = nil
     }
 }
