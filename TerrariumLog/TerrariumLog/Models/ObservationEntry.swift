@@ -169,4 +169,24 @@ enum ObservationEventType: String, CaseIterable, Codable, Sendable {
             return [.arrival, .capture, .feeding, .foodRefusal, .molt, .laying, .eggs, .behavior, .humidifying, .cleaning, .death, .photo, .other].contains(self)
         }
     }
+
+    var symbolName: String {
+        switch self {
+        case .feeding: return "fork.knife"
+        case .foodRefusal: return "xmark.circle"
+        case .molt: return "arrow.triangle.2.circlepath"
+        case .arrival, .capture: return "sparkles"
+        case .death: return "heart.slash"
+        case .humidifying: return "drop"
+        case .cleaning: return "sparkle"
+        case .webBuilding: return "circle.hexagongrid"
+        case .laying, .eggs: return "circle.grid.2x2"
+        case .larvae, .cocoons, .firstWorkers: return "ant"
+        case .photo: return "photo"
+        case .relocation: return "arrow.left.arrow.right"
+        case .hibernationStart, .hibernationEnd: return "moon.zzz"
+        case .behavior: return "eye"
+        case .other: return "note.text"
+        }
+    }
 }

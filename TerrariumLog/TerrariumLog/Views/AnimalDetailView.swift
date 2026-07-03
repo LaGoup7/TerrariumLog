@@ -22,6 +22,7 @@ struct AnimalDetailView: View {
     @State private var showingDeleteConfirmation = false
     @State private var showingCamera = false
     @State private var selectedGalleryIndex: Int?
+    @State private var selectedGalleryFilter: String?
 
     private var isCameraAvailable: Bool {
         UIImagePickerController.isSourceTypeAvailable(.camera)
@@ -32,6 +33,7 @@ struct AnimalDetailView: View {
             VStack(alignment: .leading, spacing: 16) {
                 headerSection
                 infoSection
+                healthSection
                 if animal.type == .antColony {
                     colonySection
                 }
@@ -45,6 +47,7 @@ struct AnimalDetailView: View {
                 journalSection
                 gallerySection
                 measurementsSection
+                statisticsSection
             }
             .padding()
         }
@@ -57,6 +60,11 @@ struct AnimalDetailView: View {
             }
         }
         .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                NavigationLink(destination: LifeStoryView(animal: animal)) {
+                    Image(systemName: "book.closed")
+                }
+            }
             ToolbarItem(placement: .topBarTrailing) {
                 Menu {
                     Button("Ajouter une observation") { showingJournalSheet = true }
@@ -391,28 +399,64 @@ struct AnimalDetailView: View {
             }
     }
 
+    private var galleryEventTypes: [String] {
+        var seen: [String] = []
+        for photo in galleryPhotos where !seen.contains(photo.eventType) {
+            seen.append(photo.eventType)
+        }
+        return seen
+    }
+
+    private var filteredGalleryPhotos: [GalleryPhoto] {
+        guard let selectedGalleryFilter else { return galleryPhotos }
+        return galleryPhotos.filter { $0.eventType == selectedGalleryFilter }
+    }
+
     private var gallerySection: some View {
-        let photos = galleryPhotos
+        let photos = filteredGalleryPhotos
         return VStack(alignment: .leading, spacing: 10) {
             Text("Galerie")
                 .font(.headline)
-            if photos.isEmpty {
+            if galleryPhotos.isEmpty {
                 Text("Aucune photo")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             } else {
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 10) {
-                        ForEach(Array(photos.enumerated()), id: \.element.id) { index, photo in
-                            if let image = PhotoStorage.shared.loadImage(from: photo.path) {
-                                Image(uiImage: image)
-                                    .resizable()
-                                    .scaledToFill()
-                                    .frame(width: 110, height: 110)
-                                    .clipShape(RoundedRectangle(cornerRadius: 16))
-                                    .onTapGesture {
-                                        selectedGalleryIndex = index
-                                    }
+                if galleryEventTypes.count > 1 {
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 8) {
+                            galleryFilterChip(label: "Tous", isSelected: selectedGalleryFilter == nil) {
+                                selectedGalleryFilter = nil
+                            }
+                            ForEach(galleryEventTypes, id: \.self) { eventType in
+                                galleryFilterChip(
+                                    label: ObservationEventType(rawValue: eventType)?.displayName ?? eventType,
+                                    isSelected: selectedGalleryFilter == eventType
+                                ) {
+                                    selectedGalleryFilter = eventType
+                                }
+                            }
+                        }
+                    }
+                }
+                if photos.isEmpty {
+                    Text("Aucune photo dans cette catégorie")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                } else {
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 10) {
+                            ForEach(Array(photos.enumerated()), id: \.element.id) { index, photo in
+                                if let image = PhotoStorage.shared.loadImage(from: photo.path) {
+                                    Image(uiImage: image)
+                                        .resizable()
+                                        .scaledToFill()
+                                        .frame(width: 110, height: 110)
+                                        .clipShape(RoundedRectangle(cornerRadius: 16))
+                                        .onTapGesture {
+                                            selectedGalleryIndex = index
+                                        }
+                                }
                             }
                         }
                     }
@@ -428,6 +472,18 @@ struct AnimalDetailView: View {
         )) {
             PhotoGalleryViewer(photos: photos, selectedIndex: selectedGalleryIndex ?? 0)
         }
+    }
+
+    private func galleryFilterChip(label: String, isSelected: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Text(label)
+                .font(.caption)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 6)
+                .background(isSelected ? Color.teal.opacity(0.3) : Color.teal.opacity(0.1))
+                .clipShape(Capsule())
+        }
+        .buttonStyle(.plain)
     }
 
     private var measurementsSection: some View {
@@ -465,6 +521,104 @@ struct AnimalDetailView: View {
         .padding()
         .background(.ultraThinMaterial)
         .clipShape(RoundedRectangle(cornerRadius: 20))
+    }
+
+    private var healthEntries: [ObservationEntry] {
+        Array(
+            animal.journalEntries
+                .filter { $0.eventType == ObservationEventType.behavior.rawValue || $0.eventType == ObservationEventType.foodRefusal.rawValue }
+                .sorted { $0.date > $1.date }
+                .prefix(5)
+        )
+    }
+
+    private var statusColor: Color {
+        switch animal.status.alertLevel {
+        case .critical: return .red
+        case .warning: return .orange
+        case .ok: return .green
+        }
+    }
+
+    private var healthSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Santé")
+                .font(.headline)
+            HStack {
+                Circle()
+                    .fill(statusColor)
+                    .frame(width: 10, height: 10)
+                Text(animal.status.displayName)
+                    .font(.subheadline.bold())
+            }
+            if healthEntries.isEmpty {
+                Text("Aucune observation de comportement ou refus de nourriture récente")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            } else {
+                ForEach(healthEntries) { entry in
+                    HStack(alignment: .top, spacing: 8) {
+                        Image(systemName: ObservationEventType(rawValue: entry.eventType)?.symbolName ?? "note.text")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(entry.note.isEmpty ? (ObservationEventType(rawValue: entry.eventType)?.displayName ?? entry.eventType) : entry.note)
+                                .font(.footnote)
+                            Text(entry.date.formatted(date: .abbreviated, time: .omitted))
+                                .font(.caption2)
+                                .foregroundStyle(.tertiary)
+                        }
+                    }
+                }
+            }
+        }
+        .padding()
+        .background(.ultraThinMaterial)
+        .clipShape(RoundedRectangle(cornerRadius: 20))
+    }
+
+    private var statisticsSection: some View {
+        let feedingStats = FeedingStats.compute(from: animal.journalEntries)
+        let moltStats = MoltStats.compute(from: animal.journalEntries)
+        let ageDays = Calendar.current.dateComponents([.day], from: animal.arrivalDate, to: .now).day ?? 0
+        let daysSinceLastFeeding = feedingStats.lastFeedingDate.map { Calendar.current.dateComponents([.day], from: $0, to: .now).day ?? 0 }
+        let daysSinceLastMolt = moltStats.intervals.last.map { Calendar.current.dateComponents([.day], from: $0.date, to: .now).day ?? 0 }
+
+        return VStack(alignment: .leading, spacing: 10) {
+            Text("Statistiques")
+                .font(.headline)
+            statRow(label: "Depuis l'arrivée", value: "\(ageDays) j")
+            if let daysSinceLastFeeding {
+                statRow(label: "Dernier repas", value: "il y a \(daysSinceLastFeeding) j")
+            }
+            if let averageIntervalDays = feedingStats.averageIntervalDays {
+                statRow(label: "Intervalle moyen entre repas", value: String(format: "%.1f j", averageIntervalDays))
+            }
+            if animal.type.tracksMolting {
+                if let daysSinceLastMolt {
+                    statRow(label: "Dernière mue", value: "il y a \(daysSinceLastMolt) j")
+                }
+                if let averageDaysBetweenMolts = moltStats.averageDaysBetweenMolts {
+                    statRow(label: "Intervalle moyen entre mues", value: String(format: "%.1f j", averageDaysBetweenMolts))
+                }
+            }
+            statRow(label: "Photos", value: "\(galleryPhotos.count)")
+            statRow(label: "Entrées de journal", value: "\(animal.journalEntries.count)")
+        }
+        .padding()
+        .background(.ultraThinMaterial)
+        .clipShape(RoundedRectangle(cornerRadius: 20))
+    }
+
+    private func statRow(label: String, value: String) -> some View {
+        HStack {
+            Text(label)
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+            Spacer()
+            Text(value)
+                .font(.footnote.bold())
+        }
     }
 }
 
