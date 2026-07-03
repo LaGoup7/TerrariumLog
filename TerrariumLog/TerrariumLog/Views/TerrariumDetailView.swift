@@ -92,7 +92,7 @@ struct TerrariumDetailView: View {
                 Image(uiImage: mainImage)
                     .resizable()
                     .scaledToFill()
-                    .frame(height: 180)
+                    .frame(height: UIScreen.main.bounds.height * (2 / 3))
                     .frame(maxWidth: .infinity)
                     .clipShape(RoundedRectangle(cornerRadius: 20))
                     .clipped()

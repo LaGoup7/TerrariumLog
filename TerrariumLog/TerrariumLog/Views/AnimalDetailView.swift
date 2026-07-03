@@ -119,32 +119,33 @@ struct AnimalDetailView: View {
 
     private var headerSection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            HStack(spacing: 16) {
-                if let primaryImage {
-                    Image(uiImage: primaryImage)
-                        .resizable()
-                        .scaledToFill()
-                        .frame(width: 100, height: 100)
-                        .clipShape(RoundedRectangle(cornerRadius: 20))
-                } else {
-                    Image(systemName: animal.type.symbolName)
-                        .resizable()
-                        .scaledToFit()
-                        .frame(width: 100, height: 100)
-                        .padding()
-                        .background(Color.teal.opacity(0.15))
-                        .clipShape(RoundedRectangle(cornerRadius: 20))
-                }
+            if let primaryImage {
+                Image(uiImage: primaryImage)
+                    .resizable()
+                    .scaledToFill()
+                    .frame(height: UIScreen.main.bounds.height * (2 / 3))
+                    .frame(maxWidth: .infinity)
+                    .clipShape(RoundedRectangle(cornerRadius: 20))
+                    .clipped()
+            } else {
+                Image(systemName: animal.type.symbolName)
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 100, height: 100)
+                    .padding()
+                    .frame(maxWidth: .infinity)
+                    .background(Color.teal.opacity(0.15))
+                    .clipShape(RoundedRectangle(cornerRadius: 20))
+            }
 
-                VStack(alignment: .leading, spacing: 6) {
-                    Text(animal.name)
-                        .font(.title2.bold())
-                    Text(animal.species)
-                        .foregroundStyle(.secondary)
-                    Label(animal.type.displayName, systemImage: animal.type.symbolName)
-                        .font(.subheadline)
-                        .foregroundStyle(.teal)
-                }
+            VStack(alignment: .leading, spacing: 6) {
+                Text(animal.name)
+                    .font(.title2.bold())
+                Text(animal.species)
+                    .foregroundStyle(.secondary)
+                Label(animal.type.displayName, systemImage: animal.type.symbolName)
+                    .font(.subheadline)
+                    .foregroundStyle(.teal)
             }
 
             HStack {
