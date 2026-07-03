@@ -18,6 +18,11 @@ final class Animal {
     var notes: String
     var primaryPhotoPath: String?
 
+    /// Décalage de recadrage de la photo principale (glisser-déposer sur la fiche animal),
+    /// en points, appliqué avant le clip carré. (0, 0) = centré.
+    var primaryPhotoOffsetX: Double = 0
+    var primaryPhotoOffsetY: Double = 0
+
     /// Position dans le Dashboard, ajustable par glisser-déposer. Les nouveaux animaux
     /// reçoivent la valeur max+1 existante à la création (voir AnimalFormView).
     var dashboardSortOrder: Int = 0
@@ -57,6 +62,8 @@ final class Animal {
         status: AnimalStatus,
         notes: String,
         primaryPhotoPath: String? = nil,
+        primaryPhotoOffsetX: Double = 0,
+        primaryPhotoOffsetY: Double = 0,
         dashboardSortOrder: Int = 0,
         estimatedWorkerCount: Int? = nil,
         queenCount: Int? = nil,
@@ -77,6 +84,8 @@ final class Animal {
         self.status = status
         self.notes = notes
         self.primaryPhotoPath = primaryPhotoPath
+        self.primaryPhotoOffsetX = primaryPhotoOffsetX
+        self.primaryPhotoOffsetY = primaryPhotoOffsetY
         self.dashboardSortOrder = dashboardSortOrder
         self.estimatedWorkerCount = estimatedWorkerCount
         self.queenCount = queenCount

@@ -16,6 +16,8 @@ struct TerrariumDTO: Codable {
     var decor: String
     var createdAt: Date
     var mainPhotoPath: String?
+    var mainPhotoOffsetX: Double?
+    var mainPhotoOffsetY: Double?
     var wizLightIP: String?
     var targetTemperatureMin: Double?
     var targetTemperatureMax: Double?
@@ -41,6 +43,8 @@ struct AnimalDTO: Codable {
     var status: AnimalStatus
     var notes: String
     var primaryPhotoPath: String?
+    var primaryPhotoOffsetX: Double?
+    var primaryPhotoOffsetY: Double?
     var dashboardSortOrder: Int?
     var estimatedWorkerCount: Int?
     var queenCount: Int?

@@ -23,6 +23,8 @@ struct AnimalDetailView: View {
     @State private var showingCamera = false
     @State private var selectedGalleryIndex: Int?
     @State private var selectedGalleryFilter: String?
+    @State private var primaryPhotoOffsetX: Double = 0
+    @State private var primaryPhotoOffsetY: Double = 0
 
     private var isCameraAvailable: Bool {
         UIImagePickerController.isSourceTypeAvailable(.camera)
@@ -59,6 +61,8 @@ struct AnimalDetailView: View {
             if let path = animal.primaryPhotoPath {
                 primaryImage = PhotoStorage.shared.loadImage(from: path)
             }
+            primaryPhotoOffsetX = animal.primaryPhotoOffsetX
+            primaryPhotoOffsetY = animal.primaryPhotoOffsetY
         }
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
@@ -121,13 +125,20 @@ struct AnimalDetailView: View {
     private var headerSection: some View {
         VStack(alignment: .leading, spacing: 12) {
             if let primaryImage {
-                Image(uiImage: primaryImage)
-                    .resizable()
-                    .scaledToFill()
-                    .frame(height: UIScreen.main.bounds.height * (2 / 3))
-                    .frame(maxWidth: .infinity)
-                    .clipShape(RoundedRectangle(cornerRadius: 20))
-                    .clipped()
+                RepositionableSquareImage(
+                    image: primaryImage,
+                    offsetX: $primaryPhotoOffsetX,
+                    offsetY: $primaryPhotoOffsetY,
+                    onCommit: {
+                        animal.primaryPhotoOffsetX = primaryPhotoOffsetX
+                        animal.primaryPhotoOffsetY = primaryPhotoOffsetY
+                        try? context.save()
+                    }
+                )
+                .clipShape(RoundedRectangle(cornerRadius: 20))
+                Text("Glisse la photo pour la recentrer")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
             } else {
                 Image(systemName: animal.type.symbolName)
                     .resizable()
@@ -184,6 +195,8 @@ struct AnimalDetailView: View {
     private func setPrimaryImage(_ image: UIImage) {
         if let path = try? PhotoStorage.shared.saveImage(image, for: animal.name) {
             animal.primaryPhotoPath = path
+            animal.primaryPhotoOffsetX = 0
+            animal.primaryPhotoOffsetY = 0
             // Aussi enregistrée comme entrée de journal pour apparaître dans la Galerie et la Timeline,
             // et pour ne pas perdre l'historique des anciennes photos de profil.
             let entry = ObservationEntry(
@@ -196,6 +209,8 @@ struct AnimalDetailView: View {
             context.insert(entry)
             try? context.save()
             primaryImage = image
+            primaryPhotoOffsetX = 0
+            primaryPhotoOffsetY = 0
         }
     }
 

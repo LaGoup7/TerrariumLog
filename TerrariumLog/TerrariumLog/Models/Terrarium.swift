@@ -11,6 +11,10 @@ final class Terrarium {
     var decor: String
     var createdAt: Date
     var mainPhotoPath: String?
+    /// Décalage de recadrage de la photo principale (glisser-déposer sur la fiche terrarium),
+    /// en points, appliqué avant le clip carré. (0, 0) = centré.
+    var mainPhotoOffsetX: Double = 0
+    var mainPhotoOffsetY: Double = 0
     var wizLightIP: String?
     var targetTemperatureMin: Double?
     var targetTemperatureMax: Double?
@@ -35,6 +39,8 @@ final class Terrarium {
         decor: String = "",
         createdAt: Date = .now,
         mainPhotoPath: String? = nil,
+        mainPhotoOffsetX: Double = 0,
+        mainPhotoOffsetY: Double = 0,
         wizLightIP: String? = nil,
         targetTemperatureMin: Double? = nil,
         targetTemperatureMax: Double? = nil,
@@ -49,6 +55,8 @@ final class Terrarium {
         self.decor = decor
         self.createdAt = createdAt
         self.mainPhotoPath = mainPhotoPath
+        self.mainPhotoOffsetX = mainPhotoOffsetX
+        self.mainPhotoOffsetY = mainPhotoOffsetY
         self.wizLightIP = wizLightIP
         self.targetTemperatureMin = targetTemperatureMin
         self.targetTemperatureMax = targetTemperatureMax

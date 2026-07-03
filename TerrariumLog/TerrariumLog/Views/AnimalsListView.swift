@@ -84,6 +84,7 @@ struct AnimalFormView: View {
     @State private var locality: String
     @State private var breeder: String
     @State private var purchasePrice: String
+    @State private var arrivalDate: Date
     @State private var status: AnimalStatus
     @State private var currentStage: String
     @State private var notes: String
@@ -104,6 +105,7 @@ struct AnimalFormView: View {
         _locality = State(initialValue: animal?.locality ?? "")
         _breeder = State(initialValue: animal?.breeder ?? "")
         _purchasePrice = State(initialValue: animal?.purchasePrice.map { String($0) } ?? "")
+        _arrivalDate = State(initialValue: animal?.arrivalDate ?? .now)
         _status = State(initialValue: animal?.status ?? .foundation)
         _currentStage = State(initialValue: animal?.currentStage ?? "")
         _notes = State(initialValue: animal?.notes ?? "")
@@ -144,6 +146,7 @@ struct AnimalFormView: View {
                     TextField("Éleveur / fournisseur", text: $breeder)
                     TextField("Prix d’achat", text: $purchasePrice)
                         .keyboardType(.decimalPad)
+                    DatePicker("Date d’arrivée", selection: $arrivalDate, displayedComponents: .date)
                     Picker("Statut", selection: $status) {
                         ForEach(AnimalStatus.allCases.filter { $0.isAvailable(for: type) }, id: \.self) { status in
                             Text(status.displayName).tag(status)
@@ -210,6 +213,7 @@ struct AnimalFormView: View {
         animal.locality = locality.isEmpty ? nil : locality
         animal.breeder = breeder.isEmpty ? nil : breeder
         animal.purchasePrice = Double(purchasePrice)
+        animal.arrivalDate = arrivalDate
         animal.status = status
         animal.currentStage = currentStage
         animal.notes = notes
