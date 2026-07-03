@@ -219,6 +219,8 @@ struct AnimalFormView: View {
         animal.broodPresent = broodPresent
 
         if existingAnimal == nil {
+            let maxOrder = (try? context.fetch(FetchDescriptor<Animal>()))?.map(\.dashboardSortOrder).max() ?? -1
+            animal.dashboardSortOrder = maxOrder + 1
             context.insert(animal)
         }
         try? context.save()

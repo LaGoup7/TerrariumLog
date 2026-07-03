@@ -19,7 +19,8 @@ final class BackupServiceTests: XCTestCase {
             arrivalDate: .now,
             currentStage: "L5",
             status: .normal,
-            notes: "notes"
+            notes: "notes",
+            dashboardSortOrder: 3
         )
         animal.terrarium = terrarium
         context.insert(animal)
@@ -50,6 +51,7 @@ final class BackupServiceTests: XCTestCase {
         let animals = try context.fetch(FetchDescriptor<Animal>())
         XCTAssertEqual(animals.count, 1)
         XCTAssertEqual(animals.first?.name, "TestAnimal")
+        XCTAssertEqual(animals.first?.dashboardSortOrder, 3)
         XCTAssertEqual(animals.first?.terrarium?.name, "Terrarium Test")
         XCTAssertEqual(animals.first?.journalEntries.count, 1)
         XCTAssertEqual(animals.first?.journalEntries.first?.note, "arrived")

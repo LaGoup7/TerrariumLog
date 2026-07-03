@@ -41,6 +41,7 @@ struct AnimalDTO: Codable {
     var status: AnimalStatus
     var notes: String
     var primaryPhotoPath: String?
+    var dashboardSortOrder: Int?
     var estimatedWorkerCount: Int?
     var queenCount: Int?
     var broodPresent: Bool

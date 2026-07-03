@@ -18,6 +18,10 @@ final class Animal {
     var notes: String
     var primaryPhotoPath: String?
 
+    /// Position dans le Dashboard, ajustable par glisser-déposer. Les nouveaux animaux
+    /// reçoivent la valeur max+1 existante à la création (voir AnimalFormView).
+    var dashboardSortOrder: Int = 0
+
     // Champs colonie (fourmis), utilisés seulement si type == .antColony
     var estimatedWorkerCount: Int?
     var queenCount: Int?
@@ -50,6 +54,7 @@ final class Animal {
         status: AnimalStatus,
         notes: String,
         primaryPhotoPath: String? = nil,
+        dashboardSortOrder: Int = 0,
         estimatedWorkerCount: Int? = nil,
         queenCount: Int? = nil,
         broodPresent: Bool = false,
@@ -69,6 +74,7 @@ final class Animal {
         self.status = status
         self.notes = notes
         self.primaryPhotoPath = primaryPhotoPath
+        self.dashboardSortOrder = dashboardSortOrder
         self.estimatedWorkerCount = estimatedWorkerCount
         self.queenCount = queenCount
         self.broodPresent = broodPresent

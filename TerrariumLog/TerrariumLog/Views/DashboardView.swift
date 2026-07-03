@@ -3,7 +3,7 @@ import SwiftData
 
 struct DashboardView: View {
     @Environment(\.modelContext) private var context
-    @Query(sort: [SortDescriptor<Animal>(\.name)]) private var animals: [Animal]
+    @Query(sort: [SortDescriptor<Animal>(\.dashboardSortOrder)]) private var animals: [Animal]
     @Query(sort: [SortDescriptor<Reminder>(\.reminderDate)]) private var reminders: [Reminder]
     @Query private var cameras: [Camera]
 
@@ -13,27 +13,65 @@ struct DashboardView: View {
 
     var body: some View {
         NavigationStack {
-            ScrollView {
-                VStack(spacing: 16) {
+            List {
+                Section {
                     headerSection
+                }
+                .listRowSeparator(.hidden)
+                .listRowBackground(Color.clear)
+                .listRowInsets(EdgeInsets())
 
-                    if !upcomingReminders.isEmpty {
+                if !upcomingReminders.isEmpty {
+                    Section {
                         remindersSection
                     }
+                    .listRowSeparator(.hidden)
+                    .listRowBackground(Color.clear)
+                    .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
+                }
 
-                    if !cameras.isEmpty {
+                if !cameras.isEmpty {
+                    Section {
                         camerasSection
                     }
+                    .listRowSeparator(.hidden)
+                    .listRowBackground(Color.clear)
+                    .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
+                }
 
+                Section {
                     ForEach(animals) { animal in
                         AnimalCardView(animal: animal)
+                            .listRowSeparator(.hidden)
+                            .listRowBackground(Color.clear)
+                            .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
+                    }
+                    .onMove(perform: moveAnimals)
+                } header: {
+                    if !animals.isEmpty {
+                        Text("Glisse-dépose pour réordonner")
                     }
                 }
-                .padding()
             }
-            .navigationTitle("Terrarium Log")
+            .listStyle(.plain)
+            .scrollContentBackground(.hidden)
             .background(LinearGradient(gradient: Gradient(colors: [Color.green.opacity(0.15), Color.teal.opacity(0.1)]), startPoint: .topLeading, endPoint: .bottomTrailing))
+            .navigationTitle("Terrarium Log")
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    EditButton()
+                }
+            }
         }
+    }
+
+    private func moveAnimals(from source: IndexSet, to destination: Int) {
+        var reordered = animals
+        reordered.move(fromOffsets: source, toOffset: destination)
+        for (index, animal) in reordered.enumerated() {
+            animal.dashboardSortOrder = index
+        }
+        try? context.save()
     }
 
     private var headerSection: some View {
@@ -114,66 +152,116 @@ struct DashboardView: View {
 struct AnimalCardView: View {
     let animal: Animal
     @State private var image: UIImage?
+    @State private var lightIsOn = false
+    @State private var isSendingLightCommand = false
+
+    private var terrariumLightIP: String? {
+        guard let ip = animal.terrarium?.wizLightIP, !ip.isEmpty else { return nil }
+        return ip
+    }
+
+    private var terrariumCamera: Camera? {
+        animal.terrarium?.cameras.first
+    }
 
     var body: some View {
-        NavigationLink(destination: AnimalDetailView(animal: animal)) {
-            VStack(alignment: .leading, spacing: 12) {
-                HStack(spacing: 12) {
-                    imageView
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(animal.name)
-                            .font(.headline)
-                        Text(animal.species)
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                        Label(animal.type.displayName, systemImage: animal.type.symbolName)
-                            .font(.footnote)
-                            .foregroundStyle(.teal)
-                        if let colonySummary = animal.colonySummary {
-                            Text(colonySummary)
-                                .font(.caption2)
+        VStack(alignment: .leading, spacing: 12) {
+            NavigationLink(destination: AnimalDetailView(animal: animal)) {
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack(spacing: 12) {
+                        imageView
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(animal.name)
+                                .font(.headline)
+                            Text(animal.species)
+                                .font(.subheadline)
                                 .foregroundStyle(.secondary)
+                            Label(animal.type.displayName, systemImage: animal.type.symbolName)
+                                .font(.footnote)
+                                .foregroundStyle(.teal)
+                            if let colonySummary = animal.colonySummary {
+                                Text(colonySummary)
+                                    .font(.caption2)
+                                    .foregroundStyle(.secondary)
+                            }
                         }
                     }
-                }
 
-                HStack {
-                    Circle()
-                        .fill(alertColor)
-                        .frame(width: 10, height: 10)
-                    Label(animal.currentStage, systemImage: "leaf")
-                        .font(.footnote)
-                    Spacer()
-                    Text(animal.status.displayName)
-                        .font(.caption.bold())
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 4)
-                        .background(Color.teal.opacity(0.2))
-                        .clipShape(Capsule())
-                }
+                    HStack {
+                        Circle()
+                            .fill(alertColor)
+                            .frame(width: 10, height: 10)
+                        Label(animal.currentStage, systemImage: "leaf")
+                            .font(.footnote)
+                        Spacer()
+                        Text(animal.status.displayName)
+                            .font(.caption.bold())
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(Color.teal.opacity(0.2))
+                            .clipShape(Capsule())
+                    }
 
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Dernier événement")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    Text(animal.journalEntries.sorted { $0.date > $1.date }.first.map { ObservationEventType(rawValue: $0.eventType)?.displayName ?? $0.eventType } ?? "Aucun")
-                        .font(.subheadline)
-                }
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Dernier événement")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        Text(animal.journalEntries.sorted { $0.date > $1.date }.first.map { ObservationEventType(rawValue: $0.eventType)?.displayName ?? $0.eventType } ?? "Aucun")
+                            .font(.subheadline)
+                    }
 
-                if let reminder = animal.reminders.sorted(by: { $0.reminderDate < $1.reminderDate }).first {
-                    Label("Prochain rappel : \(reminder.title)", systemImage: "bell.fill")
-                        .font(.footnote)
-                        .foregroundStyle(.orange)
+                    if let reminder = animal.reminders.sorted(by: { $0.reminderDate < $1.reminderDate }).first {
+                        Label("Prochain rappel : \(reminder.title)", systemImage: "bell.fill")
+                            .font(.footnote)
+                            .foregroundStyle(.orange)
+                    }
                 }
             }
-            .padding()
-            .background(.ultraThinMaterial)
-            .clipShape(RoundedRectangle(cornerRadius: 20))
+            .buttonStyle(.plain)
+
+            if terrariumLightIP != nil || terrariumCamera != nil {
+                Divider()
+                quickActionsRow
+            }
         }
+        .padding()
+        .background(.ultraThinMaterial)
+        .clipShape(RoundedRectangle(cornerRadius: 20))
         .onAppear {
             if let path = animal.primaryPhotoPath {
                 image = PhotoStorage.shared.loadImage(from: path)
             }
+        }
+    }
+
+    private var quickActionsRow: some View {
+        HStack(spacing: 20) {
+            if let lightIP = terrariumLightIP {
+                Button {
+                    lightIsOn.toggle()
+                    sendLightCommand(WizCommandBuilder.power(lightIsOn), ip: lightIP)
+                } label: {
+                    Label(lightIsOn ? "Éteindre" : "Lumière", systemImage: lightIsOn ? "lightbulb.fill" : "lightbulb")
+                        .foregroundStyle(lightIsOn ? .yellow : .primary)
+                }
+                .disabled(isSendingLightCommand)
+            }
+            if let camera = terrariumCamera {
+                NavigationLink(destination: CameraLiveView(camera: camera)) {
+                    Label("Caméra", systemImage: "video")
+                }
+            }
+            Spacer()
+        }
+        .font(.caption)
+        .buttonStyle(.plain)
+    }
+
+    private func sendLightCommand(_ command: WizCommand, ip: String) {
+        isSendingLightCommand = true
+        Task {
+            try? await WizLightService.shared.send(command, to: ip)
+            isSendingLightCommand = false
         }
     }
 
