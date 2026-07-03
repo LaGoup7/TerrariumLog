@@ -112,6 +112,8 @@ struct AddAnimalVideoView: View {
     @State private var pendingVideoURL: URL?
     @State private var isImporting = false
     @State private var errorMessage: String?
+    @State private var importProgress: Progress?
+    @State private var progressFraction: Double = 0
 
     var body: some View {
         NavigationStack {
@@ -121,7 +123,19 @@ struct AddAnimalVideoView: View {
                         Label(pendingVideoURL == nil ? "Choisir une vidéo" : "Vidéo sélectionnée", systemImage: "video.badge.plus")
                     }
                     if isImporting {
-                        ProgressView("Import en cours…")
+                        VStack(alignment: .leading, spacing: 6) {
+                            ProgressView(value: progressFraction)
+                            HStack {
+                                Text("\(Int(progressFraction * 100)) %")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                Spacer()
+                                Button("Annuler l'import", role: .destructive) {
+                                    cancelImport()
+                                }
+                                .font(.caption)
+                            }
+                        }
                     }
                     if let errorMessage {
                         Text(errorMessage)
@@ -147,20 +161,46 @@ struct AddAnimalVideoView: View {
             }
             .onChange(of: selectedItem) { _, newItem in
                 guard let newItem else { return }
-                isImporting = true
-                errorMessage = nil
-                Task {
-                    do {
-                        if let video = try await newItem.loadTransferable(type: TransferableVideo.self) {
-                            pendingVideoURL = video.url
-                        }
-                    } catch {
-                        errorMessage = "Impossible de charger cette vidéo."
-                    }
-                    isImporting = false
+                startImport(of: newItem)
+            }
+        }
+    }
+
+    private func startImport(of item: PhotosPickerItem) {
+        isImporting = true
+        progressFraction = 0
+        errorMessage = nil
+        pendingVideoURL = nil
+
+        let progress = item.loadTransferable(type: TransferableVideo.self) { result in
+            Task { @MainActor in
+                guard isImporting else { return } // ignore late callback after a manual cancel
+                isImporting = false
+                switch result {
+                case .success(let video):
+                    pendingVideoURL = video?.url
+                case .failure:
+                    errorMessage = "Impossible de charger cette vidéo."
                 }
             }
         }
+        importProgress = progress
+
+        Task { @MainActor in
+            while isImporting && !progress.isFinished && !progress.isCancelled {
+                progressFraction = progress.fractionCompleted
+                try? await Task.sleep(nanoseconds: 150_000_000)
+            }
+        }
+    }
+
+    private func cancelImport() {
+        importProgress?.cancel()
+        importProgress = nil
+        isImporting = false
+        selectedItem = nil
+        pendingVideoURL = nil
+        errorMessage = "Import annulé."
     }
 
     private func save() {
