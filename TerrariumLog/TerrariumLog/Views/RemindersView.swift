@@ -66,7 +66,8 @@ struct AddReminderView: View {
     @Environment(\.modelContext) private var context
     @Query(sort: [SortDescriptor<Animal>(\.name)]) private var animals: [Animal]
 
-    @State private var selectedAnimal: Animal?
+    @State private var selectedAnimals: Set<Animal> = []
+    @State private var showingAnimalPicker = false
     @State private var title = ""
     @State private var reminderDate: Date
     @State private var recurrence: ReminderRecurrence = .none
@@ -76,13 +77,26 @@ struct AddReminderView: View {
         _reminderDate = State(initialValue: initialDate)
     }
 
+    private var animalSelectionSummary: String {
+        switch selectedAnimals.count {
+        case 0: return "Aucun"
+        case 1: return selectedAnimals.first?.name ?? "1 animal"
+        default: return "\(selectedAnimals.count) animaux"
+        }
+    }
+
     var body: some View {
         NavigationStack {
             Form {
-                Picker("Animal", selection: $selectedAnimal) {
-                    Text("Aucun").tag(nil as Animal?)
-                    ForEach(animals) { animal in
-                        Text(animal.name).tag(animal as Animal?)
+                Button {
+                    showingAnimalPicker = true
+                } label: {
+                    HStack {
+                        Text("Animaux")
+                            .foregroundStyle(.primary)
+                        Spacer()
+                        Text(animalSelectionSummary)
+                            .foregroundStyle(.secondary)
                     }
                 }
                 TextField("Titre", text: $title)
@@ -102,16 +116,57 @@ struct AddReminderView: View {
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) { Button("Annuler") { dismiss() } }
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button("Enregistrer") {
-                        let reminder = Reminder(animal: selectedAnimal, title: title, reminderDate: reminderDate, recurrence: recurrence, category: category)
-                        context.insert(reminder)
-                        NotificationService.shared.scheduleReminder(reminder)
-                        try? context.save()
-                        ReminderService.shared.refreshWidgetSnapshot(context: context)
-                        dismiss()
-                    }
+                    Button("Enregistrer") { save() }
                 }
             }
+            .sheet(isPresented: $showingAnimalPicker) {
+                NavigationStack {
+                    List(animals) { animal in
+                        Button {
+                            if selectedAnimals.contains(animal) {
+                                selectedAnimals.remove(animal)
+                            } else {
+                                selectedAnimals.insert(animal)
+                            }
+                        } label: {
+                            HStack {
+                                Text(animal.name)
+                                    .foregroundStyle(.primary)
+                                Spacer()
+                                if selectedAnimals.contains(animal) {
+                                    Image(systemName: "checkmark")
+                                        .foregroundStyle(.teal)
+                                }
+                            }
+                        }
+                        .buttonStyle(.plain)
+                    }
+                    .navigationTitle("Choisir les animaux")
+                    .toolbar {
+                        ToolbarItem(placement: .confirmationAction) {
+                            Button("OK") { showingAnimalPicker = false }
+                        }
+                    }
+                }
+                .presentationDetents([.medium, .large])
+            }
         }
+    }
+
+    private func save() {
+        if selectedAnimals.isEmpty {
+            let reminder = Reminder(animal: nil, title: title, reminderDate: reminderDate, recurrence: recurrence, category: category)
+            context.insert(reminder)
+            NotificationService.shared.scheduleReminder(reminder)
+        } else {
+            for animal in selectedAnimals {
+                let reminder = Reminder(animal: animal, title: title, reminderDate: reminderDate, recurrence: recurrence, category: category)
+                context.insert(reminder)
+                NotificationService.shared.scheduleReminder(reminder)
+            }
+        }
+        try? context.save()
+        ReminderService.shared.refreshWidgetSnapshot(context: context)
+        dismiss()
     }
 }
