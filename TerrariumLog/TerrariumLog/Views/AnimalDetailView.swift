@@ -432,8 +432,14 @@ struct AnimalDetailView: View {
 
     private var measurementsSection: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("Mesures récentes")
+            Text("Mesures")
                 .font(.headline)
+            if !animal.measurements.isEmpty {
+                EnvironmentChartsView(measurements: animal.measurements)
+            }
+            Text("Dernières mesures")
+                .font(.caption)
+                .foregroundStyle(.secondary)
             ForEach(animal.measurements.sorted { $0.date > $1.date }) { measurement in
                 HStack {
                     VStack(alignment: .leading) {

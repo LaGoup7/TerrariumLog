@@ -10,13 +10,16 @@ final class MeasurementStatsTests: XCTestCase {
         XCTAssertNil(stats.minHumidity)
         XCTAssertNil(stats.maxHumidity)
         XCTAssertNil(stats.avgHumidity)
+        XCTAssertNil(stats.minLuminosity)
+        XCTAssertNil(stats.maxLuminosity)
+        XCTAssertNil(stats.avgLuminosity)
     }
 
     func testComputeReturnsMinMaxAverage() {
         let measurements = [
-            MeasurementEntry(date: .now, temperature: 20, humidity: 50),
-            MeasurementEntry(date: .now, temperature: 26, humidity: 70),
-            MeasurementEntry(date: .now, temperature: 23, humidity: 60)
+            MeasurementEntry(date: .now, temperature: 20, humidity: 50, luminosity: 100),
+            MeasurementEntry(date: .now, temperature: 26, humidity: 70, luminosity: 300),
+            MeasurementEntry(date: .now, temperature: 23, humidity: 60, luminosity: 200)
         ]
 
         let stats = MeasurementStats.compute(from: measurements)
@@ -27,6 +30,9 @@ final class MeasurementStatsTests: XCTestCase {
         XCTAssertEqual(stats.minHumidity, 50)
         XCTAssertEqual(stats.maxHumidity, 70)
         XCTAssertEqual(stats.avgHumidity ?? 0, 60, accuracy: 0.01)
+        XCTAssertEqual(stats.minLuminosity, 100)
+        XCTAssertEqual(stats.maxLuminosity, 300)
+        XCTAssertEqual(stats.avgLuminosity ?? 0, 200, accuracy: 0.01)
     }
 
     func testComputeIgnoresMissingValues() {

@@ -7,10 +7,14 @@ struct MeasurementStats {
     let minHumidity: Double?
     let maxHumidity: Double?
     let avgHumidity: Double?
+    let minLuminosity: Double?
+    let maxLuminosity: Double?
+    let avgLuminosity: Double?
 
     static func compute(from measurements: [MeasurementEntry]) -> MeasurementStats {
         let temperatures = measurements.compactMap(\.temperature)
         let humidities = measurements.compactMap(\.humidity)
+        let luminosities = measurements.compactMap(\.luminosity)
 
         return MeasurementStats(
             minTemperature: temperatures.min(),
@@ -18,7 +22,10 @@ struct MeasurementStats {
             avgTemperature: average(temperatures),
             minHumidity: humidities.min(),
             maxHumidity: humidities.max(),
-            avgHumidity: average(humidities)
+            avgHumidity: average(humidities),
+            minLuminosity: luminosities.min(),
+            maxLuminosity: luminosities.max(),
+            avgLuminosity: average(luminosities)
         )
     }
 

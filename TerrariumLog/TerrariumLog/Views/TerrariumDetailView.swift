@@ -1,6 +1,5 @@
 import SwiftUI
 import SwiftData
-import Charts
 import PhotosUI
 import UIKit
 
@@ -340,9 +339,7 @@ struct TerrariumDetailView: View {
 
     private var measurementsSection: some View {
         let allMeasurements = terrarium.animals.flatMap(\.measurements)
-        let chronological = allMeasurements.sorted { $0.date < $1.date }.suffix(30)
         let recent = allMeasurements.sorted { $0.date > $1.date }.prefix(5)
-        let stats = MeasurementStats.compute(from: allMeasurements)
 
         return VStack(alignment: .leading, spacing: 10) {
             HStack {
@@ -359,42 +356,7 @@ struct TerrariumDetailView: View {
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             } else {
-                if chronological.contains(where: { $0.temperature != nil }) {
-                    Text("Température")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    Chart(Array(chronological.filter { $0.temperature != nil })) { measurement in
-                        LineMark(
-                            x: .value("Date", measurement.date),
-                            y: .value("°C", measurement.temperature ?? 0)
-                        )
-                    }
-                    .foregroundStyle(.orange)
-                    .frame(height: 100)
-                    if let min = stats.minTemperature, let max = stats.maxTemperature, let avg = stats.avgTemperature {
-                        Text("Min \(min, specifier: "%.1f")°C · Max \(max, specifier: "%.1f")°C · Moy \(avg, specifier: "%.1f")°C")
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-                if chronological.contains(where: { $0.humidity != nil }) {
-                    Text("Humidité")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    Chart(Array(chronological.filter { $0.humidity != nil })) { measurement in
-                        LineMark(
-                            x: .value("Date", measurement.date),
-                            y: .value("%", measurement.humidity ?? 0)
-                        )
-                    }
-                    .foregroundStyle(.blue)
-                    .frame(height: 100)
-                    if let min = stats.minHumidity, let max = stats.maxHumidity, let avg = stats.avgHumidity {
-                        Text("Min \(min, specifier: "%.0f")% · Max \(max, specifier: "%.0f")% · Moy \(avg, specifier: "%.0f")%")
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
-                    }
-                }
+                EnvironmentChartsView(measurements: allMeasurements)
                 Text("Dernières mesures")
                     .font(.caption)
                     .foregroundStyle(.secondary)

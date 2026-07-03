@@ -8,6 +8,11 @@ struct MeasurementsView: View {
 
     var body: some View {
         List {
+            if !measurements.isEmpty {
+                Section {
+                    EnvironmentChartsView(measurements: measurements)
+                }
+            }
             ForEach(measurements) { measurement in
                 VStack(alignment: .leading, spacing: 6) {
                     Text(measurement.animal?.name ?? "Sans animal")
