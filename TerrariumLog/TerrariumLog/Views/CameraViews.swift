@@ -3,6 +3,7 @@ import SwiftData
 
 struct CameraLiveView: View {
     @Environment(\.modelContext) private var context
+    @Environment(\.scenePhase) private var scenePhase
     let camera: Camera
 
     @State private var showingConfig = false
@@ -42,6 +43,18 @@ struct CameraLiveView: View {
         }
         .navigationTitle(camera.name)
         .navigationBarTitleDisplayMode(.inline)
+        .onChange(of: scenePhase) { _, phase in
+            // Libère la session RTSP quand l'app passe en arrière-plan (évite les
+            // sessions fantômes côté caméra), et la relance au retour au premier plan.
+            switch phase {
+            case .background:
+                reloadToken = nil
+            case .active:
+                if reloadToken == nil { reconnect() }
+            default:
+                break
+            }
+        }
         .sheet(isPresented: $showingConfig) {
             CameraConfigView(camera: camera)
         }
