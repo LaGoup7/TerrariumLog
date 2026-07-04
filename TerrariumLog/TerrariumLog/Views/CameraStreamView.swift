@@ -84,25 +84,22 @@ struct CameraStreamView: UIViewRepresentable {
         func start(url: URL, username: String?, password: String?, on view: UIView) {
             log("Lecteur créé (MobileVLCKit)")
             log("Ouverture RTSP : \(Self.redactedURL(url))")
-            log("Vue \(Int(view.bounds.width))×\(Int(view.bounds.height)) — TCP, buffer 1500 ms, décodage logiciel")
+            log("Vue \(Int(view.bounds.width))×\(Int(view.bounds.height)) — UDP, buffer 2500 ms")
 
             let player = VLCMediaPlayer()
             player.drawable = view
             player.delegate = self
 
             let media = VLCMedia(url: url)
-            // Transport RTSP forcé sur TCP : livraison fiable des keyframes/SPS.
-            media.addOption(":rtsp-tcp")
-            media.addOption(":network-caching=1500")
-            // Décodage LOGICIEL forcé : le journal a montré un ES H.264 détecté
-            // mais bloqué en 0×0 (aucune image décodée) = échec d'init du décodeur
-            // matériel VideoToolbox sur iOS pour ce flux. En logiciel, avcodec
-            // décode les images. (Combiné au TCP, contrairement aux essais UDP.)
-            media.addOption(":avcodec-hw=none")
+            // Transport UDP (défaut) : le journal a montré que les images circulent
+            // en UDP (état « Lecture » atteint) mais PAS en TCP entrelacé avec cette
+            // C220. Gros tampon pour absorber la gigue/perte UDP.
+            media.addOption(":network-caching=2500")
             player.media = media
             player.play()
             self.player = player
             onStatusChange(.connecting, "Ouverture…")
+            startProbe()
         }
 
         /// Vrai dès que le flux a réellement joué : permet de distinguer un arrêt
@@ -110,9 +107,30 @@ struct CameraStreamView: UIViewRepresentable {
         private var hasPlayed = false
         /// Évite de journaliser le codec en boucle à chaque changement d'état.
         private var didLogTracks = false
+        /// Sonde runtime : vérifie si la lecture progresse réellement.
+        private var probeTimer: Timer?
+        private var probeTicks = 0
+
+        /// Journalise toutes les 2 s l'avancement du temps de lecture, la taille
+        /// vidéo décodée et la présence d'une sortie vidéo : distingue « images
+        /// qui ne circulent pas » de « images décodées mais non affichées ».
+        private func startProbe() {
+            probeTimer?.invalidate()
+            probeTicks = 0
+            probeTimer = Timer.scheduledTimer(withTimeInterval: 2, repeats: true) { [weak self] timer in
+                guard let self, let player = self.player else { timer.invalidate(); return }
+                self.probeTicks += 1
+                if self.probeTicks > 12 { timer.invalidate(); return }
+                let ms = player.time.intValue
+                let size = player.videoSize
+                self.log("t=\(ms)ms  vidéo=\(Int(size.width))×\(Int(size.height))  sortie=\(player.hasVideoOut ? "oui" : "non")")
+            }
+        }
 
         func stop() {
             log("Fermeture du flux")
+            probeTimer?.invalidate()
+            probeTimer = nil
             // On coupe le délégué d'abord pour ne pas remonter le `.stopped` du teardown.
             player?.delegate = nil
             player?.stop()
