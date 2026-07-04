@@ -84,7 +84,7 @@ struct CameraStreamView: UIViewRepresentable {
         func start(url: URL, username: String?, password: String?, on view: UIView) {
             log("Lecteur créé (MobileVLCKit)")
             log("Ouverture RTSP : \(Self.redactedURL(url))")
-            log("Vue \(Int(view.bounds.width))×\(Int(view.bounds.height)) — RTP sur TCP, buffer 2500 ms")
+            log("Vue \(Int(view.bounds.width))×\(Int(view.bounds.height)) — RTP sur TCP, sans audio, buffer 1000 ms")
 
             // Active le log natif de libvlc pour capturer la raison exacte (RTSP/RTP).
             enableVLCLogging()
@@ -99,7 +99,11 @@ struct CameraStreamView: UIViewRepresentable {
             // le RTP entrelacé DANS la connexion TCP déjà ouverte pour contourner le
             // blocage des ports UDP entre la caméra et l'iPhone.
             media.addOption(":rtsp-tcp")
-            media.addOption(":network-caching=2500")
+            // Sans audio : la négociation de la piste audio (PCMA) ajoutait ~15 s au
+            // démarrage (VLC attend TOUTES les pistes avant d'afficher). Inutile ici.
+            media.addOption(":no-audio")
+            // Buffer réduit : moins de latence au démarrage (le transport TCP est fiable).
+            media.addOption(":network-caching=1000")
             player.media = media
             player.play()
             self.player = player
