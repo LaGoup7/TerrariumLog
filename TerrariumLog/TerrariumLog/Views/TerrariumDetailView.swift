@@ -246,6 +246,14 @@ struct TerrariumDetailView: View {
                                 .foregroundStyle(.secondary)
                         }
                     }
+                    .contextMenu {
+                        Button(role: .destructive) {
+                            context.delete(camera)
+                            try? context.save()
+                        } label: {
+                            Label("Supprimer la caméra", systemImage: "trash")
+                        }
+                    }
                 }
             }
         }

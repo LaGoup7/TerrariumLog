@@ -76,19 +76,11 @@ struct CameraStreamView: UIViewRepresentable {
             player.delegate = self
 
             let media = VLCMedia(url: url)
-            // RTSP sur TCP (plus fiable que l'UDP derrière un NAT).
-            media.addOption(":rtsp-tcp")
-            // Un buffer trop court fait échouer les flux RTSP (2K/keyframes lentes) :
-            // 1,5 s est un bon compromis latence/robustesse.
-            media.addOption(":network-caching=1500")
-            media.addOption(":rtsp-caching=1500")
-            // Authentification aussi via options (secours quand l'URL ne suffit pas).
-            if let username, !username.isEmpty {
-                media.addOption(":rtsp-user=\(username)")
-                if let password, !password.isEmpty {
-                    media.addOption(":rtsp-pwd=\(password)")
-                }
-            }
+            // Configuration volontairement minimale, calquée sur VLC desktop qui
+            // lit le flux sans souci : identifiants portés par l'URL, transport
+            // par défaut (pas de RTSP-sur-TCP forcé, qui fait échouer certaines
+            // Tapo dans MobileVLCKit) et un buffer live raisonnable.
+            media.addOption(":network-caching=1000")
             player.media = media
             player.play()
             self.player = player

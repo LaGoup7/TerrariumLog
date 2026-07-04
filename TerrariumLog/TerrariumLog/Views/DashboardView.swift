@@ -224,6 +224,14 @@ struct DashboardView: View {
                             .foregroundStyle(Brand.accent)
                     }
                 }
+                .contextMenu {
+                    Button(role: .destructive) {
+                        context.delete(camera)
+                        try? context.save()
+                    } label: {
+                        Label("Supprimer la caméra", systemImage: "trash")
+                    }
+                }
             }
         }
         .dashboardCard()
