@@ -7,13 +7,15 @@ struct CameraLiveView: View {
 
     @State private var showingConfig = false
     @State private var comingSoonMessage: String?
+    @State private var streamStatus: CameraStreamStatus = .connecting
+    @State private var reloadToken = UUID()
 
     private let streamProvider: CameraStreamProvider = RTSPPassthroughProvider()
 
     var body: some View {
         ScrollView {
             VStack(spacing: 16) {
-                videoPlaceholder
+                videoArea
                 statusSection
                 buttonsRow
             }
@@ -37,15 +39,67 @@ struct CameraLiveView: View {
         }
     }
 
+    @ViewBuilder
+    private var videoArea: some View {
+        if let url = streamProvider.playableURL(for: camera) {
+            ZStack {
+                CameraStreamView(url: url) { status in
+                    streamStatus = status
+                }
+                .id(reloadToken)
+                if streamStatus == .connecting {
+                    ProgressView()
+                        .tint(.white)
+                } else if streamStatus == .error {
+                    VStack(spacing: 8) {
+                        Image(systemName: "wifi.exclamationmark")
+                            .font(.system(size: 34))
+                            .foregroundStyle(.white.opacity(0.7))
+                        Text("Flux indisponible. Vérifie que l'iPhone est sur le même réseau que la caméra, puis appuie sur « Live ».")
+                            .font(.caption)
+                            .foregroundStyle(.white.opacity(0.85))
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal)
+                    }
+                }
+            }
+            .frame(height: 220)
+            .frame(maxWidth: .infinity)
+            .background(Color.black)
+            .clipShape(RoundedRectangle(cornerRadius: 20))
+            .overlay(alignment: .topLeading) {
+                if streamStatus == .playing {
+                    liveBadge.padding(10)
+                }
+            }
+        } else {
+            videoPlaceholder
+        }
+    }
+
+    private var liveBadge: some View {
+        HStack(spacing: 5) {
+            Circle()
+                .fill(.red)
+                .frame(width: 7, height: 7)
+            Text("EN DIRECT")
+                .font(.caption2.weight(.bold))
+                .foregroundStyle(.white)
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 4)
+        .background(.black.opacity(0.5), in: Capsule())
+    }
+
     private var videoPlaceholder: some View {
         ZStack {
             RoundedRectangle(cornerRadius: 20)
                 .fill(Color.black)
             VStack(spacing: 10) {
-                Image(systemName: camera.isConfigured ? "video.slash" : "video.slash.fill")
+                Image(systemName: "video.slash.fill")
                     .font(.system(size: 40))
                     .foregroundStyle(.white.opacity(0.6))
-                Text(camera.isConfigured ? "Flux vidéo — intégration du lecteur à venir" : "Caméra non configurée")
+                Text("Caméra non configurée — renseigne l'URL du flux dans Réglages.")
                     .font(.footnote)
                     .foregroundStyle(.white.opacity(0.8))
                     .multilineTextAlignment(.center)
@@ -80,8 +134,12 @@ struct CameraLiveView: View {
     private var buttonsRow: some View {
         HStack(spacing: 12) {
             actionButton(title: "Live", systemImage: "play.circle.fill") {
-                if !camera.isConfigured {
-                    comingSoonMessage = "Renseigne l'adresse et le flux de la caméra dans Réglages avant de lancer le direct."
+                if streamProvider.playableURL(for: camera) != nil {
+                    // Recrée le lecteur pour (re)lancer la connexion au flux.
+                    streamStatus = .connecting
+                    reloadToken = UUID()
+                } else {
+                    comingSoonMessage = "Renseigne l'URL du flux (rtsp://…) de la caméra dans Réglages avant de lancer le direct."
                 }
             }
             actionButton(title: "Photo", systemImage: "camera.fill") {

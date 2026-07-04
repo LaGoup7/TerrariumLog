@@ -6,6 +6,11 @@ configs:
   Debug: {}
   Release: {}
 
+packages:
+  VLCKitSPM:
+    url: https://github.com/tylerjonesio/vlckit-spm.git
+    exactVersion: 3.6.0
+
 settings:
   PRODUCT_BUNDLE_IDENTIFIER: com.example.terrariumlog
 
@@ -29,6 +34,8 @@ targets:
     dependencies:
       - target: TerrariumLogWidgetExtension
         embed: true
+      - package: VLCKitSPM
+        product: VLCKitSPM
 
   TerrariumLogWidgetExtension:
     type: app-extension
