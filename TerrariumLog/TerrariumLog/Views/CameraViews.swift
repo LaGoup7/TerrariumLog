@@ -10,6 +10,7 @@ struct CameraLiveView: View {
     @State private var streamStatus: CameraStreamStatus = .connecting
     @State private var streamDetail = "Ouverture…"
     @State private var reloadToken = UUID()
+    @State private var diagnosticMessage: String?
 
     private let streamProvider: CameraStreamProvider = RTSPPassthroughProvider()
 
@@ -37,6 +38,32 @@ struct CameraLiveView: View {
             Button("OK") { comingSoonMessage = nil }
         } message: {
             Text(comingSoonMessage ?? "")
+        }
+        .alert(
+            "Test de connexion",
+            isPresented: Binding(
+                get: { diagnosticMessage != nil },
+                set: { if !$0 { diagnosticMessage = nil } }
+            )
+        ) {
+            Button("OK") { diagnosticMessage = nil }
+        } message: {
+            Text(diagnosticMessage ?? "")
+        }
+    }
+
+    private func testConnection() {
+        guard let url = streamProvider.playableURL(for: camera), let host = url.host, !host.isEmpty else {
+            diagnosticMessage = "URL du flux vide ou invalide. Renseigne rtsp://…:554/stream1 dans Réglages."
+            return
+        }
+        let port = UInt16(url.port ?? 554)
+        diagnosticMessage = "Test en cours vers \(host):\(port)…"
+        Task {
+            let reachable = await NetworkProbe.canConnect(host: host, port: port, timeout: 6)
+            diagnosticMessage = reachable
+                ? "✅ \(host):\(port) est joignable.\n\nLe port RTSP répond : le réseau est bon. Le noir vient donc de l'URL/chemin (/stream1 vs /stream2), des identifiants (casse) ou du décodage — pas du réseau."
+                : "❌ \(host):\(port) injoignable.\n\nLe port RTSP ne répond pas. Vérifie : iPhone sur le même Wi-Fi que la caméra, IP exacte, et RTSP réellement activé (compte caméra) sur la Tapo."
         }
     }
 
@@ -84,9 +111,9 @@ struct CameraLiveView: View {
                 }
             }
             .task(id: reloadToken) {
-                // Timeout : si le flux n'est pas en lecture après 12 s, on bascule
+                // Timeout : si le flux n'est pas en lecture après 20 s, on bascule
                 // en erreur avec un message plutôt que de rester noir sans fin.
-                try? await Task.sleep(nanoseconds: 12_000_000_000)
+                try? await Task.sleep(nanoseconds: 20_000_000_000)
                 if streamStatus != .playing {
                     streamStatus = .error
                     if streamDetail == "Ouverture…" || streamDetail == "Mise en mémoire tampon…" {
@@ -171,8 +198,8 @@ struct CameraLiveView: View {
             actionButton(title: "Photo", systemImage: "camera.fill") {
                 comingSoonMessage = "La capture de snapshot arrivera avec l'intégration du flux vidéo."
             }
-            actionButton(title: "Timelapse", systemImage: "timelapse") {
-                comingSoonMessage = "Le timelapse arrivera avec l'intégration du flux vidéo."
+            actionButton(title: "Tester", systemImage: "network") {
+                testConnection()
             }
             actionButton(title: "Réglages", systemImage: "gearshape.fill") {
                 showingConfig = true
