@@ -8,7 +8,9 @@ struct TimelineView: View {
     @State private var searchText = ""
 
     private var filteredEntries: [ObservationEntry] {
-        var result = entries
+        // Les ajouts de photos (type .photo) ne sont pas des événements : ils
+        // restent dans la galerie mais n'apparaissent pas dans la timeline.
+        var result = entries.filter { !$0.isPhotoOnly }
         if let selectedAnimal {
             result = result.filter { $0.animal?.id == selectedAnimal.id }
         }

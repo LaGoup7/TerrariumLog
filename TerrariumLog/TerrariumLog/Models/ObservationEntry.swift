@@ -53,6 +53,16 @@ final class ObservationEntry {
     }
 }
 
+extension ObservationEntry {
+    /// Entrée créée uniquement pour ajouter une ou des photos à la galerie
+    /// (type `.photo`, sans note). Ce n'est pas un vrai événement : elle ne doit
+    /// pas apparaître dans la timeline, le journal, ni comme « dernier
+    /// événement ». Ses photos restent visibles et gérables dans la galerie.
+    var isPhotoOnly: Bool {
+        eventType == ObservationEventType.photo.rawValue
+    }
+}
+
 enum PreyType: String, CaseIterable, Codable, Sendable {
     case drosophile
     case fly

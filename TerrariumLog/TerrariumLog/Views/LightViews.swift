@@ -7,6 +7,7 @@ import UIKit
 /// marque (couleur, effets) sont masqués via le `LightController`.
 struct LightControlView: View {
     @Environment(\.modelContext) private var context
+    @Environment(\.dismiss) private var dismiss
     let light: Light
 
     @State private var isOn: Bool
@@ -15,6 +16,7 @@ struct LightControlView: View {
     @State private var isSending = false
     @State private var errorMessage: String?
     @State private var showingConfig = false
+    @State private var showingDeleteConfirmation = false
 
     private var controller: LightController {
         LightControllerFactory.controller(for: light.brand)
@@ -57,12 +59,34 @@ struct LightControlView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
-                Button {
-                    showingConfig = true
+                Menu {
+                    Button {
+                        showingConfig = true
+                    } label: {
+                        Label("Configurer", systemImage: "gearshape")
+                    }
+                    Button(role: .destructive) {
+                        showingDeleteConfirmation = true
+                    } label: {
+                        Label("Supprimer la lampe", systemImage: "trash")
+                    }
                 } label: {
-                    Image(systemName: "gearshape.fill")
+                    Image(systemName: "ellipsis.circle")
                 }
             }
+        }
+        .confirmationDialog(
+            "Supprimer \(light.name) ?",
+            isPresented: $showingDeleteConfirmation,
+            titleVisibility: .visible
+        ) {
+            Button("Supprimer", role: .destructive) {
+                context.delete(light)
+                try? context.save()
+                dismiss()
+            }
+        } message: {
+            Text("La lampe est retirée de l'app. La lampe physique n'est pas affectée.")
         }
         .sheet(isPresented: $showingConfig) {
             LightConfigView(light: light)

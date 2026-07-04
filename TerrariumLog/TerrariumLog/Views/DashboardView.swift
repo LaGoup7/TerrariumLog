@@ -142,7 +142,7 @@ struct DashboardView: View {
                 Text("Prochains rappels")
                     .font(.headline)
                     .lineLimit(1)
-                    .fixedSize(horizontal: true, vertical: false)
+                    .layoutPriority(1)
                 Spacer(minLength: 8)
                 HStack(spacing: 18) {
                     Button {
@@ -224,7 +224,7 @@ struct DashboardView: View {
                 Text("Lumières")
                     .font(.headline)
                     .lineLimit(1)
-                    .fixedSize(horizontal: true, vertical: false)
+                    .layoutPriority(1)
                 Spacer(minLength: 8)
                 Button {
                     showingAddLight = true
@@ -258,6 +258,14 @@ struct DashboardView: View {
                             Image(systemName: "chevron.right")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
+                        }
+                    }
+                    .contextMenu {
+                        Button(role: .destructive) {
+                            context.delete(light)
+                            try? context.save()
+                        } label: {
+                            Label("Supprimer", systemImage: "trash")
                         }
                     }
                 }
@@ -367,7 +375,7 @@ struct AnimalCardView: View {
                         Text("Dernier événement")
                             .font(.caption)
                             .foregroundStyle(.secondary)
-                        Text(animal.journalEntries.sorted { $0.date > $1.date }.first.map { ObservationEventType(rawValue: $0.eventType)?.displayName ?? $0.eventType } ?? "Aucun")
+                        Text(animal.journalEntries.filter { !$0.isPhotoOnly }.sorted { $0.date > $1.date }.first.map { ObservationEventType(rawValue: $0.eventType)?.displayName ?? $0.eventType } ?? "Aucun")
                             .font(.subheadline)
                     }
 

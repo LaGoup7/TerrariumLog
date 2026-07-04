@@ -386,7 +386,7 @@ struct AnimalDetailView: View {
         VStack(alignment: .leading, spacing: 10) {
             Text("Journal")
                 .font(.headline)
-            ForEach(animal.journalEntries.sorted { $0.date > $1.date }) { entry in
+            ForEach(animal.journalEntries.filter { !$0.isPhotoOnly }.sorted { $0.date > $1.date }) { entry in
                 HStack(alignment: .top) {
                     VStack(alignment: .leading, spacing: 6) {
                         Text(ObservationEventType(rawValue: entry.eventType)?.displayName ?? entry.eventType)
@@ -487,6 +487,13 @@ struct AnimalDetailView: View {
                                         .onTapGesture {
                                             selectedGalleryIndex = index
                                         }
+                                        .contextMenu {
+                                            Button(role: .destructive) {
+                                                deleteGalleryPhoto(photo)
+                                            } label: {
+                                                Label("Supprimer la photo", systemImage: "trash")
+                                            }
+                                        }
                                 }
                             }
                         }
@@ -528,6 +535,27 @@ struct AnimalDetailView: View {
         )
         context.insert(entry)
         try? context.save()
+    }
+
+    /// Supprime une photo depuis la galerie. On retire son chemin de l'entrée qui
+    /// la contient : si c'est une entrée purement photo devenue vide, l'entrée est
+    /// supprimée ; si la photo était attachée à un vrai événement, l'événement est
+    /// conservé. Le fichier local est supprimé du stockage.
+    private func deleteGalleryPhoto(_ photo: GalleryPhoto) {
+        if let entry = animal.journalEntries.first(where: { $0.photoPaths.contains(photo.path) }) {
+            entry.photoPaths.removeAll { $0 == photo.path }
+            if entry.isPhotoOnly && entry.photoPaths.isEmpty {
+                context.delete(entry)
+            }
+        }
+        if animal.primaryPhotoPath == photo.path {
+            animal.primaryPhotoPath = nil
+        }
+        try? PhotoStorage.shared.deleteImage(at: photo.path)
+        try? context.save()
+        if filteredGalleryPhotos.isEmpty {
+            selectedGalleryFilter = nil
+        }
     }
 
     private func galleryFilterChip(label: String, isSelected: Bool, action: @escaping () -> Void) -> some View {
@@ -661,7 +689,7 @@ struct AnimalDetailView: View {
                 }
             }
             statRow(label: "Photos", value: "\(galleryPhotos.count)")
-            statRow(label: "Entrées de journal", value: "\(animal.journalEntries.count)")
+            statRow(label: "Entrées de journal", value: "\(animal.journalEntries.filter { !$0.isPhotoOnly }.count)")
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding()
