@@ -13,9 +13,9 @@ struct CameraLiveView: View {
     @State private var diagnosticMessage: String?
     @State private var isTesting = false
     @State private var logLines: [String] = []
-    // Sur mobile, on démarre sur le flux Fluide (SD) : le flux HD 2K des Tapo
-    // est souvent trop lourd à décoder en temps réel sur iPhone.
-    @State private var quality: StreamQuality = .sd
+    // Le flux HD (/stream1) est en H.264 (décodable sans peine) et c'est celui
+    // validé sur VLC desktop : on démarre dessus. « Fluide » reste dispo.
+    @State private var quality: StreamQuality = .hd
 
     private let streamProvider: CameraStreamProvider = RTSPPassthroughProvider()
 

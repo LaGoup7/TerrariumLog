@@ -84,18 +84,18 @@ struct CameraStreamView: UIViewRepresentable {
         func start(url: URL, username: String?, password: String?, on view: UIView) {
             log("Lecteur créé (MobileVLCKit)")
             log("Ouverture RTSP : \(Self.redactedURL(url))")
-            log("Vue \(Int(view.bounds.width))×\(Int(view.bounds.height)) — buffer 1500 ms, décodage matériel")
+            log("Vue \(Int(view.bounds.width))×\(Int(view.bounds.height)) — transport TCP, buffer 1500 ms")
 
             let player = VLCMediaPlayer()
             player.drawable = view
             player.delegate = self
 
             let media = VLCMedia(url: url)
-            // Configuration calquée sur VLC desktop : identifiants portés par
-            // l'URL, transport par défaut (pas de RTSP-sur-TCP forcé). On garde
-            // le décodage matériel (rapide) ; sur mobile on privilégie le flux
-            // SD (voir StreamQuality) qui se décode sans peine, le HD 2K H.265
-            // étant trop lourd pour l'iPhone en temps réel.
+            // Transport RTSP forcé sur TCP : le journal a montré un flux H.264 qui
+            // reste en 0×0 et re-bufferise en boucle = perte de paquets RTP en UDP
+            // sur le Wi-Fi de l'iPhone. TCP garantit la livraison (retransmission)
+            // et fiabilise la réception des keyframes/SPS.
+            media.addOption(":rtsp-tcp")
             media.addOption(":network-caching=1500")
             player.media = media
             player.play()
