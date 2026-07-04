@@ -4,8 +4,13 @@ import SwiftData
 struct ContentView: View {
     @Environment(\.modelContext) private var context
     @Query(sort: [SortDescriptor<Animal>(\.name)]) private var animals: [Animal]
+    @AppStorage("appAppearance") private var appearanceRawValue = AppAppearance.system.rawValue
 
     @State private var selectedTab = 0
+
+    private var appearance: AppAppearance {
+        AppAppearance(rawValue: appearanceRawValue) ?? .system
+    }
 
     init() {
         Self.configureBarAppearance()
@@ -45,19 +50,21 @@ struct ContentView: View {
         }
         .tint(Brand.primary)
         .background(Brand.background.ignoresSafeArea())
-        // Identité « Habitat » : thème sombre premium verrouillé (voir Theme.swift).
-        .preferredColorScheme(.dark)
+        // Identité « Habitat » : thèmes clair et sombre partageant le même langage
+        // graphique (voir Theme.swift). L'utilisateur choisit dans les Réglages.
+        .preferredColorScheme(appearance.colorScheme)
     }
 
-    /// Aligne les barres système (onglets + navigation) sur l'identité sombre :
-    /// fond sombre translucide, teinte de sélection verte.
+    /// Aligne les barres système (onglets + navigation) sur l'identité « Habitat ».
+    /// On utilise directement les `UIColor` dynamiques : elles se résolvent en
+    /// clair ou sombre selon l'apparence, sans configuration conditionnelle.
     private static func configureBarAppearance() {
         let tabBar = UITabBarAppearance()
         tabBar.configureWithOpaqueBackground()
-        tabBar.backgroundColor = UIColor(Brand.background)
+        tabBar.backgroundColor = Brand.backgroundUI
 
-        let selected = UIColor(Brand.primary)
-        let normal = UIColor(Brand.textSecondary)
+        let selected = Brand.primaryUI
+        let normal = Brand.textSecondaryUI
         for item in [tabBar.stackedLayoutAppearance, tabBar.inlineLayoutAppearance, tabBar.compactInlineLayoutAppearance] {
             item.selected.iconColor = selected
             item.selected.titleTextAttributes = [.foregroundColor: selected]
@@ -68,10 +75,11 @@ struct ContentView: View {
         UITabBar.appearance().scrollEdgeAppearance = tabBar
 
         let navBar = UINavigationBarAppearance()
-        navBar.configureWithTransparentBackground()
-        navBar.backgroundColor = UIColor(Brand.background.opacity(0.6))
-        navBar.titleTextAttributes = [.foregroundColor: UIColor(Brand.textPrimary)]
-        navBar.largeTitleTextAttributes = [.foregroundColor: UIColor(Brand.textPrimary)]
+        // Fond système translucide (« chrome material ») : s'adapte seul au thème
+        // clair/sombre pour un rendu premium type Apple.
+        navBar.configureWithDefaultBackground()
+        navBar.titleTextAttributes = [.foregroundColor: Brand.textPrimaryUI]
+        navBar.largeTitleTextAttributes = [.foregroundColor: Brand.textPrimaryUI]
         UINavigationBar.appearance().standardAppearance = navBar
         UINavigationBar.appearance().scrollEdgeAppearance = navBar
         UINavigationBar.appearance().compactAppearance = navBar

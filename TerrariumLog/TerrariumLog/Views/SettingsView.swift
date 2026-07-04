@@ -50,8 +50,31 @@ struct BackupBundleDocument: FileDocument {
     }
 }
 
+enum AppAppearance: String, CaseIterable {
+    case system
+    case light
+    case dark
+
+    var displayName: String {
+        switch self {
+        case .system: return "Système"
+        case .light: return "Clair"
+        case .dark: return "Sombre"
+        }
+    }
+
+    var colorScheme: ColorScheme? {
+        switch self {
+        case .system: return nil
+        case .light: return .light
+        case .dark: return .dark
+        }
+    }
+}
+
 struct SettingsView: View {
     @Environment(\.modelContext) private var context
+    @AppStorage("appAppearance") private var appearanceRawValue = AppAppearance.system.rawValue
     @Query private var animals: [Animal]
     @Query private var terrariums: [Terrarium]
     @Query(sort: [SortDescriptor<CustomPreyType>(\.name)]) private var customPreyTypes: [CustomPreyType]
@@ -69,6 +92,19 @@ struct SettingsView: View {
     var body: some View {
         NavigationStack {
             Form {
+                Section {
+                    Picker("Thème", selection: $appearanceRawValue) {
+                        ForEach(AppAppearance.allCases, id: \.self) { appearance in
+                            Text(appearance.displayName).tag(appearance.rawValue)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                } header: {
+                    Text("Apparence")
+                } footer: {
+                    Text("Habitat s'adapte automatiquement au thème choisi, en clair comme en sombre.")
+                }
+
                 Section("Notifications") {
                     LabeledContent("Statut", value: notificationStatusLabel)
                     if notificationStatus == .denied {
