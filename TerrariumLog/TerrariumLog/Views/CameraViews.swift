@@ -9,7 +9,8 @@ struct CameraLiveView: View {
     @State private var comingSoonMessage: String?
     @State private var streamStatus: CameraStreamStatus = .connecting
     @State private var streamDetail = "Ouverture…"
-    @State private var reloadToken = UUID()
+    // nil = aucun lecteur actif (fenêtre de fermeture entre deux sessions RTSP).
+    @State private var reloadToken: UUID? = UUID()
     @State private var diagnosticMessage: String?
     @State private var isTesting = false
     @State private var logLines: [String] = []
@@ -93,17 +94,19 @@ struct CameraLiveView: View {
     private var videoArea: some View {
         if let url = streamProvider.playableURL(for: camera, streamPathOverride: pathOverride) {
             ZStack {
-                CameraStreamView(
-                    url: url,
-                    username: camera.username,
-                    password: camera.password,
-                    onStatusChange: { status, detail in
-                        streamStatus = status
-                        streamDetail = detail
-                    },
-                    onLog: { line in appendLog(line) }
-                )
-                .id(reloadToken)
+                if let token = reloadToken {
+                    CameraStreamView(
+                        url: url,
+                        username: camera.username,
+                        password: camera.password,
+                        onStatusChange: { status, detail in
+                            streamStatus = status
+                            streamDetail = detail
+                        },
+                        onLog: { line in appendLog(line) }
+                    )
+                    .id(token)
+                }
 
                 if streamStatus == .connecting {
                     VStack(spacing: 10) {
@@ -148,6 +151,7 @@ struct CameraLiveView: View {
             .task(id: reloadToken) {
                 // Timeout : si le flux n'est pas en lecture après 20 s, on bascule
                 // en erreur avec un message plutôt que de rester noir sans fin.
+                guard reloadToken != nil else { return }
                 try? await Task.sleep(nanoseconds: 20_000_000_000)
                 if streamStatus != .playing {
                     streamStatus = .error
@@ -161,11 +165,18 @@ struct CameraLiveView: View {
         }
     }
 
+    /// Reconnexion propre : on retire d'abord le lecteur (ce qui déclenche la
+    /// fermeture de la session RTSP côté caméra), on laisse un délai pour qu'elle
+    /// se libère, puis on en ouvre une neuve. Évite deux sessions simultanées,
+    /// que la C220 refuse (d'où l'échec au 2e « Live »).
     private func reconnect() {
         streamStatus = .connecting
-        streamDetail = "Ouverture…"
+        streamDetail = "Reconnexion…"
         logLines.removeAll()
-        reloadToken = UUID()
+        reloadToken = nil
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+            reloadToken = UUID()
+        }
     }
 
     private func appendLog(_ line: String) {
