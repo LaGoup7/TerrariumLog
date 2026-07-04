@@ -9,7 +9,6 @@ struct AnimalDetailView: View {
     @Environment(\.dismiss) private var dismiss
     let animal: Animal
 
-    @State private var selectedItems: [PhotosPickerItem] = []
     @State private var showingJournalSheet = false
     @State private var showingMeasurementSheet = false
     @State private var notes = ""
@@ -20,11 +19,9 @@ struct AnimalDetailView: View {
     @State private var showingDiapauseSheet = false
     @State private var showingEditSheet = false
     @State private var showingDeleteConfirmation = false
-    @State private var showingCamera = false
+    @State private var photoPickerSource: ImagePickerSource?
     @State private var selectedGalleryIndex: Int?
     @State private var selectedGalleryFilter: String?
-    @State private var primaryPhotoOffsetX: Double = 0
-    @State private var primaryPhotoOffsetY: Double = 0
     @State private var selectedGalleryItems: [PhotosPickerItem] = []
 
     private var isCameraAvailable: Bool {
@@ -62,8 +59,6 @@ struct AnimalDetailView: View {
             if let path = animal.primaryPhotoPath {
                 primaryImage = PhotoStorage.shared.loadImage(from: path)
             }
-            primaryPhotoOffsetX = animal.primaryPhotoOffsetX
-            primaryPhotoOffsetY = animal.primaryPhotoOffsetY
         }
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
@@ -126,20 +121,14 @@ struct AnimalDetailView: View {
     private var headerSection: some View {
         VStack(alignment: .leading, spacing: 12) {
             if let primaryImage {
-                RepositionableSquareImage(
-                    image: primaryImage,
-                    offsetX: $primaryPhotoOffsetX,
-                    offsetY: $primaryPhotoOffsetY,
-                    onCommit: {
-                        animal.primaryPhotoOffsetX = primaryPhotoOffsetX
-                        animal.primaryPhotoOffsetY = primaryPhotoOffsetY
-                        try? context.save()
-                    }
-                )
-                .clipShape(RoundedRectangle(cornerRadius: 20))
-                Text("Glisse la photo pour la recentrer")
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
+                Color.clear
+                    .aspectRatio(1, contentMode: .fit)
+                    .overlay(
+                        Image(uiImage: primaryImage)
+                            .resizable()
+                            .scaledToFill()
+                    )
+                    .clipShape(RoundedRectangle(cornerRadius: 20))
             } else {
                 Image(systemName: animal.type.symbolName)
                     .resizable()
@@ -162,22 +151,16 @@ struct AnimalDetailView: View {
             }
 
             HStack {
-                PhotosPicker(selection: $selectedItems, maxSelectionCount: 1, matching: .images) {
+                Button {
+                    photoPickerSource = ImagePickerSource(type: .photoLibrary)
+                } label: {
                     Label("Changer la photo principale", systemImage: "photo")
                 }
                 if isCameraAvailable {
                     Button {
-                        showingCamera = true
+                        photoPickerSource = ImagePickerSource(type: .camera)
                     } label: {
                         Label("Prendre une photo", systemImage: "camera")
-                    }
-                }
-            }
-            .onChange(of: selectedItems) { _, newItems in
-                guard let first = newItems.first else { return }
-                Task {
-                    if let data = try? await first.loadTransferable(type: Data.self), let image = UIImage(data: data) {
-                        setPrimaryImage(image)
                     }
                 }
             }
@@ -186,8 +169,8 @@ struct AnimalDetailView: View {
         .padding()
         .background(.ultraThinMaterial)
         .clipShape(RoundedRectangle(cornerRadius: 24))
-        .fullScreenCover(isPresented: $showingCamera) {
-            CameraCaptureView { image in
+        .fullScreenCover(item: $photoPickerSource) { source in
+            CroppingImagePicker(sourceType: source.type) { image in
                 setPrimaryImage(image)
             }
             .ignoresSafeArea()
@@ -211,8 +194,6 @@ struct AnimalDetailView: View {
             context.insert(entry)
             try? context.save()
             primaryImage = image
-            primaryPhotoOffsetX = 0
-            primaryPhotoOffsetY = 0
         }
     }
 

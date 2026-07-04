@@ -18,11 +18,8 @@ struct TerrariumDetailView: View {
     @State private var lightError: String?
     @State private var isSendingLightCommand = false
 
-    @State private var selectedItems: [PhotosPickerItem] = []
     @State private var mainImage: UIImage?
-    @State private var showingCamera = false
-    @State private var mainPhotoOffsetX: Double = 0
-    @State private var mainPhotoOffsetY: Double = 0
+    @State private var photoPickerSource: ImagePickerSource?
 
     private var isCameraAvailable: Bool {
         UIImagePickerController.isSourceTypeAvailable(.camera)
@@ -47,8 +44,6 @@ struct TerrariumDetailView: View {
             if let path = terrarium.mainPhotoPath {
                 mainImage = PhotoStorage.shared.loadImage(from: path)
             }
-            mainPhotoOffsetX = terrarium.mainPhotoOffsetX
-            mainPhotoOffsetY = terrarium.mainPhotoOffsetY
         }
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
@@ -82,8 +77,8 @@ struct TerrariumDetailView: View {
         .sheet(isPresented: $showingEditSheet) {
             TerrariumFormView(terrarium: terrarium)
         }
-        .fullScreenCover(isPresented: $showingCamera) {
-            CameraCaptureView { image in
+        .fullScreenCover(item: $photoPickerSource) { source in
+            CroppingImagePicker(sourceType: source.type) { image in
                 setMainImage(image)
             }
             .ignoresSafeArea()
@@ -93,17 +88,14 @@ struct TerrariumDetailView: View {
     private var photoSection: some View {
         VStack(alignment: .leading, spacing: 10) {
             if let mainImage {
-                RepositionableSquareImage(
-                    image: mainImage,
-                    offsetX: $mainPhotoOffsetX,
-                    offsetY: $mainPhotoOffsetY,
-                    onCommit: {
-                        terrarium.mainPhotoOffsetX = mainPhotoOffsetX
-                        terrarium.mainPhotoOffsetY = mainPhotoOffsetY
-                        try? context.save()
-                    }
-                )
-                .clipShape(RoundedRectangle(cornerRadius: 20))
+                Color.clear
+                    .aspectRatio(1, contentMode: .fit)
+                    .overlay(
+                        Image(uiImage: mainImage)
+                            .resizable()
+                            .scaledToFill()
+                    )
+                    .clipShape(RoundedRectangle(cornerRadius: 20))
             } else {
                 RoundedRectangle(cornerRadius: 20)
                     .fill(Color.teal.opacity(0.15))
@@ -114,32 +106,21 @@ struct TerrariumDetailView: View {
                             .foregroundStyle(.teal)
                     )
             }
-            if mainImage != nil {
-                Text("Glisse la photo pour la recentrer")
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-            }
             HStack {
-                PhotosPicker(selection: $selectedItems, maxSelectionCount: 1, matching: .images) {
+                Button {
+                    photoPickerSource = ImagePickerSource(type: .photoLibrary)
+                } label: {
                     Label("Changer la photo", systemImage: "photo")
                 }
                 if isCameraAvailable {
                     Button {
-                        showingCamera = true
+                        photoPickerSource = ImagePickerSource(type: .camera)
                     } label: {
                         Label("Prendre une photo", systemImage: "camera")
                     }
                 }
             }
             .font(.caption)
-        }
-        .onChange(of: selectedItems) { _, newItems in
-            guard let first = newItems.first else { return }
-            Task {
-                if let data = try? await first.loadTransferable(type: Data.self), let image = UIImage(data: data) {
-                    setMainImage(image)
-                }
-            }
         }
     }
 
@@ -150,8 +131,6 @@ struct TerrariumDetailView: View {
             terrarium.mainPhotoOffsetY = 0
             try? context.save()
             mainImage = image
-            mainPhotoOffsetX = 0
-            mainPhotoOffsetY = 0
         }
     }
 

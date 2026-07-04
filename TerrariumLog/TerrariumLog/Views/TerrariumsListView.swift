@@ -30,6 +30,80 @@ struct TerrariumThumbnail: View {
     }
 }
 
+/// Grande carte moderne : image mise en valeur en haut, informations en dessous.
+struct TerrariumCard: View {
+    let terrarium: Terrarium
+    @State private var image: UIImage?
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            imageBanner
+            infoPanel
+        }
+        .background(.ultraThinMaterial)
+        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                .strokeBorder(Color.primary.opacity(0.06), lineWidth: 1)
+        )
+        .shadow(color: .black.opacity(0.08), radius: 10, x: 0, y: 4)
+        .task(id: terrarium.mainPhotoPath) {
+            if let path = terrarium.mainPhotoPath {
+                image = PhotoStorage.shared.loadImage(from: path)
+            } else {
+                image = nil
+            }
+        }
+    }
+
+    private var imageBanner: some View {
+        Group {
+            if let image {
+                Image(uiImage: image)
+                    .resizable()
+                    .scaledToFill()
+            } else {
+                LinearGradient(
+                    colors: [.teal.opacity(0.35), .green.opacity(0.25)],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+                .overlay(
+                    Image(systemName: "leaf.fill")
+                        .font(.system(size: 44))
+                        .foregroundStyle(.white.opacity(0.9))
+                )
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .frame(height: 210)
+        .clipped()
+    }
+
+    private var infoPanel: some View {
+        HStack(spacing: 12) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(terrarium.name)
+                    .font(.title3.bold())
+                if !terrarium.dimensions.isEmpty {
+                    Text(terrarium.dimensions)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+                Text("\(terrarium.animals.count) animal(aux) hébergé(s)")
+                    .font(.caption)
+                    .foregroundStyle(.teal)
+            }
+            Spacer()
+            Image(systemName: "chevron.right")
+                .font(.footnote.weight(.semibold))
+                .foregroundStyle(.secondary)
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
 struct TerrariumsListView: View {
     @Environment(\.modelContext) private var context
     @Query(sort: [SortDescriptor<Terrarium>(\.name)]) private var terrariums: [Terrarium]
@@ -37,34 +111,33 @@ struct TerrariumsListView: View {
 
     var body: some View {
         NavigationStack {
-            List {
-                ForEach(terrariums) { terrarium in
-                    NavigationLink(destination: TerrariumDetailView(terrarium: terrarium)) {
-                        HStack(spacing: 12) {
-                            TerrariumThumbnail(terrarium: terrarium)
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text(terrarium.name)
-                                    .font(.headline)
-                                if !terrarium.dimensions.isEmpty {
-                                    Text(terrarium.dimensions)
-                                        .font(.subheadline)
-                                        .foregroundStyle(.secondary)
+            ScrollView {
+                LazyVStack(spacing: 16) {
+                    if terrariums.isEmpty {
+                        ContentUnavailableView(
+                            "Aucun terrarium",
+                            systemImage: "leaf",
+                            description: Text("Ajoute ton premier terrarium avec le bouton +.")
+                        )
+                        .padding(.top, 60)
+                    } else {
+                        ForEach(terrariums) { terrarium in
+                            NavigationLink(destination: TerrariumDetailView(terrarium: terrarium)) {
+                                TerrariumCard(terrarium: terrarium)
+                            }
+                            .buttonStyle(.plain)
+                            .contextMenu {
+                                Button(role: .destructive) {
+                                    context.delete(terrarium)
+                                    try? context.save()
+                                } label: {
+                                    Label("Supprimer", systemImage: "trash")
                                 }
-                                Text("\(terrarium.animals.count) animal(aux) hébergé(s)")
-                                    .font(.caption)
-                                    .foregroundStyle(.teal)
                             }
                         }
                     }
-                    .swipeActions {
-                        Button(role: .destructive) {
-                            context.delete(terrarium)
-                            try? context.save()
-                        } label: {
-                            Label("Supprimer", systemImage: "trash")
-                        }
-                    }
                 }
+                .padding(16)
             }
             .navigationTitle("Terrariums")
             .toolbar {

@@ -23,7 +23,9 @@
     <key>NSCameraUsageDescription</key>
     <string>TerrariumLog utilise l'appareil photo pour prendre des photos de vos animaux et terrariums.</string>
     <key>NSLocalNetworkUsageDescription</key>
-    <string>TerrariumLog accède au réseau local pour contrôler la lampe WiZ de votre terrarium.</string>
+    <string>TerrariumLog accède au réseau local pour contrôler la lampe WiZ et afficher le flux de la caméra de votre terrarium.</string>
+    <key>NSPhotoLibraryUsageDescription</key>
+    <string>TerrariumLog accède à votre photothèque pour choisir et recadrer les photos de vos animaux et terrariums.</string>
     <key>UILaunchScreen</key>
     <dict/>
     <key>UISupportedInterfaceOrientations</key>
