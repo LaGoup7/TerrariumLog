@@ -14,11 +14,10 @@ struct DashboardView: View {
     @State private var showingAnimalVisibility = false
 
     /// Marges verticales/horizontales uniformes entre toutes les cartes du Dashboard.
-    private let cardInsets = EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16)
+    /// Espacement vertical généreux pour aérer la hiérarchie visuelle.
+    private let cardInsets = EdgeInsets(top: 10, leading: 16, bottom: 10, trailing: 16)
 
-    private var brandGradient: LinearGradient {
-        LinearGradient(colors: [.teal, .green], startPoint: .leading, endPoint: .trailing)
-    }
+    private var brandGradient: LinearGradient { Brand.gradient }
 
     private var upcomingReminders: [Reminder] {
         Array(reminders.filter { !$0.isCompleted }.prefix(3))
@@ -89,7 +88,7 @@ struct DashboardView: View {
             }
             .listStyle(.plain)
             .scrollContentBackground(.hidden)
-            .background(LinearGradient(gradient: Gradient(colors: [Color.green.opacity(0.15), Color.teal.opacity(0.1)]), startPoint: .topLeading, endPoint: .bottomTrailing))
+            .background(Brand.backgroundGradient.ignoresSafeArea())
             .navigationTitle("")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -123,17 +122,18 @@ struct DashboardView: View {
     }
 
     private var brandTitle: some View {
-        HStack(spacing: 10) {
+        HStack(spacing: 12) {
             Image(systemName: "leaf.circle.fill")
-                .font(.system(size: 30, weight: .bold))
+                .font(.system(size: 32, weight: .semibold))
                 .foregroundStyle(brandGradient)
-            Text("TerrariumLog")
-                .font(.system(.largeTitle, design: .rounded).weight(.bold))
-                .foregroundStyle(brandGradient)
+            Text("Habitat")
+                .font(.system(size: 34, weight: .bold, design: .rounded))
+                .foregroundStyle(Brand.textPrimary)
                 .tracking(0.5)
             Spacer()
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.vertical, 4)
     }
 
     private var remindersSection: some View {
@@ -162,7 +162,7 @@ struct DashboardView: View {
                     }
                 }
                 .imageScale(.large)
-                .foregroundStyle(.teal)
+                .foregroundStyle(Brand.primary)
                 .layoutPriority(1)
             }
             if upcomingReminders.isEmpty {
@@ -173,7 +173,7 @@ struct DashboardView: View {
                 ForEach(upcomingReminders) { reminder in
                     HStack {
                         Image(systemName: "bell.fill")
-                            .foregroundStyle(.orange)
+                            .foregroundStyle(Brand.warning)
                         VStack(alignment: .leading) {
                             Text(reminder.title)
                                 .font(.subheadline)
@@ -203,7 +203,7 @@ struct DashboardView: View {
                 NavigationLink(destination: CameraLiveView(camera: camera)) {
                     HStack {
                         Circle()
-                            .fill(camera.isConfigured ? Color.green : Color.orange)
+                            .fill(camera.isConfigured ? Brand.primary : Brand.warning)
                             .frame(width: 8, height: 8)
                         VStack(alignment: .leading) {
                             Text(camera.name)
@@ -213,8 +213,8 @@ struct DashboardView: View {
                                 .foregroundStyle(.secondary)
                         }
                         Spacer()
-                        Image(systemName: "play.circle")
-                            .foregroundStyle(.teal)
+                        Image(systemName: "play.circle.fill")
+                            .foregroundStyle(Brand.accent)
                     }
                 }
             }
@@ -235,7 +235,7 @@ struct DashboardView: View {
                 } label: {
                     Image(systemName: "plus.circle.fill")
                         .imageScale(.large)
-                        .foregroundStyle(.teal)
+                        .foregroundStyle(Brand.primary)
                 }
                 .buttonStyle(.borderless)
             }
@@ -248,7 +248,7 @@ struct DashboardView: View {
                     NavigationLink(destination: LightControlView(light: light)) {
                         HStack {
                             Image(systemName: light.lastKnownOn ? "lightbulb.fill" : "lightbulb")
-                                .foregroundStyle(light.lastKnownOn ? .yellow : .secondary)
+                                .foregroundStyle(light.lastKnownOn ? Brand.warning : Color.secondary)
                             VStack(alignment: .leading) {
                                 Text(light.name)
                                     .font(.subheadline)
@@ -258,7 +258,7 @@ struct DashboardView: View {
                             }
                             Spacer()
                             Circle()
-                                .fill(light.isConfigured ? Color.green : Color.orange)
+                                .fill(light.isConfigured ? Brand.primary : Brand.warning)
                                 .frame(width: 8, height: 8)
                             Image(systemName: "chevron.right")
                                 .font(.caption)
@@ -306,23 +306,6 @@ struct DashboardView: View {
     }
 }
 
-/// Style de carte partagé par tous les blocs du Dashboard : matière translucide,
-/// coins arrondis continus, bordure et ombre subtiles pour un rendu premium et
-/// homogène.
-extension View {
-    func dashboardCard() -> some View {
-        self
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(16)
-            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
-            .overlay(
-                RoundedRectangle(cornerRadius: 22, style: .continuous)
-                    .strokeBorder(Color.primary.opacity(0.06), lineWidth: 1)
-            )
-            .shadow(color: .black.opacity(0.06), radius: 10, x: 0, y: 4)
-    }
-}
-
 struct AnimalCardView: View {
     let animal: Animal
     @State private var image: UIImage?
@@ -352,7 +335,7 @@ struct AnimalCardView: View {
                                 .foregroundStyle(.secondary)
                             Label(animal.type.displayName, systemImage: animal.type.symbolName)
                                 .font(.footnote)
-                                .foregroundStyle(.teal)
+                                .foregroundStyle(Brand.accent)
                             if let colonySummary = animal.colonySummary {
                                 Text(colonySummary)
                                     .font(.caption2)
@@ -370,9 +353,10 @@ struct AnimalCardView: View {
                         Spacer()
                         Text(animal.status.displayName)
                             .font(.caption.bold())
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 4)
-                            .background(Color.teal.opacity(0.2))
+                            .foregroundStyle(Brand.primary)
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 5)
+                            .background(Brand.primary.opacity(0.16))
                             .clipShape(Capsule())
                     }
 
@@ -387,7 +371,7 @@ struct AnimalCardView: View {
                     if let reminder = animal.reminders.sorted(by: { $0.reminderDate < $1.reminderDate }).first {
                         Label("Prochain rappel : \(reminder.title)", systemImage: "bell.fill")
                             .font(.footnote)
-                            .foregroundStyle(.orange)
+                            .foregroundStyle(Brand.warning)
                     }
                 }
             }
@@ -414,7 +398,7 @@ struct AnimalCardView: View {
                     sendLightCommand(WizCommandBuilder.power(lightIsOn), ip: lightIP)
                 } label: {
                     Label(lightIsOn ? "Éteindre" : "Lumière", systemImage: lightIsOn ? "lightbulb.fill" : "lightbulb")
-                        .foregroundStyle(lightIsOn ? .yellow : .primary)
+                        .foregroundStyle(lightIsOn ? Brand.warning : Brand.accent)
                 }
                 .disabled(isSendingLightCommand)
             }
@@ -440,14 +424,14 @@ struct AnimalCardView: View {
     private var alertColor: Color {
         switch animal.status.alertLevel {
         case .critical:
-            return .red
+            return Brand.error
         case .warning:
-            return .orange
+            return Brand.warning
         case .ok:
             let reminderSoon = animal.reminders.contains { reminder in
                 !reminder.isCompleted && reminder.reminderDate.timeIntervalSinceNow < 48 * 3600
             }
-            return reminderSoon ? .orange : .green
+            return reminderSoon ? Brand.warning : Brand.primary
         }
     }
 
@@ -465,7 +449,8 @@ struct AnimalCardView: View {
                     .scaledToFit()
                     .frame(width: 70, height: 70)
                     .padding(12)
-                    .background(Color.teal.opacity(0.15))
+                    .foregroundStyle(Brand.accent)
+                    .background(Brand.surfaceElevated)
                     .clipShape(RoundedRectangle(cornerRadius: 16))
             }
         }

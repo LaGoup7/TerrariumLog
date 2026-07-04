@@ -4,12 +4,11 @@ import SwiftData
 struct ContentView: View {
     @Environment(\.modelContext) private var context
     @Query(sort: [SortDescriptor<Animal>(\.name)]) private var animals: [Animal]
-    @AppStorage("appAppearance") private var appearanceRawValue = AppAppearance.system.rawValue
 
     @State private var selectedTab = 0
 
-    private var appearance: AppAppearance {
-        AppAppearance(rawValue: appearanceRawValue) ?? .system
+    init() {
+        Self.configureBarAppearance()
     }
 
     var body: some View {
@@ -44,8 +43,37 @@ struct ContentView: View {
                 }
                 .tag(4)
         }
-        .tint(.teal)
-        .background(Color(.systemBackground))
-        .preferredColorScheme(appearance.colorScheme)
+        .tint(Brand.primary)
+        .background(Brand.background.ignoresSafeArea())
+        // Identité « Habitat » : thème sombre premium verrouillé (voir Theme.swift).
+        .preferredColorScheme(.dark)
+    }
+
+    /// Aligne les barres système (onglets + navigation) sur l'identité sombre :
+    /// fond sombre translucide, teinte de sélection verte.
+    private static func configureBarAppearance() {
+        let tabBar = UITabBarAppearance()
+        tabBar.configureWithOpaqueBackground()
+        tabBar.backgroundColor = UIColor(Brand.background)
+
+        let selected = UIColor(Brand.primary)
+        let normal = UIColor(Brand.textSecondary)
+        for item in [tabBar.stackedLayoutAppearance, tabBar.inlineLayoutAppearance, tabBar.compactInlineLayoutAppearance] {
+            item.selected.iconColor = selected
+            item.selected.titleTextAttributes = [.foregroundColor: selected]
+            item.normal.iconColor = normal
+            item.normal.titleTextAttributes = [.foregroundColor: normal]
+        }
+        UITabBar.appearance().standardAppearance = tabBar
+        UITabBar.appearance().scrollEdgeAppearance = tabBar
+
+        let navBar = UINavigationBarAppearance()
+        navBar.configureWithTransparentBackground()
+        navBar.backgroundColor = UIColor(Brand.background.opacity(0.6))
+        navBar.titleTextAttributes = [.foregroundColor: UIColor(Brand.textPrimary)]
+        navBar.largeTitleTextAttributes = [.foregroundColor: UIColor(Brand.textPrimary)]
+        UINavigationBar.appearance().standardAppearance = navBar
+        UINavigationBar.appearance().scrollEdgeAppearance = navBar
+        UINavigationBar.appearance().compactAppearance = navBar
     }
 }
