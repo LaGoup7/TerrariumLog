@@ -24,6 +24,9 @@ struct CameraStreamView: UIViewRepresentable {
     var username: String? = nil
     var password: String? = nil
     var onStatusChange: (CameraStreamStatus, String) -> Void = { _, _ in }
+    /// Journal technique : chaque étape du cycle de vie du lecteur (ouverture,
+    /// états, codec détecté, erreurs) pour diagnostiquer sans supposition.
+    var onLog: (String) -> Void = { _ in }
 
     func makeUIView(context: Context) -> PlayerContainerView {
         let view = PlayerContainerView()
@@ -55,7 +58,7 @@ struct CameraStreamView: UIViewRepresentable {
     }
 
     func makeCoordinator() -> Coordinator {
-        Coordinator(onStatusChange: onStatusChange)
+        Coordinator(onStatusChange: onStatusChange, onLog: onLog)
     }
 
     static func dismantleUIView(_ uiView: PlayerContainerView, coordinator: Coordinator) {
@@ -65,12 +68,24 @@ struct CameraStreamView: UIViewRepresentable {
     final class Coordinator: NSObject, VLCMediaPlayerDelegate {
         private var player: VLCMediaPlayer?
         private let onStatusChange: (CameraStreamStatus, String) -> Void
+        private let onLog: (String) -> Void
 
-        init(onStatusChange: @escaping (CameraStreamStatus, String) -> Void) {
+        init(onStatusChange: @escaping (CameraStreamStatus, String) -> Void,
+             onLog: @escaping (String) -> Void) {
             self.onStatusChange = onStatusChange
+            self.onLog = onLog
+        }
+
+        private func log(_ message: String) {
+            let forward = onLog
+            DispatchQueue.main.async { forward(message) }
         }
 
         func start(url: URL, username: String?, password: String?, on view: UIView) {
+            log("Lecteur créé (MobileVLCKit)")
+            log("Ouverture RTSP : \(Self.redactedURL(url))")
+            log("Vue \(Int(view.bounds.width))×\(Int(view.bounds.height)) — buffer 1500 ms, décodage matériel")
+
             let player = VLCMediaPlayer()
             player.drawable = view
             player.delegate = self
@@ -91,8 +106,11 @@ struct CameraStreamView: UIViewRepresentable {
         /// Vrai dès que le flux a réellement joué : permet de distinguer un arrêt
         /// normal (fin de flux) d'un rejet immédiat à l'ouverture (auth/URL).
         private var hasPlayed = false
+        /// Évite de journaliser le codec en boucle à chaque changement d'état.
+        private var didLogTracks = false
 
         func stop() {
+            log("Fermeture du flux")
             // On coupe le délégué d'abord pour ne pas remonter le `.stopped` du teardown.
             player?.delegate = nil
             player?.stop()
@@ -103,11 +121,14 @@ struct CameraStreamView: UIViewRepresentable {
         func mediaPlayerStateChanged(_ aNotification: Notification) {
             guard let player else { return }
             let name = Self.stateName(player.state)
+            log("État VLC → \(name)")
+            logTracksIfAvailable()
             switch player.state {
             case .playing:
                 hasPlayed = true
                 onStatusChange(.playing, name)
             case .error:
+                log("⚠️ Erreur lecteur")
                 onStatusChange(.error, "Refusé par la caméra — vérifie le compte caméra (nom + mot de passe RTSP), le chemin et que le RTSP est activé.")
             case .ended, .stopped:
                 if hasPlayed {
@@ -120,6 +141,48 @@ struct CameraStreamView: UIViewRepresentable {
             default:
                 onStatusChange(.connecting, name)
             }
+        }
+
+        /// Lit le codec réellement négocié par VLC (le point décisif : H.264 vs
+        /// H.265) et la résolution, dès que l'info est disponible.
+        private func logTracksIfAvailable() {
+            guard !didLogTracks,
+                  let tracks = player?.media?.tracksInformation as? [[String: Any]],
+                  !tracks.isEmpty else { return }
+            didLogTracks = true
+            for track in tracks {
+                let type = track[VLCMediaTracksInformationType] as? String
+                let codec = (track[VLCMediaTracksInformationCodec] as? NSNumber)?.uint32Value ?? 0
+                let codecName = Self.fourCC(codec)
+                if type == VLCMediaTracksInformationTypeVideo {
+                    let width = (track[VLCMediaTracksInformationVideoWidth] as? NSNumber)?.intValue ?? 0
+                    let height = (track[VLCMediaTracksInformationVideoHeight] as? NSNumber)?.intValue ?? 0
+                    log("🎥 Vidéo : \(codecName) \(width)×\(height)")
+                } else if type == VLCMediaTracksInformationTypeAudio {
+                    log("🔊 Audio : \(codecName)")
+                }
+            }
+        }
+
+        /// Convertit un FourCC VLC (ex. 0x63766568) en texte lisible (« hevc »).
+        private static func fourCC(_ value: UInt32) -> String {
+            guard value != 0 else { return "?" }
+            let bytes = [
+                UInt8(value & 0xFF),
+                UInt8((value >> 8) & 0xFF),
+                UInt8((value >> 16) & 0xFF),
+                UInt8((value >> 24) & 0xFF)
+            ]
+            let string = String(bytes: bytes, encoding: .ascii) ?? ""
+            let cleaned = string.trimmingCharacters(in: CharacterSet(charactersIn: " \0"))
+            return cleaned.isEmpty ? "?" : cleaned
+        }
+
+        /// URL sans mot de passe, pour le journal.
+        private static func redactedURL(_ url: URL) -> String {
+            var components = URLComponents(url: url, resolvingAgainstBaseURL: false)
+            components?.password = nil
+            return components?.string ?? "rtsp://…"
         }
 
         private static func stateName(_ state: VLCMediaPlayerState) -> String {

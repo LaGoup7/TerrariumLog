@@ -12,6 +12,7 @@ struct CameraLiveView: View {
     @State private var reloadToken = UUID()
     @State private var diagnosticMessage: String?
     @State private var isTesting = false
+    @State private var logLines: [String] = []
     // Sur mobile, on démarre sur le flux Fluide (SD) : le flux HD 2K des Tapo
     // est souvent trop lourd à décoder en temps réel sur iPhone.
     @State private var quality: StreamQuality = .sd
@@ -34,6 +35,7 @@ struct CameraLiveView: View {
                 }
                 statusSection
                 buttonsRow
+                technicalJournal
             }
             .padding()
         }
@@ -91,10 +93,16 @@ struct CameraLiveView: View {
     private var videoArea: some View {
         if let url = streamProvider.playableURL(for: camera, streamPathOverride: pathOverride) {
             ZStack {
-                CameraStreamView(url: url, username: camera.username, password: camera.password) { status, detail in
-                    streamStatus = status
-                    streamDetail = detail
-                }
+                CameraStreamView(
+                    url: url,
+                    username: camera.username,
+                    password: camera.password,
+                    onStatusChange: { status, detail in
+                        streamStatus = status
+                        streamDetail = detail
+                    },
+                    onLog: { line in appendLog(line) }
+                )
                 .id(reloadToken)
 
                 if streamStatus == .connecting {
@@ -156,7 +164,45 @@ struct CameraLiveView: View {
     private func reconnect() {
         streamStatus = .connecting
         streamDetail = "Ouverture…"
+        logLines.removeAll()
         reloadToken = UUID()
+    }
+
+    private func appendLog(_ line: String) {
+        let stamp = Date.now.formatted(date: .omitted, time: .standard)
+        logLines.append("\(stamp)  \(line)")
+        if logLines.count > 80 {
+            logLines.removeFirst(logLines.count - 80)
+        }
+    }
+
+    @ViewBuilder
+    private var technicalJournal: some View {
+        if !logLines.isEmpty {
+            DisclosureGroup("Journal technique") {
+                VStack(alignment: .leading, spacing: 4) {
+                    ForEach(Array(logLines.enumerated()), id: \.offset) { _, line in
+                        Text(line)
+                            .font(.caption2.monospaced())
+                            .foregroundStyle(.secondary)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .textSelection(.enabled)
+                    }
+                    Button {
+                        UIPasteboard.general.string = logLines.joined(separator: "\n")
+                    } label: {
+                        Label("Copier le journal", systemImage: "doc.on.doc")
+                            .font(.caption)
+                    }
+                    .padding(.top, 6)
+                }
+                .padding(.top, 6)
+            }
+            .font(.subheadline)
+            .padding()
+            .background(.ultraThinMaterial)
+            .clipShape(RoundedRectangle(cornerRadius: 16))
+        }
     }
 
     private var qualityPicker: some View {
