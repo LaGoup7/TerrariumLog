@@ -86,6 +86,9 @@ struct CameraStreamView: UIViewRepresentable {
             log("Ouverture RTSP : \(Self.redactedURL(url))")
             log("Vue \(Int(view.bounds.width))×\(Int(view.bounds.height)) — UDP, buffer 2500 ms")
 
+            // Active le log natif de libvlc pour capturer la raison exacte (RTSP/RTP).
+            enableVLCLogging()
+
             let player = VLCMediaPlayer()
             player.drawable = view
             player.delegate = self
@@ -100,6 +103,43 @@ struct CameraStreamView: UIViewRepresentable {
             self.player = player
             onStatusChange(.connecting, "Ouverture…")
             startProbe()
+        }
+
+        // MARK: Log natif libvlc
+        private var logRelay: VLCLogRelay?
+        private var vlcLogCount = 0
+
+        private func enableVLCLogging() {
+            vlcLogCount = 0
+            let relay = VLCLogRelay { [weak self] message, _ in
+                self?.forwardVLCLog(message)
+            }
+            logRelay = relay
+            let library = VLCLibrary.shared()
+            library.debugLogging = true
+            library.debugLoggingLevel = 2
+            library.debugLoggingTarget = relay
+        }
+
+        private func disableVLCLogging() {
+            let library = VLCLibrary.shared()
+            library.debugLoggingTarget = nil
+            library.debugLogging = false
+            logRelay = nil
+        }
+
+        /// Ne garde que les messages libvlc utiles au diagnostic RTSP/RTP, et
+        /// plafonne le volume pour ne pas noyer le journal.
+        private func forwardVLCLog(_ message: String) {
+            guard vlcLogCount < 60 else { return }
+            let lower = message.lowercased()
+            let keywords = ["rtsp", "rtp", "live555", "sdp", "no data", "cannot",
+                            "error", "fail", "timeout", "unauthor", "401", "403",
+                            "hevc", "h264", "vout", "decoder", "demux", "access",
+                            "prebuffer", "discontinu", "satip"]
+            guard keywords.contains(where: { lower.contains($0) }) else { return }
+            vlcLogCount += 1
+            log("VLC: \(message.trimmingCharacters(in: .whitespacesAndNewlines))")
         }
 
         /// Vrai dès que le flux a réellement joué : permet de distinguer un arrêt
@@ -131,6 +171,7 @@ struct CameraStreamView: UIViewRepresentable {
             log("Fermeture du flux")
             probeTimer?.invalidate()
             probeTimer = nil
+            disableVLCLogging()
             // On coupe le délégué d'abord pour ne pas remonter le `.stopped` du teardown.
             player?.delegate = nil
             player?.stop()
@@ -221,5 +262,20 @@ struct CameraStreamView: UIViewRepresentable {
             @unknown default: return "…"
             }
         }
+    }
+}
+
+/// Relais des messages bruts de libvlc vers une closure Swift, pour afficher les
+/// vrais logs RTSP/RTP du moteur dans le journal technique.
+final class VLCLogRelay: NSObject, VLCLibraryLogReceiverProtocol {
+    private let onMessage: (String, Int32) -> Void
+
+    init(onMessage: @escaping (String, Int32) -> Void) {
+        self.onMessage = onMessage
+        super.init()
+    }
+
+    func handleMessage(_ message: String, debugLevel level: Int32) {
+        onMessage(message, level)
     }
 }
