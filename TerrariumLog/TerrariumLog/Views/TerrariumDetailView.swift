@@ -10,13 +10,9 @@ struct TerrariumDetailView: View {
 
     @State private var showingAddPlant = false
     @State private var showingAddCamera = false
+    @State private var showingAddLight = false
     @State private var showingEditSheet = false
     @State private var showingDeleteConfirmation = false
-
-    @State private var lightIsOn = false
-    @State private var lightBrightness: Double = 100
-    @State private var lightError: String?
-    @State private var isSendingLightCommand = false
 
     @State private var mainImage: UIImage?
     @State private var photoPickerSource: ImagePickerSource?
@@ -73,6 +69,9 @@ struct TerrariumDetailView: View {
         }
         .sheet(isPresented: $showingAddCamera) {
             CameraConfigView(terrarium: terrarium)
+        }
+        .sheet(isPresented: $showingAddLight) {
+            LightConfigView(terrarium: terrarium)
         }
         .sheet(isPresented: $showingEditSheet) {
             TerrariumFormView(terrarium: terrarium)
@@ -167,60 +166,56 @@ struct TerrariumDetailView: View {
 
     private var lightSection: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("Lumière")
-                .font(.headline)
-            if let ip = terrarium.wizLightIP, !ip.isEmpty {
-                Toggle("Allumée", isOn: $lightIsOn)
-                    .disabled(isSendingLightCommand)
-                    .onChange(of: lightIsOn) { _, newValue in
-                        sendLightCommand(WizCommandBuilder.power(newValue), ip: ip)
-                    }
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Intensité : \(Int(lightBrightness))%")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    Slider(value: $lightBrightness, in: 10...100, step: 5) { editing in
-                        if !editing {
-                            sendLightCommand(WizCommandBuilder.brightness(Int(lightBrightness)), ip: ip)
-                        }
-                    }
-                    .disabled(isSendingLightCommand)
+            HStack {
+                Text("Lumières")
+                    .font(.headline)
+                Spacer()
+                Button { showingAddLight = true } label: {
+                    Image(systemName: "plus.circle")
                 }
-                HStack {
-                    Button("Chaud") { sendLightCommand(WizCommandBuilder.colorTemperature(2700), ip: ip) }
-                    Button("Neutre") { sendLightCommand(WizCommandBuilder.colorTemperature(4000), ip: ip) }
-                    Button("Froid") { sendLightCommand(WizCommandBuilder.colorTemperature(6500), ip: ip) }
-                }
-                .buttonStyle(.bordered)
-                .disabled(isSendingLightCommand)
-                if let lightError {
-                    Text(lightError)
-                        .font(.caption)
-                        .foregroundStyle(.red)
-                }
-            } else {
-                Text("Aucune lampe WiZ configurée. Ajoute son adresse IP locale dans « Modifier ».")
+                .buttonStyle(.borderless)
+            }
+            if terrarium.lights.isEmpty {
+                Text("Aucune lampe associée. Ajoute-la avec le +.")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
+            } else {
+                ForEach(terrarium.lights) { light in
+                    NavigationLink(destination: LightControlView(light: light)) {
+                        HStack {
+                            Image(systemName: light.lastKnownOn ? "lightbulb.fill" : "lightbulb")
+                                .foregroundStyle(light.lastKnownOn ? .yellow : .secondary)
+                            VStack(alignment: .leading) {
+                                Text(light.name)
+                                    .font(.subheadline)
+                                Text(light.brand.displayName)
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                            Spacer()
+                            Circle()
+                                .fill(light.isConfigured ? Color.green : Color.orange)
+                                .frame(width: 8, height: 8)
+                            Image(systemName: "chevron.right")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    .contextMenu {
+                        Button(role: .destructive) {
+                            context.delete(light)
+                            try? context.save()
+                        } label: {
+                            Label("Supprimer", systemImage: "trash")
+                        }
+                    }
+                }
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding()
         .background(.ultraThinMaterial)
         .clipShape(RoundedRectangle(cornerRadius: 20))
-    }
-
-    private func sendLightCommand(_ command: WizCommand, ip: String) {
-        isSendingLightCommand = true
-        Task {
-            do {
-                try await WizLightService.shared.send(command, to: ip)
-                lightError = nil
-            } catch {
-                lightError = "Lampe injoignable à \(ip). Vérifie qu'elle est sur le même Wi-Fi."
-            }
-            isSendingLightCommand = false
-        }
     }
 
     private var camerasSection: some View {

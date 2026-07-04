@@ -270,13 +270,13 @@ struct LightConfigView: View {
     @State private var notes: String
     @State private var selectedTerrariumID: PersistentIdentifier?
 
-    init(light: Light? = nil) {
+    init(light: Light? = nil, terrarium: Terrarium? = nil) {
         self.existingLight = light
         _name = State(initialValue: light?.name ?? "")
         _brand = State(initialValue: light?.brand ?? .wiz)
         _ipAddress = State(initialValue: light?.ipAddress ?? "")
         _notes = State(initialValue: light?.notes ?? "")
-        _selectedTerrariumID = State(initialValue: light?.terrarium?.persistentModelID)
+        _selectedTerrariumID = State(initialValue: light?.terrarium?.persistentModelID ?? terrarium?.persistentModelID)
     }
 
     var body: some View {

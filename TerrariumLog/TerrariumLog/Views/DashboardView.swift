@@ -142,24 +142,28 @@ struct DashboardView: View {
                 Text("Prochains rappels")
                     .font(.headline)
                     .lineLimit(1)
-                    .layoutPriority(1)
+                    .truncationMode(.tail)
                 Spacer(minLength: 8)
-                HStack(spacing: 18) {
+                HStack(spacing: 16) {
                     Button {
                         showingAddReminder = true
                     } label: {
                         Image(systemName: "plus.circle.fill")
                     }
+                    .buttonStyle(.borderless)
                     NavigationLink(destination: ReminderCalendarView()) {
                         Image(systemName: "calendar")
                     }
                     NavigationLink(destination: RemindersView()) {
                         Text("Voir tout")
                             .font(.caption.weight(.semibold))
+                            .lineLimit(1)
+                            .fixedSize()
                     }
                 }
                 .imageScale(.large)
                 .foregroundStyle(.teal)
+                .layoutPriority(1)
             }
             if upcomingReminders.isEmpty {
                 Text("Aucun rappel à venir")
@@ -224,7 +228,7 @@ struct DashboardView: View {
                 Text("Lumières")
                     .font(.headline)
                     .lineLimit(1)
-                    .layoutPriority(1)
+                    .truncationMode(.tail)
                 Spacer(minLength: 8)
                 Button {
                     showingAddLight = true
@@ -233,6 +237,7 @@ struct DashboardView: View {
                         .imageScale(.large)
                         .foregroundStyle(.teal)
                 }
+                .buttonStyle(.borderless)
             }
             if lights.isEmpty {
                 Text("Aucune lampe configurée")
