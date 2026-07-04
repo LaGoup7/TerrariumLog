@@ -8,6 +8,7 @@ struct CameraLiveView: View {
     @State private var showingConfig = false
     @State private var comingSoonMessage: String?
     @State private var streamStatus: CameraStreamStatus = .connecting
+    @State private var streamDetail = "Ouverture…"
     @State private var reloadToken = UUID()
 
     private let streamProvider: CameraStreamProvider = RTSPPassthroughProvider()
@@ -43,21 +44,31 @@ struct CameraLiveView: View {
     private var videoArea: some View {
         if let url = streamProvider.playableURL(for: camera) {
             ZStack {
-                CameraStreamView(url: url) { status in
+                CameraStreamView(url: url) { status, detail in
                     streamStatus = status
+                    streamDetail = detail
                 }
                 .id(reloadToken)
+
                 if streamStatus == .connecting {
-                    ProgressView()
-                        .tint(.white)
-                } else if streamStatus == .error {
+                    VStack(spacing: 10) {
+                        ProgressView()
+                            .tint(.white)
+                        Text(streamDetail)
+                            .font(.caption)
+                            .foregroundStyle(.white.opacity(0.85))
+                    }
+                } else if streamStatus != .playing {
                     VStack(spacing: 8) {
                         Image(systemName: "wifi.exclamationmark")
                             .font(.system(size: 34))
                             .foregroundStyle(.white.opacity(0.7))
-                        Text("Flux indisponible. Vérifie que l'iPhone est sur le même réseau que la caméra, puis appuie sur « Live ».")
-                            .font(.caption)
-                            .foregroundStyle(.white.opacity(0.85))
+                        Text("État : \(streamDetail)")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(.white)
+                        Text("Vérifie : iPhone sur le même Wi-Fi que la caméra, IP correcte, et identifiants (sensibles à la casse). Puis « Live ».")
+                            .font(.caption2)
+                            .foregroundStyle(.white.opacity(0.8))
                             .multilineTextAlignment(.center)
                             .padding(.horizontal)
                     }
@@ -72,6 +83,17 @@ struct CameraLiveView: View {
                     liveBadge.padding(10)
                 }
             }
+            .task(id: reloadToken) {
+                // Timeout : si le flux n'est pas en lecture après 12 s, on bascule
+                // en erreur avec un message plutôt que de rester noir sans fin.
+                try? await Task.sleep(nanoseconds: 12_000_000_000)
+                if streamStatus != .playing {
+                    streamStatus = .error
+                    if streamDetail == "Ouverture…" || streamDetail == "Mise en mémoire tampon…" {
+                        streamDetail = "Caméra injoignable (délai dépassé)"
+                    }
+                }
+            }
         } else {
             videoPlaceholder
         }
@@ -79,6 +101,7 @@ struct CameraLiveView: View {
 
     private func reconnect() {
         streamStatus = .connecting
+        streamDetail = "Ouverture…"
         reloadToken = UUID()
     }
 

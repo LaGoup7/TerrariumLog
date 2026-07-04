@@ -14,9 +14,12 @@ enum CameraStreamStatus: Equatable {
 /// Affiche un flux vidéo live (RTSP, etc.) via VLCKit — iOS ne lit pas le RTSP
 /// nativement. On branche un `VLCMediaPlayer` sur une `UIView` (drawable).
 /// Réutilise l'`URL` fournie par `CameraStreamProvider` sans transcodage.
+///
+/// `onStatusChange` remonte l'état simplifié **et** un libellé lisible de l'état
+/// VLC réel (Ouverture / Tampon / Erreur…) pour le diagnostic à l'écran.
 struct CameraStreamView: UIViewRepresentable {
     let url: URL
-    var onStatusChange: (CameraStreamStatus) -> Void = { _ in }
+    var onStatusChange: (CameraStreamStatus, String) -> Void = { _, _ in }
 
     func makeUIView(context: Context) -> UIView {
         let view = UIView()
@@ -37,9 +40,9 @@ struct CameraStreamView: UIViewRepresentable {
 
     final class Coordinator: NSObject, VLCMediaPlayerDelegate {
         private var player: VLCMediaPlayer?
-        private let onStatusChange: (CameraStreamStatus) -> Void
+        private let onStatusChange: (CameraStreamStatus, String) -> Void
 
-        init(onStatusChange: @escaping (CameraStreamStatus) -> Void) {
+        init(onStatusChange: @escaping (CameraStreamStatus, String) -> Void) {
             self.onStatusChange = onStatusChange
         }
 
@@ -55,7 +58,7 @@ struct CameraStreamView: UIViewRepresentable {
             player.media = media
             player.play()
             self.player = player
-            onStatusChange(.connecting)
+            onStatusChange(.connecting, "Ouverture…")
         }
 
         func stop() {
@@ -67,15 +70,30 @@ struct CameraStreamView: UIViewRepresentable {
 
         func mediaPlayerStateChanged(_ aNotification: Notification) {
             guard let player else { return }
+            let name = Self.stateName(player.state)
             switch player.state {
             case .playing:
-                onStatusChange(.playing)
+                onStatusChange(.playing, name)
             case .error:
-                onStatusChange(.error)
+                onStatusChange(.error, name)
             case .ended, .stopped:
-                onStatusChange(.ended)
+                onStatusChange(.ended, name)
             default:
-                onStatusChange(.connecting)
+                onStatusChange(.connecting, name)
+            }
+        }
+
+        private static func stateName(_ state: VLCMediaPlayerState) -> String {
+            switch state {
+            case .stopped: return "Arrêté"
+            case .opening: return "Ouverture…"
+            case .buffering: return "Mise en mémoire tampon…"
+            case .playing: return "Lecture"
+            case .paused: return "En pause"
+            case .ended: return "Terminé"
+            case .error: return "Erreur (flux/identifiants/URL)"
+            case .esAdded: return "Flux détecté…"
+            @unknown default: return "…"
             }
         }
     }
