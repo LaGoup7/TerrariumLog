@@ -72,9 +72,22 @@ struct CameraLiveView: View {
                     liveBadge.padding(10)
                 }
             }
+            .contentShape(Rectangle())
+            .onTapGesture {
+                // Récupération : si le flux n'est plus en lecture (écran noir),
+                // toucher l'image le reconnecte.
+                if streamStatus != .playing {
+                    reconnect()
+                }
+            }
         } else {
             videoPlaceholder
         }
+    }
+
+    private func reconnect() {
+        streamStatus = .connecting
+        reloadToken = UUID()
     }
 
     private var liveBadge: some View {
@@ -135,9 +148,7 @@ struct CameraLiveView: View {
         HStack(spacing: 12) {
             actionButton(title: "Live", systemImage: "play.circle.fill") {
                 if streamProvider.playableURL(for: camera) != nil {
-                    // Recrée le lecteur pour (re)lancer la connexion au flux.
-                    streamStatus = .connecting
-                    reloadToken = UUID()
+                    reconnect()
                 } else {
                     comingSoonMessage = "Renseigne l'URL du flux (rtsp://…) de la caméra dans Réglages avant de lancer le direct."
                 }
