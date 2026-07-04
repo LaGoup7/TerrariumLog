@@ -32,11 +32,17 @@ struct RTSPPassthroughProvider: CameraStreamProvider {
     }
 
     func redactedURLString(for camera: Camera, streamPathOverride: String?) -> String? {
-        guard var components = resolvedComponents(for: camera, streamPathOverride: streamPathOverride) else { return nil }
-        if components.password != nil {
-            components.password = "••••"
+        guard let components = resolvedComponents(for: camera, streamPathOverride: streamPathOverride) else { return nil }
+        // Reconstruction manuelle pour un rendu lisible : `components.string`
+        // encoderait le masque en %E2%80%A2… (bullets). On masque proprement.
+        let scheme = components.scheme ?? "rtsp"
+        var auth = ""
+        if let user = components.user, !user.isEmpty {
+            auth = components.password != nil ? "\(user):••••@" : "\(user)@"
         }
-        return components.string
+        let host = components.host ?? ""
+        let port = components.port.map { ":\($0)" } ?? ""
+        return "\(scheme)://\(auth)\(host)\(port)\(components.path)"
     }
 
     private func resolvedComponents(for camera: Camera, streamPathOverride: String?) -> URLComponents? {

@@ -75,10 +75,15 @@ struct CameraStreamView: UIViewRepresentable {
             onStatusChange(.connecting, "Ouverture…")
         }
 
+        /// Vrai dès que le flux a réellement joué : permet de distinguer un arrêt
+        /// normal (fin de flux) d'un rejet immédiat à l'ouverture (auth/URL).
+        private var hasPlayed = false
+
         func stop() {
+            // On coupe le délégué d'abord pour ne pas remonter le `.stopped` du teardown.
+            player?.delegate = nil
             player?.stop()
             player?.drawable = nil
-            player?.delegate = nil
             player = nil
         }
 
@@ -87,11 +92,18 @@ struct CameraStreamView: UIViewRepresentable {
             let name = Self.stateName(player.state)
             switch player.state {
             case .playing:
+                hasPlayed = true
                 onStatusChange(.playing, name)
             case .error:
-                onStatusChange(.error, name)
+                onStatusChange(.error, "Refusé par la caméra — vérifie le compte caméra (nom + mot de passe RTSP), le chemin et que le RTSP est activé.")
             case .ended, .stopped:
-                onStatusChange(.ended, name)
+                if hasPlayed {
+                    onStatusChange(.ended, name)
+                } else {
+                    // Arrêt sans avoir jamais joué = flux rejeté à l'ouverture,
+                    // quasi toujours un problème d'identifiants du compte caméra.
+                    onStatusChange(.error, "Arrêté dès l'ouverture — identifiants du compte caméra probablement incorrects, ou RTSP non activé sur la caméra.")
+                }
             default:
                 onStatusChange(.connecting, name)
             }
