@@ -84,7 +84,7 @@ struct CameraStreamView: UIViewRepresentable {
         func start(url: URL, username: String?, password: String?, on view: UIView) {
             log("Lecteur créé (MobileVLCKit)")
             log("Ouverture RTSP : \(Self.redactedURL(url))")
-            log("Vue \(Int(view.bounds.width))×\(Int(view.bounds.height)) — UDP, buffer 2500 ms")
+            log("Vue \(Int(view.bounds.width))×\(Int(view.bounds.height)) — RTP sur TCP, buffer 2500 ms")
 
             // Active le log natif de libvlc pour capturer la raison exacte (RTSP/RTP).
             enableVLCLogging()
@@ -94,9 +94,11 @@ struct CameraStreamView: UIViewRepresentable {
             player.delegate = self
 
             let media = VLCMedia(url: url)
-            // Transport UDP (défaut) : le journal a montré que les images circulent
-            // en UDP (état « Lecture » atteint) mais PAS en TCP entrelacé avec cette
-            // C220. Gros tampon pour absorber la gigue/perte UDP.
+            // Le log natif l'a prouvé : le contrôle RTSP passe (SDP reçu) mais le RTP
+            // en UDP n'arrive jamais (live555 timeout 15 s puis se détruit). On force
+            // le RTP entrelacé DANS la connexion TCP déjà ouverte pour contourner le
+            // blocage des ports UDP entre la caméra et l'iPhone.
+            media.addOption(":rtsp-tcp")
             media.addOption(":network-caching=2500")
             player.media = media
             player.play()
