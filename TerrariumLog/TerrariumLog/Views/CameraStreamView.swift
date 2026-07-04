@@ -19,12 +19,16 @@ enum CameraStreamStatus: Equatable {
 /// VLC réel (Ouverture / Tampon / Erreur…) pour le diagnostic à l'écran.
 struct CameraStreamView: UIViewRepresentable {
     let url: URL
+    /// Identifiants passés aussi en options VLC (en plus de l'URL) : certains flux
+    /// RTSP n'acceptent l'authentification que par ce biais.
+    var username: String? = nil
+    var password: String? = nil
     var onStatusChange: (CameraStreamStatus, String) -> Void = { _, _ in }
 
     func makeUIView(context: Context) -> UIView {
         let view = UIView()
         view.backgroundColor = .black
-        context.coordinator.start(url: url, on: view)
+        context.coordinator.start(url: url, username: username, password: password, on: view)
         return view
     }
 
@@ -46,15 +50,25 @@ struct CameraStreamView: UIViewRepresentable {
             self.onStatusChange = onStatusChange
         }
 
-        func start(url: URL, on view: UIView) {
+        func start(url: URL, username: String?, password: String?, on view: UIView) {
             let player = VLCMediaPlayer()
             player.drawable = view
             player.delegate = self
 
             let media = VLCMedia(url: url)
-            // RTSP sur TCP (plus fiable que l'UDP derrière un NAT) + faible latence.
+            // RTSP sur TCP (plus fiable que l'UDP derrière un NAT).
             media.addOption(":rtsp-tcp")
-            media.addOption(":network-caching=300")
+            // Un buffer trop court fait échouer les flux RTSP (2K/keyframes lentes) :
+            // 1,5 s est un bon compromis latence/robustesse.
+            media.addOption(":network-caching=1500")
+            media.addOption(":rtsp-caching=1500")
+            // Authentification aussi via options (secours quand l'URL ne suffit pas).
+            if let username, !username.isEmpty {
+                media.addOption(":rtsp-user=\(username)")
+                if let password, !password.isEmpty {
+                    media.addOption(":rtsp-pwd=\(password)")
+                }
+            }
             player.media = media
             player.play()
             self.player = player

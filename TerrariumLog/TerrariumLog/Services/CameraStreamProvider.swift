@@ -4,9 +4,21 @@ import Foundation
 /// la lecture passe par VLCKit (voir `CameraStreamView`), à qui l'on fournit l'URL construite ici.
 protocol CameraStreamProvider {
     /// URL réellement jouable, identifiants inclus.
-    func playableURL(for camera: Camera) -> URL?
+    /// - Parameter streamPathOverride: si fourni (ex. `"stream2"`), remplace le
+    ///   chemin du flux — utile pour basculer HD/SD sur les Tapo.
+    func playableURL(for camera: Camera, streamPathOverride: String?) -> URL?
     /// Même URL, mais mot de passe masqué — pour l'affichage à l'écran.
-    func redactedURLString(for camera: Camera) -> String?
+    func redactedURLString(for camera: Camera, streamPathOverride: String?) -> String?
+}
+
+extension CameraStreamProvider {
+    func playableURL(for camera: Camera) -> URL? {
+        playableURL(for: camera, streamPathOverride: nil)
+    }
+
+    func redactedURLString(for camera: Camera) -> String? {
+        redactedURLString(for: camera, streamPathOverride: nil)
+    }
 }
 
 /// Construit l'URL RTSP à partir de la configuration de la caméra :
@@ -15,19 +27,19 @@ protocol CameraStreamProvider {
 /// - injecte les identifiants du **compte caméra** dans l'URL s'ils n'y sont pas
 ///   déjà — indispensable pour les Tapo (sinon 401 → écran noir).
 struct RTSPPassthroughProvider: CameraStreamProvider {
-    func playableURL(for camera: Camera) -> URL? {
-        resolvedComponents(for: camera)?.url
+    func playableURL(for camera: Camera, streamPathOverride: String?) -> URL? {
+        resolvedComponents(for: camera, streamPathOverride: streamPathOverride)?.url
     }
 
-    func redactedURLString(for camera: Camera) -> String? {
-        guard var components = resolvedComponents(for: camera) else { return nil }
+    func redactedURLString(for camera: Camera, streamPathOverride: String?) -> String? {
+        guard var components = resolvedComponents(for: camera, streamPathOverride: streamPathOverride) else { return nil }
         if components.password != nil {
             components.password = "••••"
         }
         return components.string
     }
 
-    private func resolvedComponents(for camera: Camera) -> URLComponents? {
+    private func resolvedComponents(for camera: Camera, streamPathOverride: String?) -> URLComponents? {
         let raw = (camera.streamURL ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
         let base: String
         if !raw.isEmpty {
@@ -40,6 +52,11 @@ struct RTSPPassthroughProvider: CameraStreamProvider {
         }
 
         guard var components = URLComponents(string: base) else { return nil }
+
+        // Bascule éventuelle du chemin (HD/SD) sans toucher à la config stockée.
+        if let override = streamPathOverride, !override.isEmpty {
+            components.path = override.hasPrefix("/") ? override : "/\(override)"
+        }
 
         // Injecte les identifiants seulement si l'URL n'en porte pas déjà.
         // `URLComponents` gère l'encodage des caractères spéciaux du mot de passe,

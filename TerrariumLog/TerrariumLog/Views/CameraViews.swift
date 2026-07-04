@@ -12,13 +12,24 @@ struct CameraLiveView: View {
     @State private var reloadToken = UUID()
     @State private var diagnosticMessage: String?
     @State private var isTesting = false
+    @State private var quality: StreamQuality = .hd
 
     private let streamProvider: CameraStreamProvider = RTSPPassthroughProvider()
+
+    /// Sur les Tapo, on peut basculer le chemin du flux (HD `/stream1` ↔
+    /// SD `/stream2`) sans modifier la config stockée. Ailleurs, on respecte
+    /// l'URL telle quelle.
+    private var pathOverride: String? {
+        camera.brand == .tapo ? quality.rawValue : nil
+    }
 
     var body: some View {
         ScrollView {
             VStack(spacing: 16) {
                 videoArea
+                if camera.brand == .tapo {
+                    qualityPicker
+                }
                 statusSection
                 buttonsRow
             }
@@ -54,7 +65,7 @@ struct CameraLiveView: View {
     }
 
     private func testConnection() {
-        guard let url = streamProvider.playableURL(for: camera), let host = url.host, !host.isEmpty else {
+        guard let url = streamProvider.playableURL(for: camera, streamPathOverride: pathOverride), let host = url.host, !host.isEmpty else {
             diagnosticMessage = "URL du flux vide ou invalide. Renseigne l'URL (rtsp://…:554/stream1) ou l'IP + les identifiants dans Réglages."
             return
         }
@@ -76,9 +87,9 @@ struct CameraLiveView: View {
 
     @ViewBuilder
     private var videoArea: some View {
-        if let url = streamProvider.playableURL(for: camera) {
+        if let url = streamProvider.playableURL(for: camera, streamPathOverride: pathOverride) {
             ZStack {
-                CameraStreamView(url: url) { status, detail in
+                CameraStreamView(url: url, username: camera.username, password: camera.password) { status, detail in
                     streamStatus = status
                     streamDetail = detail
                 }
@@ -100,7 +111,14 @@ struct CameraLiveView: View {
                         Text("État : \(streamDetail)")
                             .font(.caption.weight(.semibold))
                             .foregroundStyle(.white)
-                        Text("Vérifie : iPhone sur le même Wi-Fi que la caméra, IP correcte, et identifiants (sensibles à la casse). Puis « Live ».")
+                        if let attempted = streamProvider.redactedURLString(for: camera, streamPathOverride: pathOverride) {
+                            Text(attempted)
+                                .font(.caption2.monospaced())
+                                .foregroundStyle(.white.opacity(0.7))
+                                .multilineTextAlignment(.center)
+                                .padding(.horizontal)
+                        }
+                        Text("Réseau OK mais lecture KO ? Essaie l'autre qualité (HD/Fluide) ci-dessous, et vérifie le compte caméra.")
                             .font(.caption2)
                             .foregroundStyle(.white.opacity(0.8))
                             .multilineTextAlignment(.center)
@@ -137,6 +155,23 @@ struct CameraLiveView: View {
         streamStatus = .connecting
         streamDetail = "Ouverture…"
         reloadToken = UUID()
+    }
+
+    private var qualityPicker: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Picker("Qualité", selection: $quality) {
+                ForEach(StreamQuality.allCases) { quality in
+                    Text(quality.displayName).tag(quality)
+                }
+            }
+            .pickerStyle(.segmented)
+            .onChange(of: quality) { _, _ in
+                reconnect()
+            }
+            Text("HD = flux principal (2K, souvent H.265). Si l'image reste noire en HD, essaie « Fluide ».")
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+        }
     }
 
     private var liveBadge: some View {
@@ -182,7 +217,7 @@ struct CameraLiveView: View {
             if let terrarium = camera.terrarium {
                 LabeledContent("Terrarium", value: terrarium.name)
             }
-            if let displayURL = streamProvider.redactedURLString(for: camera) {
+            if let displayURL = streamProvider.redactedURLString(for: camera, streamPathOverride: pathOverride) {
                 LabeledContent("URL du flux", value: displayURL)
                     .font(.caption)
             }
@@ -237,6 +272,22 @@ struct CameraLiveView: View {
                     .font(.caption)
             }
             .frame(maxWidth: .infinity)
+        }
+    }
+}
+
+/// Qualité du flux (chemin RTSP) pour les caméras Tapo : HD = flux principal
+/// (`/stream1`), Fluide = flux secondaire (`/stream2`, plus léger).
+enum StreamQuality: String, CaseIterable, Identifiable {
+    case hd = "stream1"
+    case sd = "stream2"
+
+    var id: String { rawValue }
+
+    var displayName: String {
+        switch self {
+        case .hd: return "HD"
+        case .sd: return "Fluide"
         }
     }
 }
