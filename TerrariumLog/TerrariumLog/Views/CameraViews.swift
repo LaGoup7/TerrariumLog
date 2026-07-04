@@ -12,7 +12,9 @@ struct CameraLiveView: View {
     @State private var reloadToken = UUID()
     @State private var diagnosticMessage: String?
     @State private var isTesting = false
-    @State private var quality: StreamQuality = .hd
+    // Sur mobile, on démarre sur le flux Fluide (SD) : le flux HD 2K des Tapo
+    // est souvent trop lourd à décoder en temps réel sur iPhone.
+    @State private var quality: StreamQuality = .sd
 
     private let streamProvider: CameraStreamProvider = RTSPPassthroughProvider()
 
