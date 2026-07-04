@@ -20,11 +20,9 @@ struct AnimalsListView: View {
             List {
                 ForEach(filteredAnimals) { animal in
                     NavigationLink(destination: AnimalDetailView(animal: animal)) {
-                        HStack(spacing: 12) {
-                            Image(systemName: animal.type.symbolName)
-                                .font(.title2)
-                                .foregroundStyle(.teal)
-                            VStack(alignment: .leading) {
+                        HStack(spacing: 14) {
+                            AnimalRowThumbnail(animal: animal)
+                            VStack(alignment: .leading, spacing: 2) {
                                 Text(animal.name)
                                     .font(.headline)
                                 Text(animal.species)
@@ -33,7 +31,7 @@ struct AnimalsListView: View {
                                 if let colonySummary = animal.colonySummary {
                                     Text(colonySummary)
                                         .font(.caption2)
-                                        .foregroundStyle(.teal)
+                                        .foregroundStyle(Brand.accent)
                                 }
                             }
                             Spacer()
@@ -63,6 +61,36 @@ struct AnimalsListView: View {
             }
             .sheet(isPresented: $showingAddSheet) {
                 AnimalFormView(animal: nil)
+            }
+        }
+    }
+}
+
+/// Vignette de profil pour les lignes de la liste des animaux : affiche la photo
+/// principale si elle existe, sinon le symbole du type sur une surface neutre.
+struct AnimalRowThumbnail: View {
+    let animal: Animal
+    @State private var image: UIImage?
+
+    var body: some View {
+        Group {
+            if let image {
+                Image(uiImage: image)
+                    .resizable()
+                    .scaledToFill()
+            } else {
+                Image(systemName: animal.type.symbolName)
+                    .font(.title3)
+                    .foregroundStyle(Brand.accent)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .background(Brand.surfaceElevated)
+            }
+        }
+        .frame(width: 52, height: 52)
+        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .onAppear {
+            if image == nil, let path = animal.primaryPhotoPath {
+                image = PhotoStorage.shared.loadImage(from: path)
             }
         }
     }

@@ -44,6 +44,13 @@ struct DashboardView: View {
                 .listRowBackground(Color.clear)
                 .listRowInsets(cardInsets)
 
+                Section {
+                    DashboardCalendarCard(reminders: reminders)
+                }
+                .listRowSeparator(.hidden)
+                .listRowBackground(Color.clear)
+                .listRowInsets(cardInsets)
+
                 if !cameras.isEmpty {
                     Section {
                         camerasSection
