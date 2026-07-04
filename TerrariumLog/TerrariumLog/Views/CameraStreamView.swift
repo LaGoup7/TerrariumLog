@@ -25,20 +25,40 @@ struct CameraStreamView: UIViewRepresentable {
     var password: String? = nil
     var onStatusChange: (CameraStreamStatus, String) -> Void = { _, _ in }
 
-    func makeUIView(context: Context) -> UIView {
-        let view = UIView()
+    func makeUIView(context: Context) -> PlayerContainerView {
+        let view = PlayerContainerView()
         view.backgroundColor = .black
-        context.coordinator.start(url: url, username: username, password: password, on: view)
+        // On démarre la lecture seulement quand la vue est dans la fenêtre ET
+        // dimensionnée : VLCKit a besoin d'une taille > 0 pour créer la sortie
+        // vidéo, sinon il s'arrête aussitôt (écran noir « Arrêté »).
+        let coordinator = context.coordinator
+        view.onReady = { [url, username, password] readyView in
+            coordinator.start(url: url, username: username, password: password, on: readyView)
+        }
         return view
     }
 
-    func updateUIView(_ uiView: UIView, context: Context) {}
+    func updateUIView(_ uiView: PlayerContainerView, context: Context) {}
+
+    /// UIView qui signale une seule fois quand elle est réellement affichée et
+    /// dimensionnée, pour démarrer VLC au bon moment.
+    final class PlayerContainerView: UIView {
+        var onReady: ((UIView) -> Void)?
+        private var didStart = false
+
+        override func layoutSubviews() {
+            super.layoutSubviews()
+            guard !didStart, window != nil, bounds.width > 0, bounds.height > 0 else { return }
+            didStart = true
+            onReady?(self)
+        }
+    }
 
     func makeCoordinator() -> Coordinator {
         Coordinator(onStatusChange: onStatusChange)
     }
 
-    static func dismantleUIView(_ uiView: UIView, coordinator: Coordinator) {
+    static func dismantleUIView(_ uiView: PlayerContainerView, coordinator: Coordinator) {
         coordinator.stop()
     }
 
