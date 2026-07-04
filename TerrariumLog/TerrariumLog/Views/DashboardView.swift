@@ -6,10 +6,19 @@ struct DashboardView: View {
     @Query(sort: [SortDescriptor<Animal>(\.dashboardSortOrder)]) private var animals: [Animal]
     @Query(sort: [SortDescriptor<Reminder>(\.reminderDate)]) private var reminders: [Reminder]
     @Query private var cameras: [Camera]
+    @Query(sort: [SortDescriptor<Light>(\.name)]) private var lights: [Light]
     @Query(sort: [SortDescriptor<Terrarium>(\.name)]) private var terrariums: [Terrarium]
 
     @State private var showingAddReminder = false
+    @State private var showingAddLight = false
     @State private var showingAnimalVisibility = false
+
+    /// Marges verticales/horizontales uniformes entre toutes les cartes du Dashboard.
+    private let cardInsets = EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16)
+
+    private var brandGradient: LinearGradient {
+        LinearGradient(colors: [.teal, .green], startPoint: .leading, endPoint: .trailing)
+    }
 
     private var upcomingReminders: [Reminder] {
         Array(reminders.filter { !$0.isCompleted }.prefix(3))
@@ -23,18 +32,18 @@ struct DashboardView: View {
         NavigationStack {
             List {
                 Section {
-                    headerSection
+                    brandTitle
                 }
                 .listRowSeparator(.hidden)
                 .listRowBackground(Color.clear)
-                .listRowInsets(EdgeInsets())
+                .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 8, trailing: 16))
 
                 Section {
                     remindersSection
                 }
                 .listRowSeparator(.hidden)
                 .listRowBackground(Color.clear)
-                .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
+                .listRowInsets(cardInsets)
 
                 if !cameras.isEmpty {
                     Section {
@@ -42,8 +51,15 @@ struct DashboardView: View {
                     }
                     .listRowSeparator(.hidden)
                     .listRowBackground(Color.clear)
-                    .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
+                    .listRowInsets(cardInsets)
                 }
+
+                Section {
+                    lightsSection
+                }
+                .listRowSeparator(.hidden)
+                .listRowBackground(Color.clear)
+                .listRowInsets(cardInsets)
 
                 if !terrariums.isEmpty {
                     Section {
@@ -51,7 +67,7 @@ struct DashboardView: View {
                     }
                     .listRowSeparator(.hidden)
                     .listRowBackground(Color.clear)
-                    .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
+                    .listRowInsets(cardInsets)
                 }
 
                 Section {
@@ -59,19 +75,23 @@ struct DashboardView: View {
                         AnimalCardView(animal: animal)
                             .listRowSeparator(.hidden)
                             .listRowBackground(Color.clear)
-                            .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
+                            .listRowInsets(cardInsets)
                     }
                     .onMove(perform: moveAnimals)
                 } header: {
                     if !visibleAnimals.isEmpty {
                         Text("Glisse-dépose pour réordonner")
+                            .textCase(nil)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
                     }
                 }
             }
             .listStyle(.plain)
             .scrollContentBackground(.hidden)
             .background(LinearGradient(gradient: Gradient(colors: [Color.green.opacity(0.15), Color.teal.opacity(0.1)]), startPoint: .topLeading, endPoint: .bottomTrailing))
-            .navigationTitle("Terrarium Log")
+            .navigationTitle("")
+            .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
@@ -87,6 +107,9 @@ struct DashboardView: View {
             .sheet(isPresented: $showingAnimalVisibility) {
                 AnimalVisibilityView()
             }
+            .sheet(isPresented: $showingAddLight) {
+                LightConfigView()
+            }
         }
     }
 
@@ -99,35 +122,44 @@ struct DashboardView: View {
         try? context.save()
     }
 
-    private var headerSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("Bienvenue")
-                .font(.headline)
-                .foregroundStyle(.secondary)
-            Text("Suivez l’évolution de vos colonies")
-                .font(.title2.bold())
+    private var brandTitle: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "leaf.circle.fill")
+                .font(.system(size: 30, weight: .bold))
+                .foregroundStyle(brandGradient)
+            Text("TerrariumLog")
+                .font(.system(.largeTitle, design: .rounded).weight(.bold))
+                .foregroundStyle(brandGradient)
+                .tracking(0.5)
+            Spacer()
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private var remindersSection: some View {
         VStack(alignment: .leading, spacing: 10) {
-            HStack {
+            HStack(spacing: 12) {
                 Text("Prochains rappels")
                     .font(.headline)
-                Spacer()
-                Button {
-                    showingAddReminder = true
-                } label: {
-                    Image(systemName: "plus.circle")
+                    .lineLimit(1)
+                    .fixedSize(horizontal: true, vertical: false)
+                Spacer(minLength: 8)
+                HStack(spacing: 18) {
+                    Button {
+                        showingAddReminder = true
+                    } label: {
+                        Image(systemName: "plus.circle.fill")
+                    }
+                    NavigationLink(destination: ReminderCalendarView()) {
+                        Image(systemName: "calendar")
+                    }
+                    NavigationLink(destination: RemindersView()) {
+                        Text("Voir tout")
+                            .font(.caption.weight(.semibold))
+                    }
                 }
-                NavigationLink(destination: ReminderCalendarView()) {
-                    Image(systemName: "calendar")
-                }
-                NavigationLink("Voir tout") {
-                    RemindersView()
-                }
-                .font(.caption)
+                .imageScale(.large)
+                .foregroundStyle(.teal)
             }
             if upcomingReminders.isEmpty {
                 Text("Aucun rappel à venir")
@@ -153,10 +185,7 @@ struct DashboardView: View {
                 }
             }
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding()
-        .background(.ultraThinMaterial)
-        .clipShape(RoundedRectangle(cornerRadius: 20))
+        .dashboardCard()
         .sheet(isPresented: $showingAddReminder) {
             AddReminderView()
         }
@@ -186,10 +215,55 @@ struct DashboardView: View {
                 }
             }
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding()
-        .background(.ultraThinMaterial)
-        .clipShape(RoundedRectangle(cornerRadius: 20))
+        .dashboardCard()
+    }
+
+    private var lightsSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 12) {
+                Text("Lumières")
+                    .font(.headline)
+                    .lineLimit(1)
+                    .fixedSize(horizontal: true, vertical: false)
+                Spacer(minLength: 8)
+                Button {
+                    showingAddLight = true
+                } label: {
+                    Image(systemName: "plus.circle.fill")
+                        .imageScale(.large)
+                        .foregroundStyle(.teal)
+                }
+            }
+            if lights.isEmpty {
+                Text("Aucune lampe configurée")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            } else {
+                ForEach(lights) { light in
+                    NavigationLink(destination: LightControlView(light: light)) {
+                        HStack {
+                            Image(systemName: light.lastKnownOn ? "lightbulb.fill" : "lightbulb")
+                                .foregroundStyle(light.lastKnownOn ? .yellow : .secondary)
+                            VStack(alignment: .leading) {
+                                Text(light.name)
+                                    .font(.subheadline)
+                                Text(light.terrarium?.name ?? light.brand.displayName)
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                            Spacer()
+                            Circle()
+                                .fill(light.isConfigured ? Color.green : Color.orange)
+                                .frame(width: 8, height: 8)
+                            Image(systemName: "chevron.right")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+            }
+        }
+        .dashboardCard()
     }
 
     private var terrariumsSection: some View {
@@ -215,10 +289,24 @@ struct DashboardView: View {
                 }
             }
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding()
-        .background(.ultraThinMaterial)
-        .clipShape(RoundedRectangle(cornerRadius: 20))
+        .dashboardCard()
+    }
+}
+
+/// Style de carte partagé par tous les blocs du Dashboard : matière translucide,
+/// coins arrondis continus, bordure et ombre subtiles pour un rendu premium et
+/// homogène.
+extension View {
+    func dashboardCard() -> some View {
+        self
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(16)
+            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: 22, style: .continuous)
+                    .strokeBorder(Color.primary.opacity(0.06), lineWidth: 1)
+            )
+            .shadow(color: .black.opacity(0.06), radius: 10, x: 0, y: 4)
     }
 }
 
@@ -297,10 +385,7 @@ struct AnimalCardView: View {
                 quickActionsRow
             }
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding()
-        .background(.ultraThinMaterial)
-        .clipShape(RoundedRectangle(cornerRadius: 20))
+        .dashboardCard()
         .onAppear {
             if let path = animal.primaryPhotoPath {
                 image = PhotoStorage.shared.loadImage(from: path)

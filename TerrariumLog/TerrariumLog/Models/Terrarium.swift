@@ -30,6 +30,9 @@ final class Terrarium {
     @Relationship(deleteRule: .cascade, inverse: \Camera.terrarium)
     var cameras: [Camera] = []
 
+    @Relationship(deleteRule: .cascade, inverse: \Light.terrarium)
+    var lights: [Light] = []
+
     init(
         name: String,
         type: TerrariumType,

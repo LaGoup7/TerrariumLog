@@ -15,6 +15,7 @@ struct PersistenceController {
             Terrarium.self,
             Plant.self,
             Camera.self,
+            Light.self,
             CustomPreyType.self,
             AnimalVideo.self
         ])
@@ -74,6 +75,10 @@ struct PersistenceController {
         ] {
             context.insert(plant)
         }
+
+        // Lampe de démonstration (IP à renseigner par l'utilisateur dans Réglages).
+        let spiderLight = Light(name: "Lampe Phidippus", brand: .wiz, terrarium: spiderTerrarium)
+        context.insert(spiderLight)
 
         let arrivalDate = spider.arrivalDate
         let sprayDate = calendar.date(byAdding: .day, value: 1, to: arrivalDate) ?? arrivalDate
