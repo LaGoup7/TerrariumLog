@@ -76,11 +76,14 @@ struct CameraStreamView: UIViewRepresentable {
             player.delegate = self
 
             let media = VLCMedia(url: url)
-            // Configuration volontairement minimale, calquée sur VLC desktop qui
-            // lit le flux sans souci : identifiants portés par l'URL, transport
-            // par défaut (pas de RTSP-sur-TCP forcé, qui fait échouer certaines
-            // Tapo dans MobileVLCKit) et un buffer live raisonnable.
-            media.addOption(":network-caching=1000")
+            // Configuration calquée sur VLC desktop : identifiants portés par
+            // l'URL, transport par défaut (pas de RTSP-sur-TCP forcé).
+            media.addOption(":network-caching=1500")
+            // Décodage LOGICIEL forcé : le flux HD 2K des Tapo est souvent en
+            // H.265, et le décodage matériel (VideoToolbox) échoue fréquemment
+            // dans MobileVLCKit → « En direct » mais image noire qui re-bufferise.
+            // En logiciel, l'image s'affiche (coût CPU acceptable pour un flux).
+            media.addOption(":avcodec-hw=none")
             player.media = media
             player.play()
             self.player = player
