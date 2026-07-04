@@ -72,14 +72,6 @@ struct CameraLiveView: View {
                     liveBadge.padding(10)
                 }
             }
-            .contentShape(Rectangle())
-            .onTapGesture {
-                // Récupération : si le flux n'est plus en lecture (écran noir),
-                // toucher l'image le reconnecte.
-                if streamStatus != .playing {
-                    reconnect()
-                }
-            }
         } else {
             videoPlaceholder
         }

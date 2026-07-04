@@ -11,18 +11,6 @@ enum CameraStreamStatus: Equatable {
     case error
 }
 
-/// Conteneur de rendu VLC. VLCKit ajoute sa propre sous-vue de rendu ; on la
-/// force à occuper tout le conteneur à chaque `layoutSubviews`, sinon la vidéo
-/// peut devenir noire ou mal cadrée après une interaction / un re-layout SwiftUI.
-final class VLCContainerView: UIView {
-    override func layoutSubviews() {
-        super.layoutSubviews()
-        for subview in subviews {
-            subview.frame = bounds
-        }
-    }
-}
-
 /// Affiche un flux vidéo live (RTSP, etc.) via VLCKit — iOS ne lit pas le RTSP
 /// nativement. On branche un `VLCMediaPlayer` sur une `UIView` (drawable).
 /// Réutilise l'`URL` fournie par `CameraStreamProvider` sans transcodage.
@@ -31,9 +19,8 @@ struct CameraStreamView: UIViewRepresentable {
     var onStatusChange: (CameraStreamStatus) -> Void = { _ in }
 
     func makeUIView(context: Context) -> UIView {
-        let view = VLCContainerView()
+        let view = UIView()
         view.backgroundColor = .black
-        view.clipsToBounds = true
         context.coordinator.start(url: url, on: view)
         return view
     }
