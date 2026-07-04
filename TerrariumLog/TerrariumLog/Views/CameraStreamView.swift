@@ -84,19 +84,21 @@ struct CameraStreamView: UIViewRepresentable {
         func start(url: URL, username: String?, password: String?, on view: UIView) {
             log("Lecteur créé (MobileVLCKit)")
             log("Ouverture RTSP : \(Self.redactedURL(url))")
-            log("Vue \(Int(view.bounds.width))×\(Int(view.bounds.height)) — transport TCP, buffer 1500 ms")
+            log("Vue \(Int(view.bounds.width))×\(Int(view.bounds.height)) — TCP, buffer 1500 ms, décodage logiciel")
 
             let player = VLCMediaPlayer()
             player.drawable = view
             player.delegate = self
 
             let media = VLCMedia(url: url)
-            // Transport RTSP forcé sur TCP : le journal a montré un flux H.264 qui
-            // reste en 0×0 et re-bufferise en boucle = perte de paquets RTP en UDP
-            // sur le Wi-Fi de l'iPhone. TCP garantit la livraison (retransmission)
-            // et fiabilise la réception des keyframes/SPS.
+            // Transport RTSP forcé sur TCP : livraison fiable des keyframes/SPS.
             media.addOption(":rtsp-tcp")
             media.addOption(":network-caching=1500")
+            // Décodage LOGICIEL forcé : le journal a montré un ES H.264 détecté
+            // mais bloqué en 0×0 (aucune image décodée) = échec d'init du décodeur
+            // matériel VideoToolbox sur iOS pour ce flux. En logiciel, avcodec
+            // décode les images. (Combiné au TCP, contrairement aux essais UDP.)
+            media.addOption(":avcodec-hw=none")
             player.media = media
             player.play()
             self.player = player
@@ -115,6 +117,9 @@ struct CameraStreamView: UIViewRepresentable {
             player?.delegate = nil
             player?.stop()
             player?.drawable = nil
+            // On libère explicitement le média pour fermer la session RTSP côté
+            // caméra (la C220 limite le nombre de flux simultanés).
+            player?.media = nil
             player = nil
         }
 

@@ -216,7 +216,7 @@ struct CameraLiveView: View {
             .onChange(of: quality) { _, _ in
                 reconnect()
             }
-            Text("HD = flux principal (2K, souvent H.265). Si l'image reste noire en HD, essaie « Fluide ».")
+            Text("HD = flux principal (2K). Si l'image tarde ou reste noire, essaie « Fluide » (plus léger).")
                 .font(.caption2)
                 .foregroundStyle(.secondary)
         }
