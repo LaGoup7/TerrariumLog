@@ -11,6 +11,7 @@ struct CameraLiveView: View {
     @State private var streamDetail = "Ouverture…"
     @State private var reloadToken = UUID()
     @State private var diagnosticMessage: String?
+    @State private var isTesting = false
 
     private let streamProvider: CameraStreamProvider = RTSPPassthroughProvider()
 
@@ -54,16 +55,22 @@ struct CameraLiveView: View {
 
     private func testConnection() {
         guard let url = streamProvider.playableURL(for: camera), let host = url.host, !host.isEmpty else {
-            diagnosticMessage = "URL du flux vide ou invalide. Renseigne rtsp://…:554/stream1 dans Réglages."
+            diagnosticMessage = "URL du flux vide ou invalide. Renseigne l'URL (rtsp://…:554/stream1) ou l'IP + les identifiants dans Réglages."
             return
         }
         let port = UInt16(url.port ?? 554)
-        diagnosticMessage = "Test en cours vers \(host):\(port)…"
+        isTesting = true
+        // L'alerte n'est présentée qu'une fois le résultat connu : une alerte
+        // SwiftUI ne rafraîchit pas son texte tant qu'elle reste affichée.
         Task {
-            let reachable = await NetworkProbe.canConnect(host: host, port: port, timeout: 6)
-            diagnosticMessage = reachable
-                ? "✅ \(host):\(port) est joignable.\n\nLe port RTSP répond : le réseau est bon. Le noir vient donc de l'URL/chemin (/stream1 vs /stream2), des identifiants (casse) ou du décodage — pas du réseau."
-                : "❌ \(host):\(port) injoignable.\n\nLe port RTSP ne répond pas. Vérifie : iPhone sur le même Wi-Fi que la caméra, IP exacte, et RTSP réellement activé (compte caméra) sur la Tapo."
+            let outcome = await NetworkProbe.probe(host: host, port: port, timeout: 6)
+            isTesting = false
+            var lines = [outcome.reachable ? "✅ \(host):\(port) joignable" : "❌ \(host):\(port) injoignable", "", outcome.detail]
+            if outcome.reachable {
+                lines.append("")
+                lines.append("Le réseau est bon. Si l'image reste noire, vérifie le chemin (/stream1 en HD, /stream2 en SD) et surtout les identifiants du COMPTE CAMÉRA (app Tapo → Paramètres avancés → Compte de la caméra), différents du compte TP-Link.")
+            }
+            diagnosticMessage = lines.joined(separator: "\n")
         }
     }
 
@@ -175,8 +182,8 @@ struct CameraLiveView: View {
             if let terrarium = camera.terrarium {
                 LabeledContent("Terrarium", value: terrarium.name)
             }
-            if let url = streamProvider.playableURL(for: camera) {
-                LabeledContent("URL du flux", value: url.absoluteString)
+            if let displayURL = streamProvider.redactedURLString(for: camera) {
+                LabeledContent("URL du flux", value: displayURL)
                     .font(.caption)
             }
         }
@@ -198,9 +205,23 @@ struct CameraLiveView: View {
             actionButton(title: "Photo", systemImage: "camera.fill") {
                 comingSoonMessage = "La capture de snapshot arrivera avec l'intégration du flux vidéo."
             }
-            actionButton(title: "Tester", systemImage: "network") {
+            Button {
                 testConnection()
+            } label: {
+                VStack(spacing: 4) {
+                    if isTesting {
+                        ProgressView()
+                            .frame(height: 22)
+                    } else {
+                        Image(systemName: "network")
+                            .font(.title2)
+                    }
+                    Text(isTesting ? "Test…" : "Tester")
+                        .font(.caption)
+                }
+                .frame(maxWidth: .infinity)
             }
+            .disabled(isTesting)
             actionButton(title: "Réglages", systemImage: "gearshape.fill") {
                 showingConfig = true
             }
@@ -270,7 +291,7 @@ struct CameraConfigView: View {
                 }
 
                 if connectionType != .unconfigured {
-                    Section("Accès réseau") {
+                    Section {
                         TextField("Adresse IP", text: $ipAddress)
                             .keyboardType(.numbersAndPunctuation)
                             .autocorrectionDisabled()
@@ -282,6 +303,10 @@ struct CameraConfigView: View {
                             .autocorrectionDisabled()
                             .textInputAutocapitalization(.never)
                         SecureField("Mot de passe", text: $password)
+                    } header: {
+                        Text("Accès réseau")
+                    } footer: {
+                        Text("Tapo : renseigne l'IP (ou l'URL complète) + le **compte caméra** créé dans l'app Tapo → Paramètres avancés → Compte de la caméra (différent du compte TP-Link). Flux HD : /stream1, SD : /stream2. Le RTSP doit être activé dans l'app Tapo. Les identifiants sont ajoutés automatiquement à l'URL.")
                     }
                 }
 
