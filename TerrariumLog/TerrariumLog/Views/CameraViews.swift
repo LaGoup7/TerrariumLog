@@ -15,9 +15,9 @@ struct CameraLiveView: View {
     @State private var diagnosticMessage: String?
     @State private var isTesting = false
     @State private var logLines: [String] = []
-    // Le flux HD (/stream1) est en H.264 (décodable sans peine) et c'est celui
-    // validé sur VLC desktop : on démarre dessus. « Fluide » reste dispo.
-    @State private var quality: StreamQuality = .hd
+    // Flux léger (/stream2, 640×360) par défaut : bien moins exigeant pour le
+    // Wi-Fi et le décodage — le plus fiable sur iPhone. « HD » reste disponible.
+    @State private var quality: StreamQuality = .sd
 
     private let streamProvider: CameraStreamProvider = RTSPPassthroughProvider()
 
@@ -110,8 +110,6 @@ struct CameraLiveView: View {
                 if let token = reloadToken {
                     CameraStreamView(
                         url: url,
-                        username: camera.username,
-                        password: camera.password,
                         onStatusChange: { status, detail in
                             streamStatus = status
                             streamDetail = detail
@@ -159,18 +157,6 @@ struct CameraLiveView: View {
             .overlay(alignment: .topLeading) {
                 if streamStatus == .playing {
                     liveBadge.padding(10)
-                }
-            }
-            .task(id: reloadToken) {
-                // Timeout : si le flux n'est pas en lecture après 20 s, on bascule
-                // en erreur avec un message plutôt que de rester noir sans fin.
-                guard reloadToken != nil else { return }
-                try? await Task.sleep(nanoseconds: 20_000_000_000)
-                if streamStatus != .playing {
-                    streamStatus = .error
-                    if streamDetail == "Ouverture…" || streamDetail == "Mise en mémoire tampon…" {
-                        streamDetail = "Caméra injoignable (délai dépassé)"
-                    }
                 }
             }
         } else {
