@@ -166,6 +166,11 @@ enum LightEffect: String, CaseIterable, Identifiable, Sendable {
 
     var id: String { rawValue }
 
+    /// Effets affichés dans la carte « Effets dynamiques » : les scènes
+    /// d'atmosphère (océan, forêt, coucher de soleil, cosy, bougie) sont
+    /// désormais couvertes par les Ambiances et ne sont plus listées ici.
+    static let dynamicOnly: [LightEffect] = [.rainbow, .breathe, .blink, .plantGrowth]
+
     var displayName: String {
         switch self {
         case .rainbow: return "Arc-en-ciel"

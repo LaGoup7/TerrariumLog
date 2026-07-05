@@ -51,6 +51,7 @@ struct LightControlView: View {
                         ambiancesCard
                         effectsCard
                     }
+                    scheduleCard
                 } else {
                     notConfiguredCard
                 }
@@ -363,10 +364,10 @@ struct LightControlView: View {
 
     private var effectsCard: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Effets")
+            Text("Effets dynamiques")
                 .font(.headline)
             LazyVGrid(columns: [GridItem(.adaptive(minimum: 90), spacing: 12)], spacing: 12) {
-                ForEach(LightEffect.allCases) { effect in
+                ForEach(LightEffect.dynamicOnly) { effect in
                     Button {
                         perform { try await controller.setEffect(effect, ip: $0) }
                     } label: {
@@ -387,6 +388,50 @@ struct LightControlView: View {
             }
         }
         .lightCard()
+    }
+
+    /// L'allumage/extinction programmés passent par les Automatisations iOS
+    /// (app Raccourcis), qui exécutent les actions Habitat en arrière-plan —
+    /// l'app n'a pas besoin d'être ouverte. Cette carte sert de mode d'emploi.
+    private var scheduleCard: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Cycle jour/nuit")
+                .font(.headline)
+            VStack(alignment: .leading, spacing: 6) {
+                scheduleStep("1", "Raccourcis → Automatisation → +")
+                scheduleStep("2", "« Heure de la journée » → ex. 8 h, Quotidien → Exécuter immédiatement")
+                scheduleStep("3", "Action → Habitat → « Allumer les lumières »")
+                scheduleStep("4", "Répète à 20 h avec « Éteindre les lumières »")
+            }
+            Button {
+                if let url = URL(string: "shortcuts://") {
+                    UIApplication.shared.open(url)
+                }
+            } label: {
+                Label("Ouvrir Raccourcis", systemImage: "clock.arrow.2.circlepath")
+                    .font(.subheadline.weight(.semibold))
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.borderedProminent)
+            .tint(Brand.primary)
+            Text("La lampe suivra l'horaire même app fermée. « Dis Siri, allume le terrarium avec Habitat » fonctionne aussi.")
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+        }
+        .lightCard()
+    }
+
+    private func scheduleStep(_ number: String, _ text: String) -> some View {
+        HStack(alignment: .top, spacing: 8) {
+            Text(number)
+                .font(.caption2.bold())
+                .foregroundStyle(Brand.primary)
+                .frame(width: 16, height: 16)
+                .background(Brand.primary.opacity(0.15), in: Circle())
+            Text(text)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
     }
 
     private var notConfiguredCard: some View {
