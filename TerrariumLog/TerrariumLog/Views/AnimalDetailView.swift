@@ -17,6 +17,7 @@ struct AnimalDetailView: View {
     @State private var showingFeedingSheet = false
     @State private var showingMoltSheet = false
     @State private var showingDiapauseSheet = false
+    @State private var showingDiapausePlanner = false
     @State private var showingEditSheet = false
     @State private var showingDeleteConfirmation = false
     @State private var photoPickerSource: ImagePickerSource?
@@ -357,11 +358,22 @@ struct AnimalDetailView: View {
                     }
                 }
             }
+            Button {
+                showingDiapausePlanner = true
+            } label: {
+                Label("Planifier la diapause", systemImage: "calendar.badge.clock")
+                    .font(.subheadline.weight(.semibold))
+            }
+            .buttonStyle(.borderless)
+            .tint(Brand.primary)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding()
         .background(Brand.surface)
         .clipShape(RoundedRectangle(cornerRadius: 20))
+        .sheet(isPresented: $showingDiapausePlanner) {
+            DiapausePlannerView(animal: animal)
+        }
     }
 
     private var journalSection: some View {

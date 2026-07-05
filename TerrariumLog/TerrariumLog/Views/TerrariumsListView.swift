@@ -196,6 +196,14 @@ struct TerrariumFormView: View {
         _targetHumMax = State(initialValue: text(terrarium?.targetHumidityMax))
     }
 
+    /// Applique les plages recommandées d'une fiche espèce aux champs cibles.
+    private func applySpeciesSheet(_ sheet: SpeciesSheet) {
+        targetTempMin = String(Int(sheet.temperatureMin))
+        targetTempMax = String(Int(sheet.temperatureMax))
+        targetHumMin = String(Int(sheet.humidityMin))
+        targetHumMax = String(Int(sheet.humidityMax))
+    }
+
     /// Convertit la saisie en nombre (accepte la virgule française).
     private func parseTarget(_ text: String) -> Double? {
         Double(text.trimmingCharacters(in: .whitespaces).replacingOccurrences(of: ",", with: "."))
@@ -232,6 +240,15 @@ struct TerrariumFormView: View {
                     Text("Module DIY température/humidité/sol avec brumisation et arrosage. Guide complet : docs/capteurs-terrarium.md dans le dépôt.")
                 }
                 Section {
+                    Menu {
+                        ForEach(SpeciesSheet.catalog) { sheet in
+                            Button("\(sheet.name) — \(sheet.scientificName)") {
+                                applySpeciesSheet(sheet)
+                            }
+                        }
+                    } label: {
+                        Label("Pré-remplir depuis une fiche espèce", systemImage: "book.closed")
+                    }
                     HStack {
                         TextField("Temp. min (°C)", text: $targetTempMin)
                         TextField("Temp. max (°C)", text: $targetTempMax)

@@ -3,6 +3,12 @@ import SwiftUI
 struct LifeStoryView: View {
     let animal: Animal
     @State private var selectedGalleryIndex: Int?
+    @State private var exportedPDF: ExportedPDF?
+
+    struct ExportedPDF: Identifiable {
+        let id = UUID()
+        let url: URL
+    }
 
     private var yearGroups: [LifeStoryYearGroup] {
         LifeStoryGrouping.groupedByYear(animal.journalEntries)
@@ -40,6 +46,42 @@ struct LifeStoryView: View {
         .background(Brand.backgroundGradient.ignoresSafeArea())
         .navigationTitle("Life Story · \(animal.name)")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button {
+                    if let url = LifeStoryPDFExporter.export(animal: animal) {
+                        exportedPDF = ExportedPDF(url: url)
+                    }
+                } label: {
+                    Image(systemName: "square.and.arrow.up")
+                }
+            }
+        }
+        .sheet(item: $exportedPDF) { pdf in
+            NavigationStack {
+                VStack(spacing: 16) {
+                    Image(systemName: "doc.richtext")
+                        .font(.system(size: 48))
+                        .foregroundStyle(Brand.primary)
+                    Text("Life Story exportée en PDF")
+                        .font(.headline)
+                    ShareLink(item: pdf.url) {
+                        Label("Partager le PDF", systemImage: "square.and.arrow.up")
+                            .font(.body.weight(.semibold))
+                            .padding(.horizontal, 18)
+                            .padding(.vertical, 12)
+                            .background(Brand.primary.opacity(0.16), in: Capsule())
+                    }
+                }
+                .padding()
+                .toolbar {
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button("Fermer") { exportedPDF = nil }
+                    }
+                }
+            }
+            .presentationDetents([.medium])
+        }
         .fullScreenCover(isPresented: Binding(
             get: { selectedGalleryIndex != nil },
             set: { if !$0 { selectedGalleryIndex = nil } }

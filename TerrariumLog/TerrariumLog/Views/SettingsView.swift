@@ -134,6 +134,11 @@ struct SettingsView: View {
                     } label: {
                         Label("Toutes les photos", systemImage: "photo.on.rectangle.angled")
                     }
+                    NavigationLink {
+                        SpeciesSheetsView()
+                    } label: {
+                        Label("Fiches espèces", systemImage: "book.closed")
+                    }
                 }
 
                 if !customPreyTypes.isEmpty {
