@@ -141,6 +141,7 @@ struct CameraStreamView: UIViewRepresentable {
             isStopped = true
             watchdog?.invalidate()
             successPoll?.invalidate()
+            stallTimer?.invalidate()
             disableVLCLogging()
             teardownPlayer()
             log("Flux fermé")
@@ -260,8 +261,9 @@ struct CameraStreamView: UIViewRepresentable {
             media.addOption(":rtsp-tcp")
             // Sans audio : évite ~15 s de négociation d'une piste inutile ici.
             media.addOption(":no-audio")
-            // Tampon court + horloge libre : démarrage rapide d'un flux live.
-            media.addOption(":network-caching=600")
+            // Tampon 1,5 s : absorbe les pertes du Wi-Fi (un tampon trop court
+            // fige l'image à la moindre coupure) ; horloge libre pour le live.
+            media.addOption(":network-caching=1500")
             media.addOption(":clock-jitter=0")
             media.addOption(":clock-synchro=0")
             player.media = media
@@ -293,7 +295,71 @@ struct CameraStreamView: UIViewRepresentable {
                     self.didSucceed = true
                     self.log("✅ Image décodée : \(Int(size.width))×\(Int(size.height))")
                     self.onStatusChange(.playing, "Lecture")
+                    self.startStallMonitor()
                 }
+            }
+        }
+
+        // MARK: Détection de gel + reconnexion automatique
+
+        /// Sur un Wi-Fi qui perd des paquets, le flux peut se figer sans erreur :
+        /// VLC garde la dernière image et attend indéfiniment. On surveille
+        /// l'avancement du temps de lecture ; s'il stagne (ou tampon permanent),
+        /// on relance la connexion automatiquement, sans action de l'utilisateur.
+        private var stallTimer: Timer?
+        private var lastTimeValue: Int32 = 0
+        private var stallTicks = 0
+        private var bufferingTicks = 0
+        private var autoReconnects = 0
+        private let maxAutoReconnects = 3
+
+        private func startStallMonitor() {
+            stallTimer?.invalidate()
+            lastTimeValue = player?.time.intValue ?? 0
+            stallTicks = 0
+            bufferingTicks = 0
+            stallTimer = Timer.scheduledTimer(withTimeInterval: 2, repeats: true) { [weak self] timer in
+                guard let self, let player = self.player, !self.isStopped else { timer.invalidate(); return }
+
+                if player.state == .buffering || player.state == .opening {
+                    self.bufferingTicks += 1
+                } else {
+                    self.bufferingTicks = 0
+                }
+
+                let time = player.time.intValue
+                if time != self.lastTimeValue {
+                    self.lastTimeValue = time
+                    self.stallTicks = 0
+                    // La lecture avance : la connexion s'est stabilisée.
+                    self.autoReconnects = 0
+                } else {
+                    self.stallTicks += 1
+                }
+
+                // Figé : temps immobile ~12 s, ou mise en tampon continue ~12 s.
+                if self.stallTicks >= 6 || self.bufferingTicks >= 6 {
+                    timer.invalidate()
+                    self.handleStall()
+                }
+            }
+        }
+
+        private func handleStall() {
+            guard !isStopped else { return }
+            autoReconnects += 1
+            guard autoReconnects <= maxAutoReconnects else {
+                log("Flux figé — reconnexions automatiques épuisées")
+                onStatusChange(.error, "Connexion trop instable. Rapproche l'iPhone ou la caméra du routeur, puis appuie sur Live.")
+                return
+            }
+            log("Flux figé — reconnexion automatique (\(autoReconnects)/\(maxAutoReconnects))")
+            didSucceed = false
+            teardownPlayer()
+            onStatusChange(.connecting, "Flux figé — reconnexion \(autoReconnects)/\(maxAutoReconnects)…")
+            attempt = 0
+            DispatchQueue.main.asyncAfter(deadline: .now() + retryDelay) { [weak self] in
+                self?.launchAttempt()
             }
         }
 
