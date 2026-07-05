@@ -16,6 +16,10 @@ struct CameraLiveView: View {
     @State private var snapshotImage: UIImage?
     @State private var isFetchingSnapshot = false
     @State private var snapshotTrigger = 0
+    /// Capture silencieuse de la première image du live, mise en cache pour la
+    /// vignette du Dashboard (ne doit pas ouvrir la visionneuse).
+    @State private var pendingPreviewCapture = false
+    @State private var previewCaptured = false
     @State private var isRecording = false
     @State private var recordedVideoURL: URL?
     @StateObject private var ptz: PtzController
@@ -195,6 +199,15 @@ struct CameraLiveView: View {
                         url: url,
                         snapshotTrigger: snapshotTrigger,
                         onSnapshot: { image in
+                            if pendingPreviewCapture {
+                                // Capture silencieuse pour la vignette Dashboard.
+                                pendingPreviewCapture = false
+                                if let image {
+                                    previewCaptured = true
+                                    CameraPreviewStore.shared.save(image, for: camera)
+                                }
+                                return
+                            }
                             isFetchingSnapshot = false
                             if let image {
                                 snapshotImage = image
@@ -214,6 +227,15 @@ struct CameraLiveView: View {
                         onStatusChange: { status, detail in
                             streamStatus = status
                             streamDetail = detail
+                            if status == .playing, !previewCaptured, !pendingPreviewCapture {
+                                // Laisse 2 s au flux pour se stabiliser, puis capture
+                                // la vignette du Dashboard en silence.
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+                                    guard streamStatus == .playing, !previewCaptured else { return }
+                                    pendingPreviewCapture = true
+                                    snapshotTrigger += 1
+                                }
+                            }
                         }
                     )
                     .id(token)

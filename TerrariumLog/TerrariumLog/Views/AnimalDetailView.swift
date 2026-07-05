@@ -619,6 +619,11 @@ struct AnimalDetailView: View {
                 Text(animal.status.displayName)
                     .font(.subheadline.bold())
             }
+            if animal.isLikelyPreMolt {
+                Label("Pré-mue probable : le cycle moyen de mue est presque écoulé. Évite de nourrir (une proie vivante peut blesser un animal en mue) et maintiens l'humidité.", systemImage: "arrow.triangle.2.circlepath")
+                    .font(.footnote)
+                    .foregroundStyle(Brand.warning)
+            }
             if healthEntries.isEmpty {
                 Text("Aucune observation de comportement ou refus de nourriture récente")
                     .font(.footnote)

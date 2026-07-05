@@ -128,7 +128,7 @@ struct TimelinePhotoThumbnail: View {
         .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
         .onAppear {
             if image == nil {
-                image = PhotoStorage.shared.loadImage(from: path)
+                image = ThumbnailStore.shared.thumbnail(for: path, maxDimension: 200)
             }
         }
     }

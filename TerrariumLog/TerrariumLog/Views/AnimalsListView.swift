@@ -129,7 +129,7 @@ struct AnimalRowThumbnail: View {
         .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
         .onAppear {
             if image == nil, let path = animal.primaryPhotoPath {
-                image = PhotoStorage.shared.loadImage(from: path)
+                image = ThumbnailStore.shared.thumbnail(for: path, maxDimension: 240)
             }
         }
     }

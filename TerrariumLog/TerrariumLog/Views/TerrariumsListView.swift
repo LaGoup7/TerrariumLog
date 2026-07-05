@@ -24,7 +24,7 @@ struct TerrariumThumbnail: View {
         }
         .onAppear {
             if let path = terrarium.mainPhotoPath {
-                image = PhotoStorage.shared.loadImage(from: path)
+                image = ThumbnailStore.shared.thumbnail(for: path, maxDimension: 160)
             }
         }
     }
@@ -49,7 +49,7 @@ struct TerrariumCard: View {
         .shadow(color: Brand.cardShadow, radius: 14, x: 0, y: 6)
         .task(id: terrarium.mainPhotoPath) {
             if let path = terrarium.mainPhotoPath {
-                image = PhotoStorage.shared.loadImage(from: path)
+                image = ThumbnailStore.shared.thumbnail(for: path, maxDimension: 900)
             } else {
                 image = nil
             }

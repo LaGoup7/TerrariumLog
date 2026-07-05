@@ -244,10 +244,8 @@ struct DashboardView: View {
                 .font(.headline)
             ForEach(cameras) { camera in
                 NavigationLink(destination: CameraLiveView(camera: camera)) {
-                    HStack {
-                        Circle()
-                            .fill(camera.isConfigured ? Brand.primary : Brand.warning)
-                            .frame(width: 8, height: 8)
+                    HStack(spacing: 12) {
+                        CameraPreviewThumbnail(camera: camera)
                         VStack(alignment: .leading) {
                             Text(camera.name)
                                 .font(.subheadline)
@@ -256,6 +254,9 @@ struct DashboardView: View {
                                 .foregroundStyle(.secondary)
                         }
                         Spacer()
+                        Circle()
+                            .fill(camera.isConfigured ? Brand.primary : Brand.warning)
+                            .frame(width: 8, height: 8)
                         Image(systemName: "play.circle.fill")
                             .foregroundStyle(Brand.accent)
                     }
@@ -351,6 +352,34 @@ struct DashboardView: View {
     }
 }
 
+/// Vignette Dashboard d'une caméra : dernière image vue du live (mise en cache
+/// automatiquement pendant la lecture), sinon pictogramme neutre.
+struct CameraPreviewThumbnail: View {
+    let camera: Camera
+    @State private var image: UIImage?
+
+    var body: some View {
+        Group {
+            if let image {
+                Image(uiImage: image)
+                    .resizable()
+                    .scaledToFill()
+            } else {
+                Image(systemName: "video.fill")
+                    .font(.callout)
+                    .foregroundStyle(Brand.accent)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .background(Brand.surfaceElevated)
+            }
+        }
+        .frame(width: 64, height: 44)
+        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+        .onAppear {
+            image = CameraPreviewStore.shared.load(for: camera)
+        }
+    }
+}
+
 struct AnimalCardView: View {
     let animal: Animal
     @Environment(\.modelContext) private var context
@@ -399,6 +428,16 @@ struct AnimalCardView: View {
                         Label(animal.currentStage, systemImage: "leaf")
                             .font(.footnote)
                         Spacer()
+                        if animal.isLikelyPreMolt {
+                            Label("Pré-mue ?", systemImage: "arrow.triangle.2.circlepath")
+                                .font(.caption2.bold())
+                                .foregroundStyle(Brand.warning)
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 4)
+                                .background(Brand.warning.opacity(0.16))
+                                .clipShape(Capsule())
+                                .fixedSize()
+                        }
                         Text(animal.status.displayName)
                             .font(.caption.bold())
                             .foregroundStyle(Brand.primary)
@@ -431,7 +470,7 @@ struct AnimalCardView: View {
         .dashboardCard()
         .onAppear {
             if let path = animal.primaryPhotoPath {
-                image = PhotoStorage.shared.loadImage(from: path)
+                image = ThumbnailStore.shared.thumbnail(for: path, maxDimension: 240)
             }
         }
     }

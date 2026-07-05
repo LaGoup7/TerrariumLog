@@ -97,7 +97,7 @@ struct PhotoGridCell: View {
         .aspectRatio(1, contentMode: .fit)
         .onAppear {
             if image == nil {
-                image = PhotoStorage.shared.loadImage(from: path)
+                image = ThumbnailStore.shared.thumbnail(for: path, maxDimension: 360)
             }
         }
     }
