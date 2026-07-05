@@ -15,6 +15,8 @@ struct CameraLiveView: View {
     @State private var diagnosticMessage: String?
     @State private var isTesting = false
     @State private var logLines: [String] = []
+    @State private var snapshotImage: UIImage?
+    @State private var isFetchingSnapshot = false
     // Flux léger (/stream2, 640×360) par défaut : bien moins exigeant pour le
     // Wi-Fi et le décodage — le plus fiable sur iPhone. « HD » reste disponible.
     @State private var quality: StreamQuality = .sd
@@ -58,6 +60,14 @@ struct CameraLiveView: View {
         .sheet(isPresented: $showingConfig) {
             CameraConfigView(camera: camera)
         }
+        .sheet(isPresented: Binding(
+            get: { snapshotImage != nil },
+            set: { if !$0 { snapshotImage = nil } }
+        )) {
+            if let snapshotImage {
+                SnapshotViewer(image: snapshotImage, cameraName: camera.name)
+            }
+        }
         .alert(
             "Bientôt disponible",
             isPresented: Binding(
@@ -79,6 +89,40 @@ struct CameraLiveView: View {
             Button("OK") { diagnosticMessage = nil }
         } message: {
             Text(diagnosticMessage ?? "")
+        }
+    }
+
+    /// Capture instantanée via ONVIF (indépendante du flux vidéo : fonctionne
+    /// même quand le live rame, car un JPEG passe bien mieux qu'un flux RTP).
+    private func takeSnapshot() {
+        let host = streamProvider.playableURL(for: camera, streamPathOverride: nil)?.host
+            ?? (camera.ipAddress ?? "")
+        guard !host.isEmpty else {
+            diagnosticMessage = "Renseigne l'IP de la caméra dans Réglages pour utiliser la capture."
+            return
+        }
+        isFetchingSnapshot = true
+        Task {
+            var client = OnvifClient(
+                host: host,
+                username: camera.username ?? "",
+                password: camera.password ?? ""
+            )
+            client.log = { line in Task { @MainActor in appendLog(line) } }
+            do {
+                let data = try await client.fetchSnapshot()
+                if let image = UIImage(data: data) {
+                    appendLog("ONVIF: ✅ photo \(Int(image.size.width))×\(Int(image.size.height))")
+                    snapshotImage = image
+                } else {
+                    appendLog("ONVIF: réponse reçue mais pas une image (\(data.count) octets)")
+                    diagnosticMessage = "La caméra a répondu, mais pas avec une image. Réessaie."
+                }
+            } catch {
+                appendLog("ONVIF: échec — \(error.localizedDescription)")
+                diagnosticMessage = "Capture impossible : \(error.localizedDescription)\n\nVérifie que l'ONVIF est actif sur la caméra (souvent lié au compte caméra dans l'app Tapo)."
+            }
+            isFetchingSnapshot = false
         }
     }
 
@@ -295,9 +339,23 @@ struct CameraLiveView: View {
                     comingSoonMessage = "Renseigne l'URL du flux (rtsp://…) de la caméra dans Réglages avant de lancer le direct."
                 }
             }
-            actionButton(title: "Photo", systemImage: "camera.fill") {
-                comingSoonMessage = "La capture de snapshot arrivera avec l'intégration du flux vidéo."
+            Button {
+                takeSnapshot()
+            } label: {
+                VStack(spacing: 4) {
+                    if isFetchingSnapshot {
+                        ProgressView()
+                            .frame(height: 22)
+                    } else {
+                        Image(systemName: "camera.fill")
+                            .font(.title2)
+                    }
+                    Text(isFetchingSnapshot ? "Photo…" : "Photo")
+                        .font(.caption)
+                }
+                .frame(maxWidth: .infinity)
             }
+            .disabled(isFetchingSnapshot)
             Button {
                 testConnection()
             } label: {
@@ -330,6 +388,37 @@ struct CameraLiveView: View {
                     .font(.caption)
             }
             .frame(maxWidth: .infinity)
+        }
+    }
+}
+
+/// Visionneuse plein écran d'une capture instantanée, avec partage.
+struct SnapshotViewer: View {
+    @Environment(\.dismiss) private var dismiss
+    let image: UIImage
+    let cameraName: String
+
+    var body: some View {
+        NavigationStack {
+            ZStack {
+                Color.black.ignoresSafeArea()
+                Image(uiImage: image)
+                    .resizable()
+                    .scaledToFit()
+            }
+            .navigationTitle(cameraName)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button("Fermer") { dismiss() }
+                }
+                ToolbarItem(placement: .topBarTrailing) {
+                    ShareLink(
+                        item: Image(uiImage: image),
+                        preview: SharePreview(cameraName, image: Image(uiImage: image))
+                    )
+                }
+            }
         }
     }
 }
