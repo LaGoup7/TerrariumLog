@@ -54,6 +54,11 @@ enum OnvifXML {
         firstMatch(in: xml, pattern: #"<(?:[\w-]+:)?Text[^>]*>\s*([^<]+?)\s*</"#)
             ?? firstMatch(in: xml, pattern: #"<(?:[\w-]+:)?Subcode>.*?<(?:[\w-]+:)?Value>\s*([^<]+?)\s*</"#)
     }
+
+    /// Adresse du service PTZ dans une réponse GetCapabilities.
+    static func ptzXAddr(from xml: String) -> String? {
+        firstMatch(in: xml, pattern: #"<(?:[\w-]+:)?PTZ>.*?<(?:[\w-]+:)?XAddr>\s*([^<\s]+)\s*</"#)
+    }
 }
 
 /// Client ONVIF minimal pour les caméras du réseau local (Tapo : port 2020).
@@ -134,6 +139,73 @@ struct OnvifClient {
             throw OnvifError.missingField("Snapshot Uri")
         }
         return uri
+    }
+
+    // MARK: PTZ (mouvements pan/tilt)
+
+    /// Contexte PTZ réutilisable : découvert une fois, puis chaque commande de
+    /// mouvement n'est qu'un seul appel SOAP (réactivité du pavé directionnel).
+    struct PtzSession {
+        let ptzURL: URL
+        let profileToken: String
+        let timeOffset: TimeInterval
+    }
+
+    /// Prépare le contexte PTZ (heure caméra, adresse du service, profil).
+    func preparePtz() async throws -> PtzSession {
+        let offset = await deviceTimeOffset()
+        let deviceService = URL(string: "http://\(host):\(port)/onvif/device_service")!
+        var mediaURL = URL(string: "http://\(host):\(port)/onvif/service")!
+        var ptzURL = mediaURL
+        do {
+            let capabilities = try await soapCall(
+                to: deviceService,
+                body: #"<GetCapabilities xmlns="http://www.onvif.org/ver10/device/wsdl"><Category>All</Category></GetCapabilities>"#,
+                timeOffset: offset
+            )
+            if let media = OnvifXML.mediaXAddr(from: capabilities), let url = URL(string: media) {
+                mediaURL = url
+            }
+            if let ptz = OnvifXML.ptzXAddr(from: capabilities), let url = URL(string: ptz) {
+                ptzURL = url
+            }
+        } catch {
+            log("ONVIF: découverte PTZ échouée (\(error.localizedDescription)) — essai direct \(ptzURL.absoluteString)")
+        }
+
+        let profiles = try await soapCall(
+            to: mediaURL,
+            body: #"<GetProfiles xmlns="http://www.onvif.org/ver10/media/wsdl"/>"#,
+            timeOffset: offset
+        )
+        guard let token = OnvifXML.firstProfileToken(from: profiles) else {
+            throw OnvifError.missingField("profil média")
+        }
+        log("ONVIF: PTZ prêt (profil \(token), service \(ptzURL.absoluteString))")
+        return PtzSession(ptzURL: ptzURL, profileToken: token, timeOffset: offset)
+    }
+
+    /// Démarre un mouvement continu. `pan` : -1 (gauche) à 1 (droite),
+    /// `tilt` : -1 (bas) à 1 (haut). Le mouvement dure jusqu'à `stopMove`.
+    func continuousMove(_ session: PtzSession, pan: Double, tilt: Double) async throws {
+        let body = """
+        <ContinuousMove xmlns="http://www.onvif.org/ver20/ptz/wsdl">\
+        <ProfileToken>\(session.profileToken)</ProfileToken>\
+        <Velocity><PanTilt x="\(pan)" y="\(tilt)" xmlns="http://www.onvif.org/ver10/schema"/></Velocity>\
+        </ContinuousMove>
+        """
+        _ = try await soapCall(to: session.ptzURL, body: body, timeOffset: session.timeOffset)
+    }
+
+    /// Arrête le mouvement en cours.
+    func stopMove(_ session: PtzSession) async throws {
+        let body = """
+        <Stop xmlns="http://www.onvif.org/ver20/ptz/wsdl">\
+        <ProfileToken>\(session.profileToken)</ProfileToken>\
+        <PanTilt>true</PanTilt><Zoom>true</Zoom>\
+        </Stop>
+        """
+        _ = try await soapCall(to: session.ptzURL, body: body, timeOffset: session.timeOffset)
     }
 
     // MARK: Heure de la caméra

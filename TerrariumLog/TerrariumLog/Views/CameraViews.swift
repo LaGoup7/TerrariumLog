@@ -18,6 +18,20 @@ struct CameraLiveView: View {
     @State private var snapshotImage: UIImage?
     @State private var isFetchingSnapshot = false
     @State private var snapshotTrigger = 0
+    @State private var isRecording = false
+    @State private var recordedVideoURL: URL?
+    @StateObject private var ptz: PtzController
+
+    init(camera: Camera) {
+        self.camera = camera
+        let host = RTSPPassthroughProvider().playableURL(for: camera)?.host
+            ?? camera.ipAddress ?? ""
+        _ptz = StateObject(wrappedValue: PtzController(
+            host: host,
+            username: camera.username ?? "",
+            password: camera.password ?? ""
+        ))
+    }
     // Flux léger (/stream2, 640×360) par défaut : bien moins exigeant pour le
     // Wi-Fi et le décodage — le plus fiable sur iPhone. « HD » reste disponible.
     @State private var quality: StreamQuality = .sd
@@ -36,6 +50,7 @@ struct CameraLiveView: View {
             VStack(spacing: 16) {
                 videoArea
                 if camera.brand == .tapo {
+                    ptzPad
                     qualityPicker
                 }
                 statusSection
@@ -46,6 +61,9 @@ struct CameraLiveView: View {
         }
         .navigationTitle(camera.name)
         .navigationBarTitleDisplayMode(.inline)
+        .onAppear {
+            ptz.log = { line in appendLog(line) }
+        }
         .onChange(of: scenePhase) { _, phase in
             // Libère la session RTSP quand l'app passe en arrière-plan (évite les
             // sessions fantômes côté caméra), et la relance au retour au premier plan.
@@ -67,6 +85,14 @@ struct CameraLiveView: View {
         )) {
             if let snapshotImage {
                 SnapshotViewer(image: snapshotImage, cameraName: camera.name)
+            }
+        }
+        .sheet(isPresented: Binding(
+            get: { recordedVideoURL != nil },
+            set: { if !$0 { recordedVideoURL = nil } }
+        )) {
+            if let recordedVideoURL {
+                RecordingResultView(videoURL: recordedVideoURL, cameraName: camera.name)
             }
         }
         .alert(
@@ -174,6 +200,15 @@ struct CameraLiveView: View {
                                 diagnosticMessage = "Capture impossible pour le moment. Attends que l'image soit affichée, puis réessaie."
                             }
                         },
+                        isRecording: isRecording,
+                        onRecordingFinished: { path in
+                            isRecording = false
+                            if let path {
+                                recordedVideoURL = URL(fileURLWithPath: path)
+                            } else {
+                                diagnosticMessage = "Enregistrement impossible. Attends que l'image soit affichée, puis réessaie."
+                            }
+                        },
                         onStatusChange: { status, detail in
                             streamStatus = status
                             streamDetail = detail
@@ -279,6 +314,47 @@ struct CameraLiveView: View {
         }
     }
 
+    // MARK: Pavé directionnel PTZ
+
+    @State private var ptzPressed = false
+
+    /// Croix directionnelle : maintenir une flèche déplace la caméra
+    /// (ContinuousMove ONVIF), relâcher l'arrête.
+    private var ptzPad: some View {
+        VStack(spacing: 6) {
+            ptzButton("chevron.up", pan: 0, tilt: 0.5)
+            HStack(spacing: 56) {
+                ptzButton("chevron.left", pan: -0.5, tilt: 0)
+                ptzButton("chevron.right", pan: 0.5, tilt: 0)
+            }
+            ptzButton("chevron.down", pan: 0, tilt: -0.5)
+            Text("Maintiens une flèche pour orienter la caméra")
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity)
+    }
+
+    private func ptzButton(_ systemImage: String, pan: Double, tilt: Double) -> some View {
+        Image(systemName: systemImage)
+            .font(.title3.weight(.semibold))
+            .foregroundStyle(Brand.primary)
+            .frame(width: 52, height: 52)
+            .background(Circle().fill(Brand.surfaceElevated))
+            .gesture(
+                DragGesture(minimumDistance: 0)
+                    .onChanged { _ in
+                        guard !ptzPressed else { return }
+                        ptzPressed = true
+                        ptz.startMove(pan: pan, tilt: tilt)
+                    }
+                    .onEnded { _ in
+                        ptzPressed = false
+                        ptz.stopMove()
+                    }
+            )
+    }
+
     private var qualityPicker: some View {
         VStack(alignment: .leading, spacing: 6) {
             Picker("Qualité", selection: $quality) {
@@ -377,6 +453,20 @@ struct CameraLiveView: View {
             }
             .disabled(isFetchingSnapshot)
             Button {
+                isRecording.toggle()
+            } label: {
+                VStack(spacing: 4) {
+                    Image(systemName: isRecording ? "stop.circle.fill" : "record.circle")
+                        .font(.title2)
+                        .foregroundStyle(isRecording ? Brand.error : Color.accentColor)
+                    Text(isRecording ? "Stop" : "REC")
+                        .font(.caption)
+                        .foregroundStyle(isRecording ? Brand.error : Color.accentColor)
+                }
+                .frame(maxWidth: .infinity)
+            }
+            .disabled(streamStatus != .playing && !isRecording)
+            Button {
                 testConnection()
             } label: {
                 VStack(spacing: 4) {
@@ -412,11 +502,51 @@ struct CameraLiveView: View {
     }
 }
 
-/// Visionneuse plein écran d'une capture instantanée, avec partage.
+/// Pilotage des mouvements pan/tilt via ONVIF. La session (profil, service,
+/// horloge) est découverte au premier mouvement puis réutilisée.
+@MainActor
+final class PtzController: ObservableObject {
+    private var client: OnvifClient
+    private var session: OnvifClient.PtzSession?
+    var log: (String) -> Void = { _ in }
+
+    init(host: String, username: String, password: String) {
+        self.client = OnvifClient(host: host, username: username, password: password)
+    }
+
+    func startMove(pan: Double, tilt: Double) {
+        Task {
+            do {
+                let session = try await ensureSession()
+                try await client.continuousMove(session, pan: pan, tilt: tilt)
+            } catch {
+                log("PTZ: échec — \(error.localizedDescription)")
+            }
+        }
+    }
+
+    func stopMove() {
+        Task {
+            guard let session else { return }
+            try? await client.stopMove(session)
+        }
+    }
+
+    private func ensureSession() async throws -> OnvifClient.PtzSession {
+        if let session { return session }
+        client.log = log
+        let newSession = try await client.preparePtz()
+        session = newSession
+        return newSession
+    }
+}
+
+/// Visionneuse plein écran d'une capture instantanée : partage + galerie.
 struct SnapshotViewer: View {
     @Environment(\.dismiss) private var dismiss
     let image: UIImage
     let cameraName: String
+    @State private var savedToGallery = false
 
     var body: some View {
         NavigationStack {
@@ -433,10 +563,67 @@ struct SnapshotViewer: View {
                     Button("Fermer") { dismiss() }
                 }
                 ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        UIImageWriteToSavedPhotosAlbum(image, nil, nil, nil)
+                        savedToGallery = true
+                    } label: {
+                        Image(systemName: savedToGallery ? "checkmark.circle.fill" : "square.and.arrow.down")
+                    }
+                    .disabled(savedToGallery)
+                }
+                ToolbarItem(placement: .topBarTrailing) {
                     ShareLink(
                         item: Image(uiImage: image),
                         preview: SharePreview(cameraName, image: Image(uiImage: image))
                     )
+                }
+            }
+        }
+    }
+}
+
+/// Fin d'enregistrement vidéo : proposer le partage/sauvegarde du fichier.
+struct RecordingResultView: View {
+    @Environment(\.dismiss) private var dismiss
+    let videoURL: URL
+    let cameraName: String
+
+    private var fileSizeLabel: String {
+        let attributes = try? FileManager.default.attributesOfItem(atPath: videoURL.path)
+        guard let bytes = attributes?[.size] as? Int64, bytes > 0 else { return "" }
+        return ByteCountFormatter.string(fromByteCount: bytes, countStyle: .file)
+    }
+
+    var body: some View {
+        NavigationStack {
+            VStack(spacing: 18) {
+                Image(systemName: "checkmark.circle.fill")
+                    .font(.system(size: 52))
+                    .foregroundStyle(Brand.primary)
+                Text("Enregistrement terminé")
+                    .font(.headline)
+                Text("\(videoURL.lastPathComponent)\(fileSizeLabel.isEmpty ? "" : " • \(fileSizeLabel)")")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+                ShareLink(item: videoURL) {
+                    Label("Partager / Enregistrer la vidéo", systemImage: "square.and.arrow.up")
+                        .font(.body.weight(.semibold))
+                        .padding(.horizontal, 18)
+                        .padding(.vertical, 12)
+                        .background(Brand.primary.opacity(0.16), in: Capsule())
+                }
+                Text("Depuis le menu de partage : « Enregistrer la vidéo » pour la galerie, ou « Enregistrer dans Fichiers ».")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+            }
+            .padding()
+            .navigationTitle(cameraName)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Fermer") { dismiss() }
                 }
             }
         }

@@ -26,6 +26,11 @@ struct CameraStreamView: UIViewRepresentable {
     /// (photo instantanée depuis le flux, sans requête réseau supplémentaire).
     var snapshotTrigger: Int = 0
     var onSnapshot: (UIImage?) -> Void = { _ in }
+    /// Enregistrement vidéo du flux en cours (REC pendant la lecture).
+    var isRecording: Bool = false
+    /// Chemin du fichier vidéo produit quand l'enregistrement s'arrête
+    /// (`nil` si l'enregistrement a échoué).
+    var onRecordingFinished: (String?) -> Void = { _ in }
     var onStatusChange: (CameraStreamStatus, String) -> Void = { _, _ in }
     /// Journal technique compact (tentatives, états, erreurs).
     var onLog: (String) -> Void = { _ in }
@@ -43,11 +48,15 @@ struct CameraStreamView: UIViewRepresentable {
     }
 
     func updateUIView(_ uiView: PlayerContainerView, context: Context) {
+        context.coordinator.recordingFinished = onRecordingFinished
         if snapshotTrigger != context.coordinator.handledSnapshotTrigger {
             context.coordinator.handledSnapshotTrigger = snapshotTrigger
             if snapshotTrigger > 0 {
                 context.coordinator.captureSnapshot(completion: onSnapshot)
             }
+        }
+        if isRecording != context.coordinator.requestedRecording {
+            context.coordinator.setRecording(isRecording)
         }
     }
 
@@ -126,6 +135,46 @@ struct CameraStreamView: UIViewRepresentable {
             disableVLCLogging()
             teardownPlayer()
             log("Flux fermé")
+        }
+
+        // MARK: Enregistrement vidéo du flux
+
+        private(set) var requestedRecording = false
+        var recordingFinished: ((String?) -> Void)?
+        private var recordingDirectory: String?
+
+        /// Démarre/arrête l'enregistrement du flux en cours dans un dossier
+        /// temporaire ; le chemin final est remonté par le délégué VLC.
+        func setRecording(_ on: Bool) {
+            requestedRecording = on
+            guard let player else {
+                if on { recordingFinished?(nil) }
+                return
+            }
+            if on {
+                let directory = NSTemporaryDirectory() + "habitat-rec-\(UUID().uuidString)"
+                try? FileManager.default.createDirectory(atPath: directory, withIntermediateDirectories: true)
+                recordingDirectory = directory
+                if player.startRecording(atPath: directory) {
+                    log("⏺ Enregistrement démarré")
+                } else {
+                    log("⏺ Enregistrement impossible (flux pas encore prêt ?)")
+                    requestedRecording = false
+                    recordingFinished?(nil)
+                }
+            } else {
+                _ = player.stopRecording()
+                log("⏹ Arrêt de l'enregistrement demandé")
+            }
+        }
+
+        func mediaPlayer(_ player: VLCMediaPlayer, recordingStoppedAtPath path: String) {
+            DispatchQueue.main.async { [weak self] in
+                guard let self else { return }
+                self.log("⏹ Enregistrement terminé : \(URL(fileURLWithPath: path).lastPathComponent)")
+                self.requestedRecording = false
+                self.recordingFinished?(path)
+            }
         }
 
         // MARK: Capture d'image depuis le flux

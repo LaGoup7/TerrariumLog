@@ -29,6 +29,8 @@
     <string>Habitat utilise l'appareil photo pour prendre des photos de vos animaux et terrariums.</string>
     <key>NSLocalNetworkUsageDescription</key>
     <string>Habitat accède au réseau local pour contrôler la lampe WiZ et afficher le flux de la caméra de votre terrarium.</string>
+    <key>NSPhotoLibraryAddUsageDescription</key>
+    <string>Habitat enregistre les photos et vidéos capturées depuis vos caméras dans votre galerie.</string>
     <key>NSPhotoLibraryUsageDescription</key>
     <string>Habitat accède à votre photothèque pour choisir et recadrer les photos de vos animaux et terrariums.</string>
     <key>UILaunchScreen</key>
