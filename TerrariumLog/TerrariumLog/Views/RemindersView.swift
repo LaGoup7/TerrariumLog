@@ -16,7 +16,7 @@ struct RemindersView: View {
                         Spacer()
                         if reminder.isCompleted {
                             Image(systemName: "checkmark.circle.fill")
-                                .foregroundStyle(.green)
+                                .foregroundStyle(Brand.success)
                         }
                     }
                     Text(reminder.animal?.name ?? "Sans animal")
@@ -26,7 +26,7 @@ struct RemindersView: View {
                         .font(.caption)
                     Text(reminder.recurrence.displayName)
                         .font(.caption)
-                        .foregroundStyle(.teal)
+                        .foregroundStyle(Brand.accent)
                 }
                 .swipeActions {
                     Button(role: .destructive) {
@@ -40,7 +40,7 @@ struct RemindersView: View {
                     Button("Terminé") {
                         ReminderService.shared.complete(reminder, context: context)
                     }
-                    .tint(.green)
+                    .tint(Brand.success)
                 }
             }
         }
@@ -135,7 +135,7 @@ struct AddReminderView: View {
                                 Spacer()
                                 if selectedAnimals.contains(animal) {
                                     Image(systemName: "checkmark")
-                                        .foregroundStyle(.teal)
+                                        .foregroundStyle(Brand.primary)
                                 }
                             }
                         }

@@ -34,6 +34,7 @@ struct TerrariumDetailView: View {
             }
             .padding()
         }
+        .background(Brand.backgroundGradient.ignoresSafeArea())
         .navigationTitle(terrarium.name)
         .navigationBarTitleDisplayMode(.inline)
         .onAppear {
@@ -97,12 +98,12 @@ struct TerrariumDetailView: View {
                     .clipShape(RoundedRectangle(cornerRadius: 20))
             } else {
                 RoundedRectangle(cornerRadius: 20)
-                    .fill(Color.teal.opacity(0.15))
+                    .fill(Brand.surfaceElevated)
                     .aspectRatio(1, contentMode: .fit)
                     .overlay(
                         Image(systemName: "photo")
                             .font(.largeTitle)
-                            .foregroundStyle(.teal)
+                            .foregroundStyle(Brand.accent)
                     )
             }
             HStack {
@@ -160,7 +161,7 @@ struct TerrariumDetailView: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding()
-        .background(.ultraThinMaterial)
+        .background(Brand.surface)
         .clipShape(RoundedRectangle(cornerRadius: 20))
     }
 
@@ -184,7 +185,7 @@ struct TerrariumDetailView: View {
                     NavigationLink(destination: LightControlView(light: light)) {
                         HStack {
                             Image(systemName: light.lastKnownOn ? "lightbulb.fill" : "lightbulb")
-                                .foregroundStyle(light.lastKnownOn ? .yellow : .secondary)
+                                .foregroundStyle(light.lastKnownOn ? Brand.warning : Color.secondary)
                             VStack(alignment: .leading) {
                                 Text(light.name)
                                     .font(.subheadline)
@@ -194,7 +195,7 @@ struct TerrariumDetailView: View {
                             }
                             Spacer()
                             Circle()
-                                .fill(light.isConfigured ? Color.green : Color.orange)
+                                .fill(light.isConfigured ? Brand.success : Brand.warning)
                                 .frame(width: 8, height: 8)
                             Image(systemName: "chevron.right")
                                 .font(.caption)
@@ -214,7 +215,7 @@ struct TerrariumDetailView: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding()
-        .background(.ultraThinMaterial)
+        .background(Brand.surface)
         .clipShape(RoundedRectangle(cornerRadius: 20))
     }
 
@@ -237,7 +238,7 @@ struct TerrariumDetailView: View {
                     NavigationLink(destination: CameraLiveView(camera: camera)) {
                         HStack {
                             Circle()
-                                .fill(camera.isConfigured ? Color.green : Color.orange)
+                                .fill(camera.isConfigured ? Brand.success : Brand.warning)
                                 .frame(width: 8, height: 8)
                             Text(camera.name)
                             Spacer()
@@ -259,7 +260,7 @@ struct TerrariumDetailView: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding()
-        .background(.ultraThinMaterial)
+        .background(Brand.surface)
         .clipShape(RoundedRectangle(cornerRadius: 20))
     }
 
@@ -287,7 +288,7 @@ struct TerrariumDetailView: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding()
-        .background(.ultraThinMaterial)
+        .background(Brand.surface)
         .clipShape(RoundedRectangle(cornerRadius: 20))
     }
 
@@ -329,7 +330,7 @@ struct TerrariumDetailView: View {
                             try? context.save()
                         } label: {
                             Image(systemName: "trash")
-                                .foregroundStyle(.red)
+                                .foregroundStyle(Brand.error)
                         }
                     }
                 }
@@ -337,7 +338,7 @@ struct TerrariumDetailView: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding()
-        .background(.ultraThinMaterial)
+        .background(Brand.surface)
         .clipShape(RoundedRectangle(cornerRadius: 20))
     }
 
@@ -383,15 +384,15 @@ struct TerrariumDetailView: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding()
-        .background(.ultraThinMaterial)
+        .background(Brand.surface)
         .clipShape(RoundedRectangle(cornerRadius: 20))
     }
 
     private func plantStatusColor(_ status: PlantStatus) -> Color {
         switch status {
-        case .ok: return .green
-        case .dry, .tooHumid: return .orange
-        case .mold, .pest: return .red
+        case .ok: return Brand.success
+        case .dry, .tooHumid: return Brand.warning
+        case .mold, .pest: return Brand.error
         }
     }
 }

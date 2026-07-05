@@ -56,6 +56,7 @@ struct CameraLiveView: View {
             }
             .padding()
         }
+        .background(Brand.backgroundGradient.ignoresSafeArea())
         .navigationTitle(camera.name)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
@@ -375,7 +376,7 @@ struct CameraLiveView: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding()
-        .background(.ultraThinMaterial)
+        .background(Brand.surface)
         .clipShape(RoundedRectangle(cornerRadius: 16))
     }
 

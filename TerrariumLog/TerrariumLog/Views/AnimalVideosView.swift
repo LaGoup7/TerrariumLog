@@ -54,7 +54,7 @@ struct AnimalVideosSection: View {
                         HStack {
                             Image(systemName: "play.circle.fill")
                                 .font(.title2)
-                                .foregroundStyle(.teal)
+                                .foregroundStyle(Brand.accent)
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(video.title)
                                     .font(.subheadline.bold())
@@ -84,7 +84,7 @@ struct AnimalVideosSection: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding()
-        .background(.ultraThinMaterial)
+        .background(Brand.surface)
         .clipShape(RoundedRectangle(cornerRadius: 20))
         .sheet(isPresented: $showingAddVideo) {
             AddAnimalVideoView(animal: animal)
@@ -141,7 +141,7 @@ struct AddAnimalVideoView: View {
                     if let errorMessage {
                         Text(errorMessage)
                             .font(.caption)
-                            .foregroundStyle(.red)
+                            .foregroundStyle(Brand.error)
                     }
                 }
                 Section("Détails") {

@@ -27,7 +27,7 @@ struct LifeStoryView: View {
                         VStack(alignment: .leading, spacing: 12) {
                             Text(String(group.year))
                                 .font(.title2.bold())
-                                .foregroundStyle(.teal)
+                                .foregroundStyle(Brand.primary)
                             ForEach(group.entries) { entry in
                                 entryRow(entry)
                             }
@@ -37,6 +37,7 @@ struct LifeStoryView: View {
             }
             .padding()
         }
+        .background(Brand.backgroundGradient.ignoresSafeArea())
         .navigationTitle("Life Story · \(animal.name)")
         .navigationBarTitleDisplayMode(.inline)
         .fullScreenCover(isPresented: Binding(
@@ -54,10 +55,10 @@ struct LifeStoryView: View {
                     .font(.footnote)
                     .foregroundStyle(.white)
                     .frame(width: 28, height: 28)
-                    .background(Color.teal)
+                    .background(Brand.primary)
                     .clipShape(Circle())
                 Rectangle()
-                    .fill(Color.teal.opacity(0.3))
+                    .fill(Brand.primary.opacity(0.3))
                     .frame(width: 2)
                     .frame(maxHeight: .infinity)
             }

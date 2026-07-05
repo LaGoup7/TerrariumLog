@@ -16,9 +16,9 @@ struct TerrariumThumbnail: View {
             } else {
                 Image(systemName: "leaf.fill")
                     .font(.title2)
-                    .foregroundStyle(.teal)
+                    .foregroundStyle(Brand.accent)
                     .frame(width: 50, height: 50)
-                    .background(Color.teal.opacity(0.15))
+                    .background(Brand.surfaceElevated)
                     .clipShape(RoundedRectangle(cornerRadius: 12))
             }
         }
@@ -40,13 +40,13 @@ struct TerrariumCard: View {
             imageBanner
             infoPanel
         }
-        .background(.ultraThinMaterial)
-        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+        .background(Brand.surface)
+        .clipShape(RoundedRectangle(cornerRadius: Brand.cardRadius, style: .continuous))
         .overlay(
-            RoundedRectangle(cornerRadius: 20, style: .continuous)
-                .strokeBorder(Color.primary.opacity(0.06), lineWidth: 1)
+            RoundedRectangle(cornerRadius: Brand.cardRadius, style: .continuous)
+                .strokeBorder(Brand.hairline, lineWidth: 1)
         )
-        .shadow(color: .black.opacity(0.08), radius: 10, x: 0, y: 4)
+        .shadow(color: Brand.cardShadow, radius: 14, x: 0, y: 6)
         .task(id: terrarium.mainPhotoPath) {
             if let path = terrarium.mainPhotoPath {
                 image = PhotoStorage.shared.loadImage(from: path)
@@ -64,7 +64,7 @@ struct TerrariumCard: View {
                     .scaledToFill()
             } else {
                 LinearGradient(
-                    colors: [.teal.opacity(0.35), .green.opacity(0.25)],
+                    colors: [Brand.accent.opacity(0.35), Brand.primary.opacity(0.25)],
                     startPoint: .topLeading,
                     endPoint: .bottomTrailing
                 )
@@ -92,7 +92,7 @@ struct TerrariumCard: View {
                 }
                 Text("\(terrarium.animals.count) animal(aux) hébergé(s)")
                     .font(.caption)
-                    .foregroundStyle(.teal)
+                    .foregroundStyle(Brand.accent)
             }
             Spacer()
             Image(systemName: "chevron.right")
@@ -139,6 +139,7 @@ struct TerrariumsListView: View {
                 }
                 .padding(16)
             }
+            .background(Brand.backgroundGradient.ignoresSafeArea())
             .navigationTitle("Terrariums")
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {

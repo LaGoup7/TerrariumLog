@@ -28,7 +28,7 @@ struct TimelineView: View {
                 HStack(alignment: .top, spacing: 12) {
                     Image(systemName: icon(for: entry))
                         .font(.title3)
-                        .foregroundStyle(.teal)
+                        .foregroundStyle(Brand.accent)
                         .frame(width: 28)
                     VStack(alignment: .leading, spacing: 4) {
                         Text(displayName(for: entry))

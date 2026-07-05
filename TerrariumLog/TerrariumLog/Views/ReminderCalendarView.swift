@@ -29,6 +29,7 @@ struct ReminderCalendarView: View {
             }
             .padding()
         }
+        .background(Brand.backgroundGradient.ignoresSafeArea())
         .navigationTitle("Calendrier")
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
@@ -94,11 +95,11 @@ struct ReminderCalendarView: View {
                     .font(.subheadline)
                     .foregroundStyle(isSelected ? .white : .primary)
                 Circle()
-                    .fill(hasReminders ? (isSelected ? Color.white : Color.orange) : Color.clear)
+                    .fill(hasReminders ? (isSelected ? Color.white : Brand.warning) : Color.clear)
                     .frame(width: 5, height: 5)
             }
             .frame(maxWidth: .infinity, minHeight: 40)
-            .background(isSelected ? Color.teal : Color.clear)
+            .background(isSelected ? Brand.primary : Color.clear)
             .clipShape(RoundedRectangle(cornerRadius: 8))
         }
         .buttonStyle(.plain)
@@ -125,7 +126,7 @@ struct ReminderCalendarView: View {
                         Spacer()
                         if reminder.isCompleted {
                             Image(systemName: "checkmark.circle.fill")
-                                .foregroundStyle(.green)
+                                .foregroundStyle(Brand.success)
                         } else {
                             Button {
                                 ReminderService.shared.complete(reminder, context: context)
@@ -140,7 +141,7 @@ struct ReminderCalendarView: View {
                             ReminderService.shared.refreshWidgetSnapshot(context: context)
                         } label: {
                             Image(systemName: "trash")
-                                .foregroundStyle(.red)
+                                .foregroundStyle(Brand.error)
                         }
                     }
                     .padding(.vertical, 2)
@@ -149,7 +150,7 @@ struct ReminderCalendarView: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding()
-        .background(.ultraThinMaterial)
+        .background(Brand.surface)
         .clipShape(RoundedRectangle(cornerRadius: 20))
     }
 

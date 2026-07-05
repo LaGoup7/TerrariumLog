@@ -52,6 +52,7 @@ struct AnimalDetailView: View {
             }
             .padding()
         }
+        .background(Brand.backgroundGradient.ignoresSafeArea())
         .navigationTitle(animal.name)
         .navigationBarTitleDisplayMode(.inline)
         .onAppear {
@@ -136,7 +137,7 @@ struct AnimalDetailView: View {
                     .frame(width: 100, height: 100)
                     .padding()
                     .frame(maxWidth: .infinity)
-                    .background(Color.teal.opacity(0.15))
+                    .background(Brand.surfaceElevated)
                     .clipShape(RoundedRectangle(cornerRadius: 20))
             }
 
@@ -147,7 +148,7 @@ struct AnimalDetailView: View {
                     .foregroundStyle(.secondary)
                 Label(animal.type.displayName, systemImage: animal.type.symbolName)
                     .font(.subheadline)
-                    .foregroundStyle(.teal)
+                    .foregroundStyle(Brand.accent)
             }
 
             HStack {
@@ -167,7 +168,7 @@ struct AnimalDetailView: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding()
-        .background(.ultraThinMaterial)
+        .background(Brand.surface)
         .clipShape(RoundedRectangle(cornerRadius: 24))
         .fullScreenCover(item: $photoPickerSource) { source in
             CroppingImagePicker(sourceType: source.type) { image in
@@ -230,7 +231,7 @@ struct AnimalDetailView: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding()
-        .background(.ultraThinMaterial)
+        .background(Brand.surface)
         .clipShape(RoundedRectangle(cornerRadius: 20))
     }
 
@@ -251,7 +252,7 @@ struct AnimalDetailView: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding()
-        .background(.ultraThinMaterial)
+        .background(Brand.surface)
         .clipShape(RoundedRectangle(cornerRadius: 20))
     }
 
@@ -274,7 +275,7 @@ struct AnimalDetailView: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding()
-        .background(.ultraThinMaterial)
+        .background(Brand.surface)
         .clipShape(RoundedRectangle(cornerRadius: 20))
     }
 
@@ -295,7 +296,7 @@ struct AnimalDetailView: View {
                             x: .value("Mue", interval.toStage),
                             y: .value("Jours", interval.daysSincePrevious ?? 0)
                         )
-                        .foregroundStyle(.teal)
+                        .foregroundStyle(Brand.accent)
                     }
                     .frame(height: 140)
                 }
@@ -318,7 +319,7 @@ struct AnimalDetailView: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding()
-        .background(.ultraThinMaterial)
+        .background(Brand.surface)
         .clipShape(RoundedRectangle(cornerRadius: 20))
     }
 
@@ -344,7 +345,7 @@ struct AnimalDetailView: View {
                             } else {
                                 Text("En cours")
                                     .font(.caption)
-                                    .foregroundStyle(.orange)
+                                    .foregroundStyle(Brand.warning)
                             }
                         }
                         Spacer()
@@ -359,7 +360,7 @@ struct AnimalDetailView: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding()
-        .background(.ultraThinMaterial)
+        .background(Brand.surface)
         .clipShape(RoundedRectangle(cornerRadius: 20))
     }
 
@@ -385,7 +386,7 @@ struct AnimalDetailView: View {
                         try? context.save()
                     } label: {
                         Image(systemName: "trash")
-                            .foregroundStyle(.red)
+                            .foregroundStyle(Brand.error)
                     }
                 }
                 .padding(.vertical, 4)
@@ -393,7 +394,7 @@ struct AnimalDetailView: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding()
-        .background(.ultraThinMaterial)
+        .background(Brand.surface)
         .clipShape(RoundedRectangle(cornerRadius: 20))
     }
 
@@ -484,7 +485,7 @@ struct AnimalDetailView: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding()
-        .background(.ultraThinMaterial)
+        .background(Brand.surface)
         .clipShape(RoundedRectangle(cornerRadius: 20))
         .fullScreenCover(isPresented: Binding(
             get: { selectedGalleryIndex != nil },
@@ -545,7 +546,8 @@ struct AnimalDetailView: View {
                 .font(.caption)
                 .padding(.horizontal, 12)
                 .padding(.vertical, 6)
-                .background(isSelected ? Color.teal.opacity(0.3) : Color.teal.opacity(0.1))
+                .foregroundStyle(isSelected ? Brand.primary : Color.primary)
+                .background(isSelected ? Brand.primary.opacity(0.18) : Brand.surfaceElevated)
                 .clipShape(Capsule())
         }
         .buttonStyle(.plain)
@@ -578,14 +580,14 @@ struct AnimalDetailView: View {
                         try? context.save()
                     } label: {
                         Image(systemName: "trash")
-                            .foregroundStyle(.red)
+                            .foregroundStyle(Brand.error)
                     }
                 }
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding()
-        .background(.ultraThinMaterial)
+        .background(Brand.surface)
         .clipShape(RoundedRectangle(cornerRadius: 20))
     }
 
@@ -600,9 +602,9 @@ struct AnimalDetailView: View {
 
     private var statusColor: Color {
         switch animal.status.alertLevel {
-        case .critical: return .red
-        case .warning: return .orange
-        case .ok: return .green
+        case .critical: return Brand.error
+        case .warning: return Brand.warning
+        case .ok: return Brand.success
         }
     }
 
@@ -640,7 +642,7 @@ struct AnimalDetailView: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding()
-        .background(.ultraThinMaterial)
+        .background(Brand.surface)
         .clipShape(RoundedRectangle(cornerRadius: 20))
     }
 
@@ -674,7 +676,7 @@ struct AnimalDetailView: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding()
-        .background(.ultraThinMaterial)
+        .background(Brand.surface)
         .clipShape(RoundedRectangle(cornerRadius: 20))
     }
 

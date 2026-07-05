@@ -33,7 +33,7 @@ struct EnvironmentChartsView: View {
                 if filtered.contains(where: { $0.temperature != nil }) {
                     chartBlock(
                         title: "Température",
-                        color: .orange,
+                        color: Brand.warning,
                         data: filtered.filter { $0.temperature != nil },
                         value: { $0.temperature ?? 0 },
                         unit: "°C"
@@ -47,7 +47,7 @@ struct EnvironmentChartsView: View {
                 if filtered.contains(where: { $0.humidity != nil }) {
                     chartBlock(
                         title: "Humidité",
-                        color: .blue,
+                        color: Brand.accent,
                         data: filtered.filter { $0.humidity != nil },
                         value: { $0.humidity ?? 0 },
                         unit: "%"
@@ -61,7 +61,7 @@ struct EnvironmentChartsView: View {
                 if filtered.contains(where: { $0.luminosity != nil }) {
                     chartBlock(
                         title: "Luminosité",
-                        color: .yellow,
+                        color: Brand.primary,
                         data: filtered.filter { $0.luminosity != nil },
                         value: { $0.luminosity ?? 0 },
                         unit: ""

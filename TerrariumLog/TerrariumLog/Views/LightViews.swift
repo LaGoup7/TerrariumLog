@@ -49,12 +49,13 @@ struct LightControlView: View {
                 if let errorMessage {
                     Text(errorMessage)
                         .font(.caption)
-                        .foregroundStyle(.red)
+                        .foregroundStyle(Brand.error)
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
             }
             .padding()
         }
+        .background(Brand.backgroundGradient.ignoresSafeArea())
         .navigationTitle(light.name)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
@@ -97,7 +98,7 @@ struct LightControlView: View {
         VStack(alignment: .leading, spacing: 8) {
             Toggle(isOn: $isOn) {
                 Label(isOn ? "Allumée" : "Éteinte", systemImage: isOn ? "lightbulb.fill" : "lightbulb")
-                    .foregroundStyle(isOn ? .yellow : .primary)
+                    .foregroundStyle(isOn ? Brand.warning : Color.primary)
                     .font(.headline)
             }
             .disabled(isSending)
@@ -196,7 +197,7 @@ struct LightControlView: View {
                         }
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 12)
-                        .background(Color.teal.opacity(0.12), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                        .background(Brand.primary.opacity(0.12), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
                     }
                     .buttonStyle(.plain)
                     .disabled(isSending)
@@ -348,11 +349,9 @@ struct LightConfigView: View {
 }
 
 private extension View {
-    /// Style de carte partagé par les blocs du centre de contrôle des lampes.
+    /// Style de carte partagé par les blocs du centre de contrôle des lampes,
+    /// aligné sur la carte standard « Habitat ».
     func lightCard() -> some View {
-        self
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(16)
-            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+        brandCard()
     }
 }
