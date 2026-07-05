@@ -168,6 +168,7 @@ struct TerrariumFormView: View {
     @State private var decor: String
     @State private var notes: String
     @State private var wizLightIP: String
+    @State private var sensorModuleIP: String
 
     init(terrarium: Terrarium?) {
         self.existingTerrarium = terrarium
@@ -178,6 +179,7 @@ struct TerrariumFormView: View {
         _decor = State(initialValue: terrarium?.decor ?? "")
         _notes = State(initialValue: terrarium?.notes ?? "")
         _wizLightIP = State(initialValue: terrarium?.wizLightIP ?? "")
+        _sensorModuleIP = State(initialValue: terrarium?.sensorModuleIP ?? "")
     }
 
     var body: some View {
@@ -200,6 +202,16 @@ struct TerrariumFormView: View {
                         .autocorrectionDisabled()
                         .textInputAutocapitalization(.never)
                 }
+                Section {
+                    TextField("Adresse IP du module (ex: 192.168.1.60)", text: $sensorModuleIP)
+                        .keyboardType(.numbersAndPunctuation)
+                        .autocorrectionDisabled()
+                        .textInputAutocapitalization(.never)
+                } header: {
+                    Text("Capteurs (ESP32)")
+                } footer: {
+                    Text("Module DIY température/humidité/sol avec brumisation et arrosage. Guide complet : docs/capteurs-terrarium.md dans le dépôt.")
+                }
                 Section("Notes") {
                     TextEditor(text: $notes)
                         .frame(minHeight: 100)
@@ -220,6 +232,7 @@ struct TerrariumFormView: View {
                         terrarium.decor = decor
                         terrarium.notes = notes
                         terrarium.wizLightIP = wizLightIP.isEmpty ? nil : wizLightIP
+                        terrarium.sensorModuleIP = sensorModuleIP.isEmpty ? nil : sensorModuleIP
                         if existingTerrarium == nil {
                             context.insert(terrarium)
                         }

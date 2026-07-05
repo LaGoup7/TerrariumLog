@@ -17,6 +17,14 @@ struct TerrariumDetailView: View {
     @State private var mainImage: UIImage?
     @State private var photoPickerSource: ImagePickerSource?
 
+    @State private var sensorReading: TerrariumSensorReading?
+    @State private var isFetchingSensors = false
+    @State private var sensorMessage: String?
+    @State private var runningAction: SensorAction?
+    @State private var didRecordReading = false
+
+    private enum SensorAction { case mist, water }
+
     private var isCameraAvailable: Bool {
         UIImagePickerController.isSourceTypeAvailable(.camera)
     }
@@ -26,6 +34,9 @@ struct TerrariumDetailView: View {
             VStack(alignment: .leading, spacing: 16) {
                 photoSection
                 infoSection
+                if terrarium.sensorModuleIP != nil {
+                    sensorsSection
+                }
                 lightSection
                 camerasSection
                 animalsSection
@@ -340,6 +351,169 @@ struct TerrariumDetailView: View {
         .padding()
         .background(Brand.surface)
         .clipShape(RoundedRectangle(cornerRadius: 20))
+    }
+
+    // MARK: Capteurs (module ESP32 — voir docs/capteurs-terrarium.md)
+
+    private var sensorsSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Text("Capteurs")
+                    .font(.headline)
+                Spacer()
+                Button {
+                    Task { await refreshSensors() }
+                } label: {
+                    if isFetchingSensors {
+                        ProgressView()
+                    } else {
+                        Image(systemName: "arrow.clockwise")
+                    }
+                }
+                .buttonStyle(.borderless)
+                .disabled(isFetchingSensors)
+            }
+
+            if let reading = sensorReading {
+                HStack(spacing: 10) {
+                    if let temperature = reading.temperature {
+                        sensorTile(icon: "thermometer.medium", value: String(format: "%.1f°C", temperature), label: "Air", color: Brand.warning)
+                    }
+                    if let humidity = reading.humidity {
+                        sensorTile(icon: "humidity.fill", value: String(format: "%.0f %%", humidity), label: "Humidité", color: Brand.accent)
+                    }
+                    if let soil = reading.soilMoisture {
+                        sensorTile(icon: "leaf.fill", value: String(format: "%.0f %%", soil), label: "Sol", color: Brand.primary)
+                    }
+                    if let luminosity = reading.luminosity {
+                        sensorTile(icon: "sun.max.fill", value: String(format: "%.0f", luminosity), label: "Lumière", color: Brand.warning)
+                    }
+                }
+
+                HStack(spacing: 10) {
+                    sensorActionButton(title: "Brumiser", icon: "cloud.fog.fill", action: .mist)
+                    sensorActionButton(title: "Arroser", icon: "drop.fill", action: .water)
+                    Spacer()
+                    Button {
+                        recordReading(reading)
+                    } label: {
+                        Label(didRecordReading ? "Enregistrée" : "Enregistrer",
+                              systemImage: didRecordReading ? "checkmark" : "square.and.arrow.down")
+                            .font(.caption)
+                    }
+                    .buttonStyle(.borderless)
+                    .disabled(didRecordReading || terrarium.animals.isEmpty)
+                }
+            } else if isFetchingSensors {
+                Text("Lecture du module…")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            } else {
+                Text("Module injoignable. Vérifie que l'ESP32 est allumé et sur le même Wi-Fi, puis actualise.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
+
+            if let sensorMessage {
+                Text(sensorMessage)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding()
+        .background(Brand.surface)
+        .clipShape(RoundedRectangle(cornerRadius: 20))
+        .task { await refreshSensors() }
+    }
+
+    private func sensorTile(icon: String, value: String, label: String, color: Color) -> some View {
+        VStack(spacing: 4) {
+            Image(systemName: icon)
+                .font(.body)
+                .foregroundStyle(color)
+            Text(value)
+                .font(.subheadline.weight(.semibold))
+            Text(label)
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 10)
+        .background(Brand.surfaceElevated, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+    }
+
+    private func sensorActionButton(title: String, icon: String, action: SensorAction) -> some View {
+        Button {
+            runSensorAction(action)
+        } label: {
+            HStack(spacing: 5) {
+                if runningAction == action {
+                    ProgressView()
+                        .controlSize(.small)
+                } else {
+                    Image(systemName: icon)
+                }
+                Text(title)
+            }
+            .font(.caption.weight(.semibold))
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+            .background(Brand.primary.opacity(0.16), in: Capsule())
+            .foregroundStyle(Brand.primary)
+        }
+        .buttonStyle(.plain)
+        .disabled(runningAction != nil)
+    }
+
+    private func refreshSensors() async {
+        guard let ip = terrarium.sensorModuleIP, !ip.isEmpty else { return }
+        isFetchingSensors = true
+        sensorMessage = nil
+        do {
+            sensorReading = try await TerrariumSensorClient(ip: ip).fetchReading()
+            didRecordReading = false
+        } catch {
+            sensorMessage = "Capteurs : \(error.localizedDescription)"
+        }
+        isFetchingSensors = false
+    }
+
+    private func runSensorAction(_ action: SensorAction) {
+        guard let ip = terrarium.sensorModuleIP, !ip.isEmpty else { return }
+        runningAction = action
+        Task {
+            let client = TerrariumSensorClient(ip: ip)
+            do {
+                switch action {
+                case .mist: try await client.triggerMist()
+                case .water: try await client.triggerWater()
+                }
+                sensorMessage = action == .mist ? "Brumisation déclenchée." : "Arrosage déclenché."
+            } catch {
+                sensorMessage = "Action impossible : \(error.localizedDescription)"
+            }
+            runningAction = nil
+        }
+    }
+
+    /// Ajoute le relevé à l'historique de chaque animal hébergé (ils partagent
+    /// l'environnement du terrarium) : les graphiques existants se remplissent.
+    private func recordReading(_ reading: TerrariumSensorReading) {
+        for animal in terrarium.animals {
+            let entry = MeasurementEntry(
+                date: .now,
+                temperature: reading.temperature,
+                humidity: reading.humidity,
+                luminosity: reading.luminosity,
+                note: "Capteurs · \(terrarium.name)",
+                animal: animal
+            )
+            context.insert(entry)
+        }
+        try? context.save()
+        didRecordReading = true
+        sensorMessage = "Mesure ajoutée à l'historique."
     }
 
     private var measurementsSection: some View {

@@ -19,6 +19,7 @@ struct TerrariumDTO: Codable {
     var mainPhotoOffsetX: Double?
     var mainPhotoOffsetY: Double?
     var wizLightIP: String?
+    var sensorModuleIP: String?
     var targetTemperatureMin: Double?
     var targetTemperatureMax: Double?
     var targetHumidityMin: Double?

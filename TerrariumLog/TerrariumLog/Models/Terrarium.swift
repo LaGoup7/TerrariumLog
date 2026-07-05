@@ -16,6 +16,9 @@ final class Terrarium {
     var mainPhotoOffsetX: Double = 0
     var mainPhotoOffsetY: Double = 0
     var wizLightIP: String?
+    /// IP locale du module capteurs/actionneurs (ESP32) : température, humidité,
+    /// sol, brumisation et arrosage. Voir docs/capteurs-terrarium.md.
+    var sensorModuleIP: String?
     var targetTemperatureMin: Double?
     var targetTemperatureMax: Double?
     var targetHumidityMin: Double?
@@ -45,6 +48,7 @@ final class Terrarium {
         mainPhotoOffsetX: Double = 0,
         mainPhotoOffsetY: Double = 0,
         wizLightIP: String? = nil,
+        sensorModuleIP: String? = nil,
         targetTemperatureMin: Double? = nil,
         targetTemperatureMax: Double? = nil,
         targetHumidityMin: Double? = nil,
@@ -61,6 +65,7 @@ final class Terrarium {
         self.mainPhotoOffsetX = mainPhotoOffsetX
         self.mainPhotoOffsetY = mainPhotoOffsetY
         self.wizLightIP = wizLightIP
+        self.sensorModuleIP = sensorModuleIP
         self.targetTemperatureMin = targetTemperatureMin
         self.targetTemperatureMax = targetTemperatureMax
         self.targetHumidityMin = targetHumidityMin
