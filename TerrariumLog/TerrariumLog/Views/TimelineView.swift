@@ -6,6 +6,14 @@ struct TimelineView: View {
     @Query(sort: [SortDescriptor<Animal>(\.name)]) private var animals: [Animal]
     @State private var selectedAnimal: Animal?
     @State private var searchText = ""
+    @State private var galleryContext: TimelineGalleryContext?
+
+    /// Galerie ouverte depuis les photos d'un événement de la timeline.
+    struct TimelineGalleryContext: Identifiable {
+        let id = UUID()
+        let photos: [GalleryPhoto]
+        let index: Int
+    }
 
     private var filteredEntries: [ObservationEntry] {
         // Les ajouts de photos (type .photo) ne sont pas des événements : ils
@@ -42,6 +50,22 @@ struct TimelineView: View {
                             Text(entry.note)
                                 .font(.footnote)
                         }
+                        if !entry.photoPaths.isEmpty {
+                            ScrollView(.horizontal, showsIndicators: false) {
+                                HStack(spacing: 8) {
+                                    ForEach(Array(entry.photoPaths.enumerated()), id: \.offset) { photoIndex, path in
+                                        TimelinePhotoThumbnail(path: path)
+                                            .onTapGesture {
+                                                galleryContext = TimelineGalleryContext(
+                                                    photos: galleryPhotos(for: entry),
+                                                    index: photoIndex
+                                                )
+                                            }
+                                    }
+                                }
+                            }
+                            .padding(.top, 2)
+                        }
                         Text(entry.date.formatted(date: .abbreviated, time: .shortened))
                             .font(.caption2)
                             .foregroundStyle(.tertiary)
@@ -63,6 +87,9 @@ struct TimelineView: View {
                     }
                 }
             }
+            .fullScreenCover(item: $galleryContext) { context in
+                PhotoGalleryViewer(photos: context.photos, selectedIndex: context.index)
+            }
         }
     }
 
@@ -72,5 +99,37 @@ struct TimelineView: View {
 
     private func icon(for entry: ObservationEntry) -> String {
         ObservationEventType(rawValue: entry.eventType)?.symbolName ?? "note.text"
+    }
+
+    private func galleryPhotos(for entry: ObservationEntry) -> [GalleryPhoto] {
+        entry.photoPaths.map { path in
+            GalleryPhoto(path: path, date: entry.date, eventType: entry.eventType)
+        }
+    }
+}
+
+/// Miniature d'une photo d'événement dans la timeline.
+struct TimelinePhotoThumbnail: View {
+    let path: String
+    @State private var image: UIImage?
+
+    var body: some View {
+        Group {
+            if let image {
+                Image(uiImage: image)
+                    .resizable()
+                    .scaledToFill()
+            } else {
+                Rectangle()
+                    .fill(Brand.surfaceElevated)
+            }
+        }
+        .frame(width: 64, height: 64)
+        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+        .onAppear {
+            if image == nil {
+                image = PhotoStorage.shared.loadImage(from: path)
+            }
+        }
     }
 }
