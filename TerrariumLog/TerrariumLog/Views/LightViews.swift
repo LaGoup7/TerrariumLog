@@ -455,6 +455,44 @@ struct LightControlView: View {
                 }
                 .tint(Brand.accent)
 
+                if light.biotopeWeatherEnabled {
+                    Toggle(isOn: Binding(
+                        get: { light.biotopeStormSyncEnabled },
+                        set: { newValue in
+                            light.biotopeStormSyncEnabled = newValue
+                            try? context.save()
+                            applyBiotopeNow()
+                        }
+                    )) {
+                        VStack(alignment: .leading, spacing: 1) {
+                            Text("Orage synchronisé")
+                                .font(.subheadline)
+                            Text("S'il pleuvait là-bas à cette heure : lumière d'orage + son de pluie automatiques.")
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    .tint(Brand.accent)
+                }
+
+                Toggle(isOn: Binding(
+                    get: { light.biotopeMoonEnabled },
+                    set: { newValue in
+                        light.biotopeMoonEnabled = newValue
+                        try? context.save()
+                        applyBiotopeNow()
+                    }
+                )) {
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text("Veilleuse lunaire")
+                            .font(.subheadline)
+                        Text("Les nuits proches de la pleine lune : lueur bleutée minimale au lieu du noir.")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .tint(Brand.accent)
+
                 if !biotopeStatus.isEmpty {
                     Label(biotopeStatus, systemImage: biotopeStatusIcon)
                         .font(.caption)
@@ -482,8 +520,11 @@ struct LightControlView: View {
 
     @State private var biotopeStatus = ""
     @State private var biotopeStatusIcon = "sun.max"
+    /// Vrai quand le son de pluie a été lancé PAR l'orage synchronisé (pour ne
+    /// jamais couper une ambiance choisie manuellement).
+    @State private var autoRainSoundActive = false
 
-    /// Calcule la consigne (soleil + météo éventuelle) et l'envoie à la lampe.
+    /// Calcule la consigne (soleil + météo + orage + lune) et l'envoie à la lampe.
     private func applyBiotopeNow() {
         guard let preset = selectedBiotope,
               let ip = light.ipAddress, !ip.isEmpty else {
@@ -492,9 +533,12 @@ struct LightControlView: View {
         }
         let shifted = light.biotopeShiftedToLocal
         let weatherWanted = light.biotopeWeatherEnabled
+        let stormWanted = light.biotopeStormSyncEnabled
+        let moonWanted = light.biotopeMoonEnabled
         Task {
             var state = SunCalculator.currentState(for: preset, shiftedToLocalClock: shifted)
             var weatherNote = ""
+            var isRainingNow = false
 
             if weatherWanted, state.isDaylight,
                let weather = await BiotopeWeatherService.shared.yesterdayWeather(for: preset) {
@@ -502,30 +546,68 @@ struct LightControlView: View {
                 if !shifted { calendar.timeZone = preset.timeZone }
                 let hour = calendar.component(.hour, from: .now)
                 let factor = weather.lightFactor(hour: hour)
+                isRainingNow = weather.isRaining(hour: hour)
                 state = SunLightState(
                     isDaylight: true,
                     brightness: max(10, Int(Double(state.brightness) * factor)),
                     colorTemperature: state.colorTemperature,
                     elevation: state.elevation
                 )
-                weatherNote = weather.isRaining(hour: hour) ? " · pluie là-bas 🌧️" : (factor < 0.75 ? " · nuageux" : "")
+                weatherNote = isRainingNow ? " · pluie là-bas 🌧️" : (factor < 0.75 ? " · nuageux" : "")
             }
 
             let service = WizLightService.shared
+
+            // Le son de pluie automatique s'arrête dès que la pluie cesse
+            // (sans toucher aux ambiances lancées manuellement).
+            func stopAutoRainIfNeeded() {
+                if autoRainSoundActive {
+                    AmbientSoundEngine.shared.stop()
+                    autoRainSoundActive = false
+                }
+            }
+
             if state.isDaylight {
-                try? await service.send(WizCommandBuilder.power(true), to: ip)
-                try? await service.send(WizCommandBuilder.brightness(state.brightness), to: ip)
-                try? await service.send(WizCommandBuilder.colorTemperature(state.colorTemperature), to: ip)
+                if stormWanted && isRainingNow {
+                    // Lumière d'orage : bleu-gris tamisé proportionnel au soleil.
+                    try? await service.send(WizCommandBuilder.power(true), to: ip)
+                    try? await service.send(WizCommandBuilder.color(red: 45, green: 65, blue: 105), to: ip)
+                    try? await service.send(WizCommandBuilder.brightness(max(10, state.brightness / 2)), to: ip)
+                    if !AmbientSoundEngine.shared.isPlaying {
+                        AmbientSoundEngine.shared.play(ambiance: .rain, volume: Float(ambianceVolume))
+                        autoRainSoundActive = true
+                        isSoundPlaying = true
+                    }
+                    biotopeStatusIcon = "cloud.rain.fill"
+                    biotopeStatus = "Pluie sur le biotope — lumière d'orage"
+                } else {
+                    stopAutoRainIfNeeded()
+                    try? await service.send(WizCommandBuilder.power(true), to: ip)
+                    try? await service.send(WizCommandBuilder.brightness(state.brightness), to: ip)
+                    try? await service.send(WizCommandBuilder.colorTemperature(state.colorTemperature), to: ip)
+                    biotopeStatusIcon = "sun.max.fill"
+                    biotopeStatus = "Soleil à \(Int(state.elevation))° → \(state.brightness) %\(weatherNote)"
+                }
                 light.lastKnownOn = true
                 isOn = true
-                biotopeStatusIcon = "sun.max.fill"
-                biotopeStatus = "Soleil à \(Int(state.elevation))° → \(state.brightness) %\(weatherNote)"
             } else {
-                try? await service.send(WizCommandBuilder.power(false), to: ip)
-                light.lastKnownOn = false
-                isOn = false
-                biotopeStatusIcon = "moon.stars.fill"
-                biotopeStatus = "Nuit sur le biotope — lampe éteinte"
+                stopAutoRainIfNeeded()
+                let moonlight = MoonCalculator.illumination()
+                if moonWanted && moonlight >= 0.55 {
+                    try? await service.send(WizCommandBuilder.power(true), to: ip)
+                    try? await service.send(WizCommandBuilder.color(red: 70, green: 80, blue: 130), to: ip)
+                    try? await service.send(WizCommandBuilder.brightness(10), to: ip)
+                    light.lastKnownOn = true
+                    isOn = true
+                    biotopeStatusIcon = "moon.fill"
+                    biotopeStatus = "Nuit — lune à \(Int(moonlight * 100)) % : veilleuse lunaire"
+                } else {
+                    try? await service.send(WizCommandBuilder.power(false), to: ip)
+                    light.lastKnownOn = false
+                    isOn = false
+                    biotopeStatusIcon = "moon.stars.fill"
+                    biotopeStatus = "Nuit sur le biotope — lampe éteinte"
+                }
             }
             try? context.save()
         }

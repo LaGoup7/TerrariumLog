@@ -46,6 +46,36 @@ final class SunCalculatorTests: XCTestCase {
         XCTAssertGreaterThanOrEqual(noon.colorTemperature, 5500)
     }
 
+    func testDayLengthSeasons() {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: "UTC")!
+        let june = calendar.date(from: DateComponents(year: 2026, month: 6, day: 21))!
+        let december = calendar.date(from: DateComponents(year: 2026, month: 12, day: 21))!
+
+        let parisSummer = SunCalculator.dayLengthHours(latitude: 48.85, date: june)
+        let parisWinter = SunCalculator.dayLengthHours(latitude: 48.85, date: december)
+        XCTAssertGreaterThan(parisSummer, 15)
+        XCTAssertLessThan(parisWinter, 9.5)
+
+        // Aux tropiques, la durée du jour varie peu.
+        let cubaSummer = SunCalculator.dayLengthHours(latitude: 22.79, date: june)
+        let cubaWinter = SunCalculator.dayLengthHours(latitude: 22.79, date: december)
+        XCTAssertLessThan(abs(cubaSummer - cubaWinter), 3.5)
+    }
+
+    func testMoonIlluminationCycle() {
+        // Nouvelle lune de référence (6 janvier 2000, 18:14 UTC) : ~0.
+        let newMoon = Date(timeIntervalSince1970: 947_182_440)
+        XCTAssertLessThan(MoonCalculator.illumination(at: newMoon), 0.02)
+        // Une demi-lunaison plus tard : pleine lune (~1).
+        let fullMoon = newMoon.addingTimeInterval(MoonCalculator.synodicMonth / 2 * 86400)
+        XCTAssertGreaterThan(MoonCalculator.illumination(at: fullMoon), 0.98)
+        // Toujours borné à [0, 1].
+        let anyDate = Date(timeIntervalSince1970: 1_780_000_000)
+        let value = MoonCalculator.illumination(at: anyDate)
+        XCTAssertTrue((0...1).contains(value))
+    }
+
     func testWeatherParsing() throws {
         let json = """
         {"hourly": {"cloud_cover": [10, 80, 100], "precipitation": [0, 0.5, 2.1]}}

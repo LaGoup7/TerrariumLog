@@ -140,11 +140,45 @@ enum SunCalculator {
         lightState(forElevation: currentElevation(for: preset, shiftedToLocalClock: shiftedToLocalClock, at: date))
     }
 
+    /// Durée du jour (heures) à une latitude donnée — formule analytique du
+    /// coucher/lever (déclinaison solaire). Sert à la suggestion de diapause.
+    static func dayLengthHours(latitude: Double, date: Date = .now) -> Double {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: "UTC") ?? .current
+        let dayOfYear = calendar.ordinality(of: .day, in: .year, for: date) ?? 1
+        let gamma = 2 * Double.pi / 365 * (Double(dayOfYear) - 1)
+        let decl = 0.006918
+            - 0.399912 * cos(gamma) + 0.070257 * sin(gamma)
+            - 0.006758 * cos(2 * gamma) + 0.000907 * sin(2 * gamma)
+            - 0.002697 * cos(3 * gamma) + 0.00148 * sin(3 * gamma)
+        let latRad = latitude * Double.pi / 180
+        let cosHourAngle = -tan(latRad) * tan(decl)
+        if cosHourAngle <= -1 { return 24 } // jour polaire
+        if cosHourAngle >= 1 { return 0 }   // nuit polaire
+        return acos(cosHourAngle) * 24 / Double.pi
+    }
+
     private static func dayOfYear(year: Int, month: Int, day: Int) -> Int {
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = TimeZone(identifier: "UTC") ?? .current
         let components = DateComponents(year: year, month: month, day: day)
         guard let date = calendar.date(from: components) else { return 1 }
         return calendar.ordinality(of: .day, in: .year, for: date) ?? 1
+    }
+}
+
+/// Phase lunaire approchée (cycle synodique moyen) — largement suffisante pour
+/// décider d'une veilleuse de pleine lune.
+enum MoonCalculator {
+    static let synodicMonth = 29.530588853
+
+    /// Fraction éclairée de la lune (0 = nouvelle lune, 1 = pleine lune).
+    static func illumination(at date: Date = .now) -> Double {
+        // Nouvelle lune de référence : 6 janvier 2000, 18:14 UTC.
+        let reference = Date(timeIntervalSince1970: 947_182_440)
+        let days = date.timeIntervalSince(reference) / 86400
+        var phase = days.truncatingRemainder(dividingBy: synodicMonth) / synodicMonth
+        if phase < 0 { phase += 1 }
+        return (1 - cos(2 * Double.pi * phase)) / 2
     }
 }

@@ -324,11 +324,37 @@ struct AnimalDetailView: View {
         .clipShape(RoundedRectangle(cornerRadius: 20))
     }
 
+    /// Suggestion saisonnière : quand la durée du jour passe sous ~10 h 30 sur
+    /// le biotope de référence (ou l'Europe par défaut), il est temps de
+    /// planifier l'hivernage — sauf si une diapause est en cours ou déjà
+    /// planifiée.
+    private var diapauseSeasonSuggestion: String? {
+        guard animal.type.tracksDiapause else { return nil }
+        let stats = DiapauseStats.compute(from: animal.journalEntries)
+        if let last = stats.periods.last, last.endDate == nil { return nil } // déjà en diapause
+        let hasPlanned = animal.reminders.contains { $0.category == .hibernation && !$0.isCompleted }
+        guard !hasPlanned else { return nil }
+
+        let reference = animal.terrarium?.lights
+            .compactMap { BiotopePreset.preset(id: $0.biotopePresetID) }
+            .first
+        let latitude = reference?.latitude ?? 48.8
+        let placeName = reference?.name ?? "nos latitudes"
+        let hours = SunCalculator.dayLengthHours(latitude: abs(latitude))
+        guard hours < 10.5 else { return nil }
+        return String(format: "Les jours raccourcissent (%.1f h de jour sur %@) : c'est la période idéale pour planifier la diapause.", hours, placeName)
+    }
+
     private var diapauseSection: some View {
         let stats = DiapauseStats.compute(from: animal.journalEntries)
         return VStack(alignment: .leading, spacing: 10) {
             Text("Diapause")
                 .font(.headline)
+            if let suggestion = diapauseSeasonSuggestion {
+                Label(suggestion, systemImage: "leaf.arrow.circlepath")
+                    .font(.footnote)
+                    .foregroundStyle(Brand.warning)
+            }
             if stats.periods.isEmpty {
                 Text("Aucune diapause enregistrée")
                     .font(.footnote)

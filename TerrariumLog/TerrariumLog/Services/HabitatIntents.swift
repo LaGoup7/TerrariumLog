@@ -44,12 +44,14 @@ enum HabitatIntentActions {
                   let ip = light.ipAddress, !ip.isEmpty else { continue }
 
             var state = SunCalculator.currentState(for: preset, shiftedToLocalClock: light.biotopeShiftedToLocal)
+            var isRainingNow = false
             if light.biotopeWeatherEnabled, state.isDaylight,
                let weather = await BiotopeWeatherService.shared.yesterdayWeather(for: preset) {
                 var calendar = Calendar.current
                 if !light.biotopeShiftedToLocal { calendar.timeZone = preset.timeZone }
                 let hour = calendar.component(.hour, from: .now)
                 let factor = weather.lightFactor(hour: hour)
+                isRainingNow = weather.isRaining(hour: hour)
                 state = SunLightState(
                     isDaylight: true,
                     brightness: max(10, Int(Double(state.brightness) * factor)),
@@ -60,9 +62,22 @@ enum HabitatIntentActions {
 
             let service = WizLightService.shared
             if state.isDaylight {
+                if light.biotopeStormSyncEnabled && isRainingNow {
+                    // Pluie réelle sur le biotope : lumière d'orage bleu-gris.
+                    try? await service.send(WizCommandBuilder.power(true), to: ip)
+                    try? await service.send(WizCommandBuilder.color(red: 45, green: 65, blue: 105), to: ip)
+                    try? await service.send(WizCommandBuilder.brightness(max(10, state.brightness / 2)), to: ip)
+                } else {
+                    try? await service.send(WizCommandBuilder.power(true), to: ip)
+                    try? await service.send(WizCommandBuilder.brightness(state.brightness), to: ip)
+                    try? await service.send(WizCommandBuilder.colorTemperature(state.colorTemperature), to: ip)
+                }
+                light.lastKnownOn = true
+            } else if light.biotopeMoonEnabled, MoonCalculator.illumination() >= 0.55 {
+                // Veilleuse des nuits de pleine lune.
                 try? await service.send(WizCommandBuilder.power(true), to: ip)
-                try? await service.send(WizCommandBuilder.brightness(state.brightness), to: ip)
-                try? await service.send(WizCommandBuilder.colorTemperature(state.colorTemperature), to: ip)
+                try? await service.send(WizCommandBuilder.color(red: 70, green: 80, blue: 130), to: ip)
+                try? await service.send(WizCommandBuilder.brightness(10), to: ip)
                 light.lastKnownOn = true
             } else {
                 try? await service.send(WizCommandBuilder.power(false), to: ip)

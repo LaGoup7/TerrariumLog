@@ -24,6 +24,10 @@ final class Light {
     var biotopeShiftedToLocal: Bool = true
     /// Reproduit la météo réelle de la veille du biotope (nuages → intensité).
     var biotopeWeatherEnabled: Bool = false
+    /// Pluie réelle au biotope → lumière d'orage + son de pluie automatiques.
+    var biotopeStormSyncEnabled: Bool = false
+    /// Nuits de pleine lune → veilleuse bleutée très faible au lieu du noir.
+    var biotopeMoonEnabled: Bool = false
 
     var terrarium: Terrarium?
 
