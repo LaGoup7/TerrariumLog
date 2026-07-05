@@ -37,6 +37,10 @@
     <string>Habitat enregistre les photos et vidéos capturées depuis vos caméras dans votre galerie.</string>
     <key>NSPhotoLibraryUsageDescription</key>
     <string>Habitat accède à votre photothèque pour choisir et recadrer les photos de vos animaux et terrariums.</string>
+    <key>UIFileSharingEnabled</key>
+    <true/>
+    <key>LSSupportsOpeningDocumentsInPlace</key>
+    <true/>
     <key>UILaunchScreen</key>
     <dict/>
     <key>UISupportedInterfaceOrientations</key>

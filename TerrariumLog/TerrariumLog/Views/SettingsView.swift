@@ -75,6 +75,8 @@ enum AppAppearance: String, CaseIterable {
 struct SettingsView: View {
     @Environment(\.modelContext) private var context
     @AppStorage("appAppearance") private var appearanceRawValue = AppAppearance.system.rawValue
+    /// Date du dernier export complet manuel (secondes depuis referenceDate ; 0 = jamais).
+    @AppStorage("lastManualExportDate") private var lastManualExportTimestamp: Double = 0
     @Query private var animals: [Animal]
     @Query private var terrariums: [Terrarium]
     @Query(sort: [SortDescriptor<CustomPreyType>(\.name)]) private var customPreyTypes: [CustomPreyType]
@@ -146,6 +148,19 @@ struct SettingsView: View {
                     }
                 }
 
+                Section {
+                    LabeledContent("Sauvegarde auto", value: autoBackupLabel)
+                    LabeledContent("Dernier export complet", value: manualExportLabel)
+                        .foregroundStyle(manualExportIsStale ? Brand.warning : Color.primary)
+                    Button("Sauvegarder maintenant") {
+                        runAutoBackupNow()
+                    }
+                } header: {
+                    Text("Sauvegardes")
+                } footer: {
+                    Text("Une sauvegarde des données (sans les photos/vidéos) est créée automatiquement chaque semaine dans Fichiers → Sur mon iPhone → Habitat → Sauvegardes. Pense à faire un export complet (avec médias) vers iCloud Drive régulièrement : c'est lui qui protège tes photos.")
+                }
+
                 Section("À propos") {
                     LabeledContent("Version", value: appVersion)
                     Text("SwiftUI + SwiftData, données 100% locales et hors ligne.")
@@ -166,6 +181,7 @@ struct SettingsView: View {
                 switch result {
                 case .success:
                     backupMessage = "Export réussi."
+                    lastManualExportTimestamp = Date.now.timeIntervalSinceReferenceDate
                 case .failure(let error):
                     backupMessage = "Échec de l'export : \(error.localizedDescription)"
                 }
@@ -203,6 +219,33 @@ struct SettingsView: View {
             } message: {
                 Text("Cette sauvegarde va remplacer tous les animaux, terrariums et leur historique actuellement enregistrés sur cet appareil. Cette action est irréversible.")
             }
+        }
+    }
+
+    private var autoBackupLabel: String {
+        guard let date = AutoBackupService.shared.lastBackupDate else { return "Jamais" }
+        return date.formatted(date: .abbreviated, time: .shortened)
+    }
+
+    private var manualExportLabel: String {
+        guard lastManualExportTimestamp > 0 else { return "Jamais" }
+        let date = Date(timeIntervalSinceReferenceDate: lastManualExportTimestamp)
+        return date.formatted(date: .abbreviated, time: .omitted)
+    }
+
+    /// Alerte visuelle si aucun export complet (avec médias) depuis plus de 30 jours.
+    private var manualExportIsStale: Bool {
+        guard lastManualExportTimestamp > 0 else { return true }
+        let date = Date(timeIntervalSinceReferenceDate: lastManualExportTimestamp)
+        return Date.now.timeIntervalSince(date) > 30 * 24 * 3600
+    }
+
+    private func runAutoBackupNow() {
+        do {
+            let url = try AutoBackupService.shared.performBackup(context: context)
+            backupMessage = "Sauvegarde créée : \(url.lastPathComponent) (Fichiers → Habitat → Sauvegardes)."
+        } catch {
+            backupMessage = "Échec de la sauvegarde : \(error.localizedDescription)"
         }
     }
 

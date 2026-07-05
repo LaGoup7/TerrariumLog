@@ -169,6 +169,10 @@ struct TerrariumFormView: View {
     @State private var notes: String
     @State private var wizLightIP: String
     @State private var sensorModuleIP: String
+    @State private var targetTempMin: String
+    @State private var targetTempMax: String
+    @State private var targetHumMin: String
+    @State private var targetHumMax: String
 
     init(terrarium: Terrarium?) {
         self.existingTerrarium = terrarium
@@ -180,6 +184,21 @@ struct TerrariumFormView: View {
         _notes = State(initialValue: terrarium?.notes ?? "")
         _wizLightIP = State(initialValue: terrarium?.wizLightIP ?? "")
         _sensorModuleIP = State(initialValue: terrarium?.sensorModuleIP ?? "")
+        func text(_ value: Double?) -> String {
+            guard let value else { return "" }
+            return value.truncatingRemainder(dividingBy: 1) == 0
+                ? String(Int(value))
+                : String(value)
+        }
+        _targetTempMin = State(initialValue: text(terrarium?.targetTemperatureMin))
+        _targetTempMax = State(initialValue: text(terrarium?.targetTemperatureMax))
+        _targetHumMin = State(initialValue: text(terrarium?.targetHumidityMin))
+        _targetHumMax = State(initialValue: text(terrarium?.targetHumidityMax))
+    }
+
+    /// Convertit la saisie en nombre (accepte la virgule française).
+    private func parseTarget(_ text: String) -> Double? {
+        Double(text.trimmingCharacters(in: .whitespaces).replacingOccurrences(of: ",", with: "."))
     }
 
     var body: some View {
@@ -212,6 +231,22 @@ struct TerrariumFormView: View {
                 } footer: {
                     Text("Module DIY température/humidité/sol avec brumisation et arrosage. Guide complet : docs/capteurs-terrarium.md dans le dépôt.")
                 }
+                Section {
+                    HStack {
+                        TextField("Temp. min (°C)", text: $targetTempMin)
+                        TextField("Temp. max (°C)", text: $targetTempMax)
+                    }
+                    .keyboardType(.decimalPad)
+                    HStack {
+                        TextField("Humidité min (%)", text: $targetHumMin)
+                        TextField("Humidité max (%)", text: $targetHumMax)
+                    }
+                    .keyboardType(.decimalPad)
+                } header: {
+                    Text("Environnement cible")
+                } footer: {
+                    Text("Les relevés des capteurs sont comparés à ces plages : la carte Capteurs du terrarium signale tout écart. Laisse vide pour ignorer une grandeur.")
+                }
                 Section("Notes") {
                     TextEditor(text: $notes)
                         .frame(minHeight: 100)
@@ -233,6 +268,10 @@ struct TerrariumFormView: View {
                         terrarium.notes = notes
                         terrarium.wizLightIP = wizLightIP.isEmpty ? nil : wizLightIP
                         terrarium.sensorModuleIP = sensorModuleIP.isEmpty ? nil : sensorModuleIP
+                        terrarium.targetTemperatureMin = parseTarget(targetTempMin)
+                        terrarium.targetTemperatureMax = parseTarget(targetTempMax)
+                        terrarium.targetHumidityMin = parseTarget(targetHumMin)
+                        terrarium.targetHumidityMax = parseTarget(targetHumMax)
                         if existingTerrarium == nil {
                             context.insert(terrarium)
                         }

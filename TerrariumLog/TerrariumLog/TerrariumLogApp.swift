@@ -23,6 +23,7 @@ struct TerrariumLogApp: App {
                 .modelContainer(container)
                 .task {
                     await NotificationService.shared.requestAuthorizationIfNeeded()
+                    AutoBackupService.shared.runIfNeeded(context: container.mainContext)
                 }
         }
     }

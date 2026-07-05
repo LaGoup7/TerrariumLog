@@ -377,10 +377,24 @@ struct TerrariumDetailView: View {
             if let reading = sensorReading {
                 HStack(spacing: 10) {
                     if let temperature = reading.temperature {
-                        sensorTile(icon: "thermometer.medium", value: String(format: "%.1f°C", temperature), label: "Air", color: Brand.warning)
+                        sensorTile(
+                            icon: "thermometer.medium",
+                            value: String(format: "%.1f°C", temperature),
+                            label: "Air",
+                            color: Brand.warning,
+                            alert: terrarium.temperatureStatus(for: temperature) == .belowRange
+                                || terrarium.temperatureStatus(for: temperature) == .aboveRange
+                        )
                     }
                     if let humidity = reading.humidity {
-                        sensorTile(icon: "humidity.fill", value: String(format: "%.0f %%", humidity), label: "Humidité", color: Brand.accent)
+                        sensorTile(
+                            icon: "humidity.fill",
+                            value: String(format: "%.0f %%", humidity),
+                            label: "Humidité",
+                            color: Brand.accent,
+                            alert: terrarium.humidityStatus(for: humidity) == .belowRange
+                                || terrarium.humidityStatus(for: humidity) == .aboveRange
+                        )
                     }
                     if let soil = reading.soilMoisture {
                         sensorTile(icon: "leaf.fill", value: String(format: "%.0f %%", soil), label: "Sol", color: Brand.primary)
@@ -389,6 +403,8 @@ struct TerrariumDetailView: View {
                         sensorTile(icon: "sun.max.fill", value: String(format: "%.0f", luminosity), label: "Lumière", color: Brand.warning)
                     }
                 }
+
+                environmentStatusLine(for: reading)
 
                 HStack(spacing: 10) {
                     sensorActionButton(title: "Brumiser", icon: "cloud.fog.fill", action: .mist)
@@ -427,13 +443,14 @@ struct TerrariumDetailView: View {
         .task { await refreshSensors() }
     }
 
-    private func sensorTile(icon: String, value: String, label: String, color: Color) -> some View {
+    private func sensorTile(icon: String, value: String, label: String, color: Color, alert: Bool = false) -> some View {
         VStack(spacing: 4) {
             Image(systemName: icon)
                 .font(.body)
                 .foregroundStyle(color)
             Text(value)
                 .font(.subheadline.weight(.semibold))
+                .foregroundStyle(alert ? Brand.warning : Color.primary)
             Text(label)
                 .font(.caption2)
                 .foregroundStyle(.secondary)
@@ -441,6 +458,52 @@ struct TerrariumDetailView: View {
         .frame(maxWidth: .infinity)
         .padding(.vertical, 10)
         .background(Brand.surfaceElevated, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .strokeBorder(alert ? Brand.warning.opacity(0.6) : Color.clear, lineWidth: 1)
+        )
+    }
+
+    /// Ligne de synthèse : écarts aux plages cibles, ou confirmation que tout
+    /// est dans les clous (seulement si des cibles sont définies).
+    @ViewBuilder
+    private func environmentStatusLine(for reading: TerrariumSensorReading) -> some View {
+        let issues = environmentIssues(for: reading)
+        if !issues.isEmpty {
+            Label(issues.joined(separator: " · "), systemImage: "exclamationmark.triangle.fill")
+                .font(.caption)
+                .foregroundStyle(Brand.warning)
+        } else if hasEnvironmentTargets, reading.temperature != nil || reading.humidity != nil {
+            Label("Dans les plages cibles", systemImage: "checkmark.circle.fill")
+                .font(.caption)
+                .foregroundStyle(Brand.success)
+        }
+    }
+
+    private var hasEnvironmentTargets: Bool {
+        terrarium.targetTemperatureMin != nil || terrarium.targetTemperatureMax != nil
+            || terrarium.targetHumidityMin != nil || terrarium.targetHumidityMax != nil
+    }
+
+    private func environmentIssues(for reading: TerrariumSensorReading) -> [String] {
+        var issues: [String] = []
+        if let temperature = reading.temperature,
+           let target = Terrarium.targetLabel(min: terrarium.targetTemperatureMin, max: terrarium.targetTemperatureMax) {
+            switch terrarium.temperatureStatus(for: temperature) {
+            case .belowRange: issues.append("Température basse (cible \(target)°C)")
+            case .aboveRange: issues.append("Température haute (cible \(target)°C)")
+            default: break
+            }
+        }
+        if let humidity = reading.humidity,
+           let target = Terrarium.targetLabel(min: terrarium.targetHumidityMin, max: terrarium.targetHumidityMax) {
+            switch terrarium.humidityStatus(for: humidity) {
+            case .belowRange: issues.append("Humidité basse (cible \(target) %)")
+            case .aboveRange: issues.append("Humidité haute (cible \(target) %)")
+            default: break
+            }
+        }
+        return issues
     }
 
     private func sensorActionButton(title: String, icon: String, action: SensorAction) -> some View {
