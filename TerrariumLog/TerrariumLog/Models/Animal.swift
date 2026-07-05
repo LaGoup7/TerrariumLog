@@ -27,7 +27,7 @@ final class Animal {
     /// reçoivent la valeur max+1 existante à la création (voir AnimalFormView).
     var dashboardSortOrder: Int = 0
 
-    /// Masque l'animal de la liste du Dashboard sans le supprimer (voir AnimalVisibilityView).
+    /// Masque l'animal de la liste du Dashboard sans le supprimer (voir DashboardCustomizeView).
     var isHiddenFromDashboard: Bool = false
 
     // Champs colonie (fourmis), utilisés seulement si type == .antColony

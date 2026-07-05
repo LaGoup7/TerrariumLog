@@ -1,6 +1,53 @@
 import SwiftUI
 import SwiftData
 
+/// Blocs modulables du Dashboard : chacun peut être masqué et réordonné depuis
+/// l'écran de personnalisation (bouton unique en haut du Dashboard).
+enum DashboardSection: String, CaseIterable, Identifiable {
+    case reminders
+    case calendar
+    case cameras
+    case lights
+    case terrariums
+    case animals
+
+    var id: String { rawValue }
+
+    var displayName: String {
+        switch self {
+        case .reminders: return "Prochains rappels"
+        case .calendar: return "Calendrier des tâches"
+        case .cameras: return "Caméras"
+        case .lights: return "Lumières"
+        case .terrariums: return "Terrariums"
+        case .animals: return "Animaux"
+        }
+    }
+
+    var symbolName: String {
+        switch self {
+        case .reminders: return "bell"
+        case .calendar: return "calendar"
+        case .cameras: return "video"
+        case .lights: return "lightbulb"
+        case .terrariums: return "leaf"
+        case .animals: return "pawprint"
+        }
+    }
+
+    /// Ordre stocké (persisté en chaîne), complété par les blocs manquants —
+    /// robuste si de nouveaux blocs apparaissent dans une future version.
+    static func order(from raw: String) -> [DashboardSection] {
+        let stored = raw.split(separator: ",").compactMap { DashboardSection(rawValue: String($0)) }
+        let missing = allCases.filter { !stored.contains($0) }
+        return stored + missing
+    }
+
+    static func hidden(from raw: String) -> Set<DashboardSection> {
+        Set(raw.split(separator: ",").compactMap { DashboardSection(rawValue: String($0)) })
+    }
+}
+
 struct DashboardView: View {
     @Environment(\.modelContext) private var context
     @Query(sort: [SortDescriptor<Animal>(\.dashboardSortOrder)]) private var animals: [Animal]
@@ -16,9 +63,19 @@ struct DashboardView: View {
 
     @State private var showingAddReminder = false
     @State private var showingAddLight = false
-    @State private var showingAnimalVisibility = false
+    @State private var showingCustomize = false
     /// Animal choisi pour une observation rapide depuis la barre du Dashboard.
     @State private var observationAnimal: Animal?
+    @AppStorage("dashboardSectionOrder") private var sectionOrderRaw = ""
+    @AppStorage("dashboardHiddenSections") private var hiddenSectionsRaw = ""
+
+    private var orderedSections: [DashboardSection] {
+        DashboardSection.order(from: sectionOrderRaw)
+    }
+
+    private var hiddenSections: Set<DashboardSection> {
+        DashboardSection.hidden(from: hiddenSectionsRaw)
+    }
 
     /// Marges verticales/horizontales uniformes entre toutes les cartes du Dashboard.
     /// Espacement vertical généreux pour aérer la hiérarchie visuelle.
@@ -44,20 +101,8 @@ struct DashboardView: View {
                 .listRowBackground(Color.clear)
                 .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 8, trailing: 16))
 
-                Section {
-                    remindersSection
-                }
-                .listRowSeparator(.hidden)
-                .listRowBackground(Color.clear)
-                .listRowInsets(cardInsets)
-
-                Section {
-                    DashboardCalendarCard(reminders: reminders)
-                }
-                .listRowSeparator(.hidden)
-                .listRowBackground(Color.clear)
-                .listRowInsets(cardInsets)
-
+                // L'alerte de stock reste toujours en tête : c'est une alerte,
+                // pas un bloc décoratif.
                 if !lowStocks.isEmpty {
                     Section {
                         lowStockCard
@@ -67,45 +112,9 @@ struct DashboardView: View {
                     .listRowInsets(cardInsets)
                 }
 
-                if !cameras.isEmpty {
-                    Section {
-                        camerasSection
-                    }
-                    .listRowSeparator(.hidden)
-                    .listRowBackground(Color.clear)
-                    .listRowInsets(cardInsets)
-                }
-
-                Section {
-                    lightsSection
-                }
-                .listRowSeparator(.hidden)
-                .listRowBackground(Color.clear)
-                .listRowInsets(cardInsets)
-
-                if !terrariums.isEmpty {
-                    Section {
-                        terrariumsSection
-                    }
-                    .listRowSeparator(.hidden)
-                    .listRowBackground(Color.clear)
-                    .listRowInsets(cardInsets)
-                }
-
-                Section {
-                    ForEach(visibleAnimals) { animal in
-                        AnimalCardView(animal: animal)
-                            .listRowSeparator(.hidden)
-                            .listRowBackground(Color.clear)
-                            .listRowInsets(cardInsets)
-                    }
-                    .onMove(perform: moveAnimals)
-                } header: {
-                    if !visibleAnimals.isEmpty {
-                        Text("Glisse-dépose pour réordonner")
-                            .textCase(nil)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+                ForEach(orderedSections) { section in
+                    if !hiddenSections.contains(section) {
+                        sectionView(for: section)
                     }
                 }
             }
@@ -132,20 +141,17 @@ struct DashboardView: View {
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
-                        showingAnimalVisibility = true
+                        showingCustomize = true
                     } label: {
-                        Image(systemName: "eye")
+                        Image(systemName: "slider.horizontal.3")
                     }
-                }
-                ToolbarItem(placement: .topBarTrailing) {
-                    EditButton()
                 }
             }
             .sheet(item: $observationAnimal) { animal in
                 JournalEntryView(animal: animal)
             }
-            .sheet(isPresented: $showingAnimalVisibility) {
-                AnimalVisibilityView()
+            .sheet(isPresented: $showingCustomize) {
+                DashboardCustomizeView()
             }
             .sheet(isPresented: $showingAddLight) {
                 LightConfigView()
@@ -153,13 +159,45 @@ struct DashboardView: View {
         }
     }
 
-    private func moveAnimals(from source: IndexSet, to destination: Int) {
-        var reordered = visibleAnimals
-        reordered.move(fromOffsets: source, toOffset: destination)
-        for (index, animal) in reordered.enumerated() {
-            animal.dashboardSortOrder = index
+    /// Rend un bloc du Dashboard avec les modificateurs de rangée standard.
+    /// Les blocs sans contenu (caméras/terrariums vides) restent masqués même
+    /// s'ils sont activés.
+    @ViewBuilder
+    private func sectionView(for section: DashboardSection) -> some View {
+        switch section {
+        case .reminders:
+            listSection { remindersSection }
+        case .calendar:
+            listSection { DashboardCalendarCard(reminders: reminders) }
+        case .cameras:
+            if !cameras.isEmpty {
+                listSection { camerasSection }
+            }
+        case .lights:
+            listSection { lightsSection }
+        case .terrariums:
+            if !terrariums.isEmpty {
+                listSection { terrariumsSection }
+            }
+        case .animals:
+            Section {
+                ForEach(visibleAnimals) { animal in
+                    AnimalCardView(animal: animal)
+                        .listRowSeparator(.hidden)
+                        .listRowBackground(Color.clear)
+                        .listRowInsets(cardInsets)
+                }
+            }
         }
-        try? context.save()
+    }
+
+    private func listSection<Content: View>(@ViewBuilder content: () -> Content) -> some View {
+        Section {
+            content()
+        }
+        .listRowSeparator(.hidden)
+        .listRowBackground(Color.clear)
+        .listRowInsets(cardInsets)
     }
 
     private var brandTitle: some View {
@@ -617,36 +655,105 @@ struct AnimalCardView: View {
     }
 }
 
-struct AnimalVisibilityView: View {
+/// Personnalisation complète du Dashboard : ordre et visibilité des blocs,
+/// ordre et visibilité des animaux — le tout au même endroit (glisser pour
+/// réordonner, interrupteur pour masquer).
+struct DashboardCustomizeView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var context
     @Query(sort: [SortDescriptor<Animal>(\.dashboardSortOrder)]) private var animals: [Animal]
+    @AppStorage("dashboardSectionOrder") private var sectionOrderRaw = ""
+    @AppStorage("dashboardHiddenSections") private var hiddenSectionsRaw = ""
+
+    private var orderedSections: [DashboardSection] {
+        DashboardSection.order(from: sectionOrderRaw)
+    }
+
+    private var hiddenSections: Set<DashboardSection> {
+        DashboardSection.hidden(from: hiddenSectionsRaw)
+    }
 
     var body: some View {
         NavigationStack {
-            List(animals) { animal in
-                Toggle(isOn: Binding(
-                    get: { !animal.isHiddenFromDashboard },
-                    set: { isVisible in
-                        animal.isHiddenFromDashboard = !isVisible
-                        try? context.save()
+            List {
+                Section {
+                    ForEach(orderedSections) { section in
+                        Toggle(isOn: visibilityBinding(for: section)) {
+                            Label(section.displayName, systemImage: section.symbolName)
+                        }
+                        .tint(Brand.primary)
                     }
-                )) {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(animal.name)
-                            .font(.subheadline)
-                        Text(animal.species)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+                    .onMove(perform: moveSections)
+                } header: {
+                    Text("Blocs")
+                } footer: {
+                    Text("Glisse pour réordonner, désactive pour masquer. L'alerte de stock bas reste toujours en tête quand elle est active.")
+                }
+
+                Section {
+                    ForEach(animals) { animal in
+                        Toggle(isOn: Binding(
+                            get: { !animal.isHiddenFromDashboard },
+                            set: { isVisible in
+                                animal.isHiddenFromDashboard = !isVisible
+                                try? context.save()
+                            }
+                        )) {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(animal.name)
+                                    .font(.subheadline)
+                                Text(animal.species)
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                        .tint(Brand.primary)
                     }
+                    .onMove(perform: moveAnimals)
+                } header: {
+                    Text("Animaux")
                 }
             }
-            .navigationTitle("Animaux affichés")
+            // Mode édition permanent : les poignées de réordonnancement sont
+            // toujours visibles, plus besoin d'un bouton Modifier séparé.
+            .environment(\.editMode, .constant(.active))
+            .navigationTitle("Personnaliser")
+            .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Fermer") { dismiss() }
                 }
             }
         }
+    }
+
+    private func visibilityBinding(for section: DashboardSection) -> Binding<Bool> {
+        Binding(
+            get: { !hiddenSections.contains(section) },
+            set: { isVisible in
+                var hidden = hiddenSections
+                if isVisible {
+                    hidden.remove(section)
+                } else {
+                    hidden.insert(section)
+                }
+                hiddenSectionsRaw = hidden.map(\.rawValue).sorted().joined(separator: ",")
+            }
+        )
+    }
+
+    private func moveSections(from source: IndexSet, to destination: Int) {
+        var sections = orderedSections
+        sections.move(fromOffsets: source, toOffset: destination)
+        sectionOrderRaw = sections.map(\.rawValue).joined(separator: ",")
+    }
+
+    private func moveAnimals(from source: IndexSet, to destination: Int) {
+        var reordered = animals
+        reordered.move(fromOffsets: source, toOffset: destination)
+        for (index, animal) in reordered.enumerated() {
+            animal.dashboardSortOrder = index
+        }
+        try? context.save()
     }
 }
