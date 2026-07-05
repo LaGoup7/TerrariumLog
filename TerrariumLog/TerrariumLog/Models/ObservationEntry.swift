@@ -19,6 +19,8 @@ final class ObservationEntry {
     var previousStage: String?
     var newStage: String?
     var moltSuspectedStartDate: Date?
+    /// Taille du corps après la mue (mm) — alimente la courbe de croissance.
+    var moltSizeMM: Double?
 
     var animal: Animal?
 
@@ -35,6 +37,7 @@ final class ObservationEntry {
         previousStage: String? = nil,
         newStage: String? = nil,
         moltSuspectedStartDate: Date? = nil,
+        moltSizeMM: Double? = nil,
         animal: Animal? = nil
     ) {
         self.date = date
@@ -49,6 +52,7 @@ final class ObservationEntry {
         self.previousStage = previousStage
         self.newStage = newStage
         self.moltSuspectedStartDate = moltSuspectedStartDate
+        self.moltSizeMM = moltSizeMM
         self.animal = animal
     }
 }

@@ -24,9 +24,39 @@ struct AnimalDetailView: View {
     @State private var selectedGalleryIndex: Int?
     @State private var selectedGalleryFilter: String?
     @State private var selectedGalleryItems: [PhotosPickerItem] = []
+    @State private var editingJournalEntry: ObservationEntry?
+    @State private var showingEvolutionCompare = false
 
     private var isCameraAvailable: Bool {
         UIImagePickerController.isSourceTypeAvailable(.camera)
+    }
+
+    /// Fiche espèce du catalogue correspondant à cet animal (rapprochement par
+    /// nom scientifique ou espèce, insensible à la casse et aux guillemets de
+    /// localité du pack, ex. « Phidippus regius “Soroa” »).
+    private var matchingSpeciesSheet: SpeciesSheet? {
+        func normalize(_ text: String) -> String {
+            text.lowercased()
+                .replacingOccurrences(of: "“", with: "")
+                .replacingOccurrences(of: "”", with: "")
+                .replacingOccurrences(of: "\"", with: "")
+                .trimmingCharacters(in: .whitespaces)
+        }
+        let candidates = [animal.scientificName, animal.species]
+            .compactMap { $0 }
+            .map(normalize)
+            .filter { !$0.isEmpty }
+        guard !candidates.isEmpty else { return nil }
+
+        return SpeciesSheet.catalog.first { sheet in
+            let sheetName = normalize(sheet.scientificName)
+            // « Genre espèce » sans la localité éventuelle.
+            let sheetBinomial = sheetName.split(separator: " ").prefix(2).joined(separator: " ")
+            return candidates.contains { candidate in
+                sheetName == candidate || sheetBinomial == candidate
+                    || candidate.hasPrefix(sheetBinomial) || sheetName.hasPrefix(candidate)
+            }
+        }
     }
 
     var body: some View {
@@ -150,6 +180,19 @@ struct AnimalDetailView: View {
                 Label(animal.type.displayName, systemImage: animal.type.symbolName)
                     .font(.subheadline)
                     .foregroundStyle(Brand.accent)
+                if let sheet = matchingSpeciesSheet {
+                    NavigationLink {
+                        SpeciesSheetDetailView(sheet: sheet)
+                    } label: {
+                        Label("Fiche espèce · \(sheet.scientificName)", systemImage: "book.closed.fill")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(Brand.primary)
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 6)
+                            .background(Brand.primary.opacity(0.14), in: Capsule())
+                    }
+                    .buttonStyle(.plain)
+                }
             }
 
             HStack {
@@ -316,12 +359,45 @@ struct AnimalDetailView: View {
                 if let average = stats.averageDaysBetweenMolts {
                     LabeledContent("Intervalle moyen", value: "\(Int(average.rounded())) j")
                 }
+                growthChart
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding()
         .background(Brand.surface)
         .clipShape(RoundedRectangle(cornerRadius: 20))
+    }
+
+    /// Courbe de croissance : taille (mm) saisie à chaque mue.
+    @ViewBuilder
+    private var growthChart: some View {
+        let sizedMolts = animal.journalEntries
+            .filter { $0.eventType == ObservationEventType.molt.rawValue && $0.moltSizeMM != nil }
+            .sorted { $0.date < $1.date }
+        if sizedMolts.count >= 2 {
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Croissance (mm)")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Chart(sizedMolts) { molt in
+                    LineMark(
+                        x: .value("Date", molt.date),
+                        y: .value("mm", molt.moltSizeMM ?? 0)
+                    )
+                    .foregroundStyle(Brand.primary)
+                    PointMark(
+                        x: .value("Date", molt.date),
+                        y: .value("mm", molt.moltSizeMM ?? 0)
+                    )
+                    .foregroundStyle(Brand.primary)
+                }
+                .frame(height: 140)
+            }
+        } else if sizedMolts.count == 1 {
+            Text("Renseigne la taille à chaque mue pour tracer la courbe de croissance.")
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+        }
     }
 
     /// Suggestion saisonnière : quand la durée du jour passe sous ~10 h 30 sur
@@ -404,8 +480,14 @@ struct AnimalDetailView: View {
 
     private var journalSection: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("Journal")
-                .font(.headline)
+            HStack {
+                Text("Journal")
+                    .font(.headline)
+                Spacer()
+                Text("Tape une entrée pour la modifier")
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
+            }
             ForEach(animal.journalEntries.filter { !$0.isPhotoOnly }.sorted { $0.date > $1.date }) { entry in
                 HStack(alignment: .top) {
                     VStack(alignment: .leading, spacing: 6) {
@@ -418,7 +500,11 @@ struct AnimalDetailView: View {
                             .font(.caption)
                             .foregroundStyle(.tertiary)
                     }
-                    Spacer()
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        editingJournalEntry = entry
+                    }
                     Button {
                         context.delete(entry)
                         try? context.save()
@@ -434,6 +520,9 @@ struct AnimalDetailView: View {
         .padding()
         .background(Brand.surface)
         .clipShape(RoundedRectangle(cornerRadius: 20))
+        .sheet(item: $editingJournalEntry) { entry in
+            JournalEntryView(animal: animal, editing: entry)
+        }
     }
 
     private var galleryPhotos: [GalleryPhoto] {
@@ -464,6 +553,14 @@ struct AnimalDetailView: View {
                 Text("Galerie")
                     .font(.headline)
                 Spacer()
+                if galleryPhotos.count >= 2 {
+                    Button {
+                        showingEvolutionCompare = true
+                    } label: {
+                        Image(systemName: "square.split.2x1")
+                    }
+                    .buttonStyle(.borderless)
+                }
                 PhotosPicker(selection: $selectedGalleryItems, matching: .images) {
                     Image(systemName: "plus.circle")
                 }
@@ -498,7 +595,7 @@ struct AnimalDetailView: View {
                     ScrollView(.horizontal, showsIndicators: false) {
                         HStack(spacing: 10) {
                             ForEach(Array(photos.enumerated()), id: \.element.id) { index, photo in
-                                if let image = PhotoStorage.shared.loadImage(from: photo.path) {
+                                if let image = ThumbnailStore.shared.thumbnail(for: photo.path, maxDimension: 330) {
                                     Image(uiImage: image)
                                         .resizable()
                                         .scaledToFill()
@@ -530,6 +627,9 @@ struct AnimalDetailView: View {
             set: { if !$0 { selectedGalleryIndex = nil } }
         )) {
             PhotoGalleryViewer(photos: photos, selectedIndex: selectedGalleryIndex ?? 0)
+        }
+        .sheet(isPresented: $showingEvolutionCompare) {
+            EvolutionCompareView(photos: galleryPhotos)
         }
         .onChange(of: selectedGalleryItems) { _, newItems in
             guard !newItems.isEmpty else { return }
@@ -713,6 +813,16 @@ struct AnimalDetailView: View {
                 if let averageDaysBetweenMolts = moltStats.averageDaysBetweenMolts {
                     statRow(label: "Intervalle moyen entre mues", value: String(format: "%.1f j", averageDaysBetweenMolts))
                 }
+                if let averageDaysBetweenMolts = moltStats.averageDaysBetweenMolts,
+                   let lastMoltDate = moltStats.intervals.last?.date {
+                    let estimated = lastMoltDate.addingTimeInterval(averageDaysBetweenMolts * 86400)
+                    statRow(
+                        label: "Prochaine mue estimée",
+                        value: estimated < .now
+                            ? "imminente (\(estimated.formatted(date: .abbreviated, time: .omitted)))"
+                            : "≈ \(estimated.formatted(date: .abbreviated, time: .omitted))"
+                    )
+                }
             }
             statRow(label: "Photos", value: "\(galleryPhotos.count)")
             statRow(label: "Entrées de journal", value: "\(animal.journalEntries.filter { !$0.isPhotoOnly }.count)")
@@ -744,6 +854,8 @@ struct JournalEntryView: View {
     /// Mode Dashboard : l'observation peut être appliquée à plusieurs animaux
     /// à la fois (une entrée de journal est créée pour chacun).
     var allowsMultipleAnimals: Bool = false
+    /// Entrée existante en cours de modification (nil = création).
+    private var editingEntry: ObservationEntry?
 
     @State private var selectedAnimalIDs: Set<PersistentIdentifier>
     @State private var selectedDate = Date()
@@ -763,6 +875,7 @@ struct JournalEntryView: View {
     // Champs mue
     @State private var previousStage: String
     @State private var newStage = ""
+    @State private var moltSize = ""
 
     @State private var showingCamera = false
 
@@ -773,9 +886,37 @@ struct JournalEntryView: View {
     init(animal: Animal, initialEventType: ObservationEventType = .other, allowsMultipleAnimals: Bool = false) {
         self.animal = animal
         self.allowsMultipleAnimals = allowsMultipleAnimals
+        self.editingEntry = nil
         _eventType = State(initialValue: initialEventType)
         _previousStage = State(initialValue: animal.currentStage)
         _selectedAnimalIDs = State(initialValue: [animal.persistentModelID])
+    }
+
+    /// Mode édition : le formulaire est pré-rempli avec l'entrée existante,
+    /// qui sera mise à jour à l'enregistrement.
+    init(animal: Animal, editing entry: ObservationEntry) {
+        self.animal = animal
+        self.allowsMultipleAnimals = false
+        self.editingEntry = entry
+        _eventType = State(initialValue: ObservationEventType(rawValue: entry.eventType) ?? .other)
+        _previousStage = State(initialValue: entry.previousStage ?? animal.currentStage)
+        _selectedAnimalIDs = State(initialValue: [animal.persistentModelID])
+        _selectedDate = State(initialValue: entry.date)
+        _note = State(initialValue: entry.note)
+        _photoPaths = State(initialValue: entry.photoPaths)
+        _preyTypeRawValue = State(initialValue: entry.preyType ?? PreyType.drosophile.rawValue)
+        _preyQuantity = State(initialValue: entry.preyQuantity.map(String.init) ?? "")
+        _eatenStatus = State(initialValue: entry.eatenStatus.flatMap(EatenStatus.init(rawValue:)) ?? .yes)
+        _captureTimeMinutes = State(initialValue: entry.captureTimeMinutes.map { String($0) } ?? "")
+        _newStage = State(initialValue: entry.newStage ?? "")
+        _moltSize = State(initialValue: entry.moltSizeMM.map { value in
+            value.truncatingRemainder(dividingBy: 1) == 0 ? String(Int(value)) : String(value)
+        } ?? "")
+    }
+
+    /// Taille saisie convertie (virgule française acceptée).
+    private var parsedMoltSize: Double? {
+        Double(moltSize.trimmingCharacters(in: .whitespaces).replacingOccurrences(of: ",", with: "."))
     }
 
     /// Animaux visés par l'observation (l'animal d'origine en mode simple).
@@ -860,6 +1001,8 @@ struct JournalEntryView: View {
                     Section("Mue") {
                         TextField("Ancien stade", text: $previousStage)
                         TextField("Nouveau stade", text: $newStage)
+                        TextField("Taille après mue (mm)", text: $moltSize)
+                            .keyboardType(.decimalPad)
                     }
                 }
 
@@ -887,7 +1030,7 @@ struct JournalEntryView: View {
                     }
                 }
             }
-            .navigationTitle("Nouvelle observation")
+            .navigationTitle(editingEntry == nil ? "Nouvelle observation" : "Modifier l'observation")
             .fullScreenCover(isPresented: $showingCamera) {
                 CameraCaptureView { image in
                     if let path = try? PhotoStorage.shared.saveImage(image, for: animal.name) {
@@ -915,6 +1058,26 @@ struct JournalEntryView: View {
                 ToolbarItem(placement: .topBarLeading) { Button("Annuler") { dismiss() } }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("Enregistrer") {
+                        if let editingEntry {
+                            // Mise à jour de l'entrée existante.
+                            editingEntry.date = selectedDate
+                            editingEntry.eventType = eventType.rawValue
+                            editingEntry.note = note
+                            editingEntry.photoPaths = photoPaths
+                            editingEntry.preyType = eventType == .feeding ? preyTypeRawValue : nil
+                            editingEntry.preyQuantity = eventType == .feeding ? Int(preyQuantity) : nil
+                            editingEntry.eatenStatus = eventType == .feeding ? eatenStatus.rawValue : nil
+                            editingEntry.captureTimeMinutes = eventType == .feeding ? Double(captureTimeMinutes) : nil
+                            editingEntry.previousStage = eventType == .molt ? previousStage : nil
+                            editingEntry.newStage = eventType == .molt ? newStage : nil
+                            editingEntry.moltSizeMM = eventType == .molt ? parsedMoltSize : nil
+                            if eventType == .molt, !newStage.isEmpty, animal.type.tracksMolting {
+                                animal.currentStage = newStage
+                            }
+                            try? context.save()
+                            dismiss()
+                            return
+                        }
                         // Une entrée par animal sélectionné (les photos sont
                         // partagées entre les entrées).
                         for target in targetAnimals {
@@ -929,6 +1092,7 @@ struct JournalEntryView: View {
                                 captureTimeMinutes: eventType == .feeding ? Double(captureTimeMinutes) : nil,
                                 previousStage: eventType == .molt ? previousStage : nil,
                                 newStage: eventType == .molt ? newStage : nil,
+                                moltSizeMM: eventType == .molt ? parsedMoltSize : nil,
                                 animal: target
                             )
                             context.insert(entry)

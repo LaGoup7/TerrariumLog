@@ -2,17 +2,27 @@ import SwiftUI
 import SwiftData
 
 struct TimelineView: View {
+    @Environment(\.modelContext) private var context
     @Query(sort: [SortDescriptor<ObservationEntry>(\.date, order: .reverse)]) private var entries: [ObservationEntry]
     @Query(sort: [SortDescriptor<Animal>(\.name)]) private var animals: [Animal]
     @State private var selectedAnimal: Animal?
+    @State private var selectedEventType: String?
     @State private var searchText = ""
     @State private var galleryContext: TimelineGalleryContext?
+    @State private var editingEntry: ObservationEntry?
 
     /// Galerie ouverte depuis les photos d'un événement de la timeline.
     struct TimelineGalleryContext: Identifiable {
         let id = UUID()
         let photos: [GalleryPhoto]
         let index: Int
+    }
+
+    /// Groupe mensuel pour les en-têtes de section.
+    struct MonthGroup: Identifiable {
+        let id: String
+        let title: String
+        let entries: [ObservationEntry]
     }
 
     private var filteredEntries: [ObservationEntry] {
@@ -22,6 +32,9 @@ struct TimelineView: View {
         if let selectedAnimal {
             result = result.filter { $0.animal?.id == selectedAnimal.id }
         }
+        if let selectedEventType {
+            result = result.filter { $0.eventType == selectedEventType }
+        }
         guard !searchText.isEmpty else { return result }
         return result.filter { entry in
             entry.note.localizedCaseInsensitiveContains(searchText) ||
@@ -30,48 +43,64 @@ struct TimelineView: View {
         }
     }
 
+    /// Types d'événements réellement présents (pour les puces de filtre).
+    private var presentEventTypes: [String] {
+        var seen: [String] = []
+        for entry in entries where !entry.isPhotoOnly && !seen.contains(entry.eventType) {
+            seen.append(entry.eventType)
+        }
+        return seen
+    }
+
+    /// Entrées groupées par mois, du plus récent au plus ancien.
+    private var monthGroups: [MonthGroup] {
+        let calendar = Calendar.current
+        let formatter = DateFormatter()
+        formatter.dateFormat = "LLLL yyyy"
+
+        var groups: [String: [ObservationEntry]] = [:]
+        var order: [String] = []
+        for entry in filteredEntries {
+            let components = calendar.dateComponents([.year, .month], from: entry.date)
+            let key = "\(components.year ?? 0)-\(components.month ?? 0)"
+            if groups[key] == nil {
+                order.append(key)
+            }
+            groups[key, default: []].append(entry)
+        }
+        return order.map { key in
+            let sample = groups[key]?.first?.date ?? .now
+            return MonthGroup(
+                id: key,
+                title: formatter.string(from: sample).capitalized,
+                entries: groups[key] ?? []
+            )
+        }
+    }
+
     var body: some View {
         NavigationStack {
-            List(filteredEntries) { entry in
-                HStack(alignment: .top, spacing: 12) {
-                    Image(systemName: icon(for: entry))
-                        .font(.title3)
-                        .foregroundStyle(Brand.accent)
-                        .frame(width: 28)
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(displayName(for: entry))
-                            .font(.subheadline.bold())
-                        if let animalName = entry.animal?.name {
-                            Text(animalName)
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
+            List {
+                if presentEventTypes.count > 1 {
+                    Section {
+                        eventTypeChips
+                    }
+                    .listRowSeparator(.hidden)
+                    .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 0))
+                }
+
+                ForEach(monthGroups) { group in
+                    Section {
+                        ForEach(group.entries) { entry in
+                            entryRow(entry)
                         }
-                        if !entry.note.isEmpty {
-                            Text(entry.note)
-                                .font(.footnote)
-                        }
-                        if !entry.photoPaths.isEmpty {
-                            ScrollView(.horizontal, showsIndicators: false) {
-                                HStack(spacing: 8) {
-                                    ForEach(Array(entry.photoPaths.enumerated()), id: \.offset) { photoIndex, path in
-                                        TimelinePhotoThumbnail(path: path)
-                                            .onTapGesture {
-                                                galleryContext = TimelineGalleryContext(
-                                                    photos: galleryPhotos(for: entry),
-                                                    index: photoIndex
-                                                )
-                                            }
-                                    }
-                                }
-                            }
-                            .padding(.top, 2)
-                        }
-                        Text(entry.date.formatted(date: .abbreviated, time: .shortened))
-                            .font(.caption2)
-                            .foregroundStyle(.tertiary)
+                    } header: {
+                        Text(group.title)
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(Brand.primary)
+                            .textCase(nil)
                     }
                 }
-                .padding(.vertical, 4)
             }
             .navigationTitle("Timeline")
             .searchable(text: $searchText, prompt: "Rechercher dans le journal")
@@ -89,6 +118,101 @@ struct TimelineView: View {
             }
             .fullScreenCover(item: $galleryContext) { context in
                 PhotoGalleryViewer(photos: context.photos, selectedIndex: context.index)
+            }
+            .sheet(item: $editingEntry) { entry in
+                if let animal = entry.animal {
+                    JournalEntryView(animal: animal, editing: entry)
+                }
+            }
+        }
+    }
+
+    /// Puces de filtre par type d'événement.
+    private var eventTypeChips: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                filterChip(label: "Tous", isSelected: selectedEventType == nil) {
+                    selectedEventType = nil
+                }
+                ForEach(presentEventTypes, id: \.self) { eventType in
+                    filterChip(
+                        label: ObservationEventType(rawValue: eventType)?.displayName ?? eventType,
+                        isSelected: selectedEventType == eventType
+                    ) {
+                        selectedEventType = selectedEventType == eventType ? nil : eventType
+                    }
+                }
+            }
+            .padding(.trailing, 16)
+        }
+    }
+
+    private func filterChip(label: String, isSelected: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Text(label)
+                .font(.caption)
+                .foregroundStyle(isSelected ? Brand.primary : Color.primary)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 6)
+                .background(isSelected ? Brand.primary.opacity(0.18) : Brand.surfaceElevated)
+                .clipShape(Capsule())
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func entryRow(_ entry: ObservationEntry) -> some View {
+        HStack(alignment: .top, spacing: 12) {
+            Image(systemName: icon(for: entry))
+                .font(.title3)
+                .foregroundStyle(Brand.accent)
+                .frame(width: 28)
+            VStack(alignment: .leading, spacing: 4) {
+                Text(displayName(for: entry))
+                    .font(.subheadline.bold())
+                if let animalName = entry.animal?.name {
+                    Text(animalName)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                if !entry.note.isEmpty {
+                    Text(entry.note)
+                        .font(.footnote)
+                }
+                if !entry.photoPaths.isEmpty {
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 8) {
+                            ForEach(Array(entry.photoPaths.enumerated()), id: \.offset) { photoIndex, path in
+                                TimelinePhotoThumbnail(path: path)
+                                    .onTapGesture {
+                                        galleryContext = TimelineGalleryContext(
+                                            photos: galleryPhotos(for: entry),
+                                            index: photoIndex
+                                        )
+                                    }
+                            }
+                        }
+                    }
+                    .padding(.top, 2)
+                }
+                Text(entry.date.formatted(date: .abbreviated, time: .shortened))
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
+            }
+        }
+        .padding(.vertical, 4)
+        .contextMenu {
+            if entry.animal != nil {
+                Button {
+                    editingEntry = entry
+                } label: {
+                    Label("Modifier", systemImage: "pencil")
+                }
+            }
+            Button(role: .destructive) {
+                context.delete(entry)
+                try? context.save()
+            } label: {
+                Label("Supprimer", systemImage: "trash")
             }
         }
     }

@@ -86,6 +86,7 @@ struct ObservationEntryDTO: Codable {
     var previousStage: String?
     var newStage: String?
     var moltSuspectedStartDate: Date?
+    var moltSizeMM: Double?
 }
 
 struct ReminderDTO: Codable {

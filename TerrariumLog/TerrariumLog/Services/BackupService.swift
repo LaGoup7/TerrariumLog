@@ -143,7 +143,8 @@ struct BackupService {
             captureTimeMinutes: entry.captureTimeMinutes,
             previousStage: entry.previousStage,
             newStage: entry.newStage,
-            moltSuspectedStartDate: entry.moltSuspectedStartDate
+            moltSuspectedStartDate: entry.moltSuspectedStartDate,
+            moltSizeMM: entry.moltSizeMM
         )
     }
 
@@ -345,6 +346,7 @@ struct BackupService {
                 previousStage: entryDTO.previousStage,
                 newStage: entryDTO.newStage,
                 moltSuspectedStartDate: entryDTO.moltSuspectedStartDate,
+                moltSizeMM: entryDTO.moltSizeMM,
                 animal: animal
             )
             context.insert(entry)
