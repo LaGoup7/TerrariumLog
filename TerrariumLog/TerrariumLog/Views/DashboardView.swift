@@ -275,9 +275,6 @@ struct DashboardView: View {
                             Circle()
                                 .fill(light.isConfigured ? Brand.primary : Brand.warning)
                                 .frame(width: 8, height: 8)
-                            Image(systemName: "chevron.right")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
                         }
                     }
                     .contextMenu {
@@ -310,9 +307,6 @@ struct DashboardView: View {
                                 .foregroundStyle(.secondary)
                         }
                         Spacer()
-                        Image(systemName: "chevron.right")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
                     }
                 }
             }

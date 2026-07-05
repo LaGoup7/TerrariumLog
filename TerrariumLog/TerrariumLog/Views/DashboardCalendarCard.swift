@@ -38,9 +38,6 @@ struct DashboardCalendarCard: View {
             Text(Date.now.formatted(.dateTime.month(.wide)).capitalized)
                 .font(.subheadline.weight(.medium))
                 .foregroundStyle(Brand.textSecondary)
-            Image(systemName: "chevron.right")
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(Brand.textSecondary)
         }
     }
 
