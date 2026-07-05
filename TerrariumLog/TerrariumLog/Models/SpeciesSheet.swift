@@ -1,80 +1,123 @@
 import Foundation
 
-/// Fiche d'élevage d'une espèce : paramètres d'environnement recommandés et
-/// conseils clés. Sert de référence (Réglages → Fiches espèces) et pré-remplit
-/// les plages cibles d'un terrarium en un tap.
-///
-/// Valeurs issues des fourchettes communément admises en élevage amateur —
-/// à ajuster selon la localité et les retours de l'animal.
+/// Fiche d'élevage d'une espèce, chargée depuis le pack embarqué
+/// `SpeciesData/fiches_animaux.txt` (20 champs par fiche, format
+/// « - Libellé : valeur », blocs séparés par des lignes vides).
+/// Les paramètres sont des plages de travail indicatives, à adapter au stade,
+/// à la ventilation réelle et à l'observation de l'animal.
 struct SpeciesSheet: Identifiable {
-    let name: String
     let scientificName: String
-    let temperatureMin: Double
-    let temperatureMax: Double
-    let humidityMin: Double
-    let humidityMax: Double
-    /// Fréquence de nourrissage indicative, texte libre.
-    let feeding: String
-    let notes: String
+    let commonName: String
+    let classification: String
+    let origin: String
+    let biotope: String
+    let adultSize: String
+    let lifespan: String
+    let temperatureText: String
+    let humidityText: String
+    let enclosureMin: String
+    let substrate: String
+    let furnishing: String
+    let food: String
+    let feedingFrequency: String
+    let water: String
+    let behavior: String
+    let reproduction: String
+    let difficulty: String
+    let remarks: String
+    /// Nom du fichier image dans le bundle (sans dossier), s'il existe.
+    let imageName: String?
 
     var id: String { scientificName }
 
-    static let catalog: [SpeciesSheet] = [
-        SpeciesSheet(
-            name: "Araignée sauteuse royale",
-            scientificName: "Phidippus regius",
-            temperatureMin: 24, temperatureMax: 28,
-            humidityMin: 55, humidityMax: 70,
-            feeding: "Tous les 2-4 j (juvénile), 4-7 j (adulte)",
-            notes: "Diurne, a besoin de lumière (12 h/j) et de hauteur pour ses toiles de repos. Suspendre le nourrissage en pré-mue. Brumiser légèrement un coin le soir."
-        ),
-        SpeciesSheet(
-            name: "Araignée sauteuse audacieuse",
-            scientificName: "Phidippus audax",
-            temperatureMin: 21, temperatureMax: 26,
-            humidityMin: 50, humidityMax: 65,
-            feeding: "Tous les 3-5 j",
-            notes: "Plus tolérante au frais que P. regius. Mêmes besoins de lumière et de hauteur."
-        ),
-        SpeciesSheet(
-            name: "Fourmi noire des jardins",
-            scientificName: "Lasius niger",
-            temperatureMin: 21, temperatureMax: 26,
-            humidityMin: 50, humidityMax: 65,
-            feeding: "Eau miellée 2-3×/sem., protéines 1-2×/sem.",
-            notes: "Diapause obligatoire de novembre à mars (8-12 °C, cave ou frigo ventilé). Croissance rapide dès la 2e année."
-        ),
-        SpeciesSheet(
-            name: "Fourmi jaune",
-            scientificName: "Lasius flavus",
-            temperatureMin: 18, temperatureMax: 24,
-            humidityMin: 60, humidityMax: 75,
-            feeding: "Eau miellée 2×/sem., petites proies molles",
-            notes: "Espèce souterraine discrète : nid sombre et humide indispensable. Diapause obligatoire de novembre à mars. Fondation lente, patience !"
-        ),
-        SpeciesSheet(
-            name: "Fourmi moissonneuse",
-            scientificName: "Messor barbarus",
-            temperatureMin: 21, temperatureMax: 28,
-            humidityMin: 30, humidityMax: 50,
-            feeding: "Graines à volonté, insecte occasionnel",
-            notes: "Fait son pain de graines : aire de fourragement sèche, nid légèrement humide. Diapause douce (12-15 °C) de décembre à février."
-        ),
-        SpeciesSheet(
-            name: "Gecko léopard",
-            scientificName: "Eublepharis macularius",
-            temperatureMin: 24, temperatureMax: 32,
-            humidityMin: 30, humidityMax: 45,
-            feeding: "Tous les 2 j (juvénile), 2-3×/sem. (adulte)",
-            notes: "Point chaud à 31-32 °C, zone fraîche à 24 °C. Boîte humide indispensable pour la mue. Supplémentation calcium/D3."
-        ),
-        SpeciesSheet(
-            name: "Dendrobate",
-            scientificName: "Dendrobates tinctorius",
-            temperatureMin: 22, temperatureMax: 26,
-            humidityMin: 80, humidityMax: 100,
-            feeding: "Drosophiles poudrées, tous les 1-2 j",
-            notes: "Hygrométrie très élevée obligatoire (brumisation quotidienne, drainage). Jamais au-dessus de 28 °C."
-        )
-    ]
+    /// Compatibilité avec l'UI existante (menu de pré-remplissage).
+    var name: String { commonName }
+
+    /// Première plage « min–max » trouvée dans le texte de température.
+    var temperatureRange: (min: Double, max: Double)? {
+        Self.firstRange(in: temperatureText)
+    }
+
+    var humidityRange: (min: Double, max: Double)? {
+        Self.firstRange(in: humidityText)
+    }
+
+    static func firstRange(in text: String) -> (min: Double, max: Double)? {
+        // Tirets demi-cadratin (–) ou simple (-) acceptés.
+        let pattern = #"(\d+(?:[.,]\d+)?)\s*[–-]\s*(\d+(?:[.,]\d+)?)"#
+        guard let regex = try? NSRegularExpression(pattern: pattern),
+              let match = regex.firstMatch(in: text, range: NSRange(text.startIndex..., in: text)),
+              let minRange = Range(match.range(at: 1), in: text),
+              let maxRange = Range(match.range(at: 2), in: text),
+              let minValue = Double(text[minRange].replacingOccurrences(of: ",", with: ".")),
+              let maxValue = Double(text[maxRange].replacingOccurrences(of: ",", with: "."))
+        else { return nil }
+        return (minValue, maxValue)
+    }
+
+    static let catalog: [SpeciesSheet] = loadBundledCatalog()
+
+    static func loadBundledCatalog() -> [SpeciesSheet] {
+        guard let url = Bundle.main.url(forResource: "fiches_animaux", withExtension: "txt"),
+              let content = try? String(contentsOf: url, encoding: .utf8) else {
+            return []
+        }
+        return parse(content)
+    }
+
+    /// Parse le format du pack : lignes « - Libellé : valeur », fiches
+    /// séparées par une ou plusieurs lignes vides. Tolérant aux deux
+    /// apostrophes (« d'élevage » / « d’élevage ») et aux champs manquants.
+    static func parse(_ content: String) -> [SpeciesSheet] {
+        let blocks = content
+            .replacingOccurrences(of: "\r\n", with: "\n")
+            .components(separatedBy: "\n\n")
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+
+        return blocks.compactMap { block in
+            var fields: [String: String] = [:]
+            for line in block.split(separator: "\n") {
+                var text = line.trimmingCharacters(in: .whitespaces)
+                guard text.hasPrefix("-") else { continue }
+                text = String(text.dropFirst()).trimmingCharacters(in: .whitespaces)
+                guard let separator = text.range(of: " : ") ?? text.range(of: " :") else { continue }
+                let label = String(text[..<separator.lowerBound])
+                    .trimmingCharacters(in: .whitespaces)
+                    .replacingOccurrences(of: "’", with: "'")
+                let value = String(text[separator.upperBound...]).trimmingCharacters(in: .whitespaces)
+                fields[label] = value
+            }
+
+            guard let scientific = fields["Nom scientifique"], !scientific.isEmpty else { return nil }
+
+            let rawImage = fields["Image"] ?? ""
+            let imageName = rawImage.isEmpty
+                ? nil
+                : String(rawImage.split(separator: "/").last ?? "")
+
+            return SpeciesSheet(
+                scientificName: scientific,
+                commonName: fields["Nom commun"] ?? scientific,
+                classification: fields["Classification"] ?? "",
+                origin: fields["Origine géographique"] ?? "",
+                biotope: fields["Biotope naturel"] ?? "",
+                adultSize: fields["Taille adulte"] ?? "",
+                lifespan: fields["Espérance de vie"] ?? "",
+                temperatureText: fields["Température"] ?? "",
+                humidityText: fields["Hygrométrie"] ?? "",
+                enclosureMin: fields["Terrarium (taille minimale)"] ?? "",
+                substrate: fields["Substrat"] ?? "",
+                furnishing: fields["Aménagements"] ?? "",
+                food: fields["Nourriture"] ?? "",
+                feedingFrequency: fields["Fréquence de nourrissage"] ?? "",
+                water: fields["Eau"] ?? "",
+                behavior: fields["Comportement"] ?? "",
+                reproduction: fields["Reproduction"] ?? "",
+                difficulty: fields["Difficulté d'élevage"] ?? "",
+                remarks: fields["Remarques importantes"] ?? "",
+                imageName: imageName
+            )
+        }
+    }
 }

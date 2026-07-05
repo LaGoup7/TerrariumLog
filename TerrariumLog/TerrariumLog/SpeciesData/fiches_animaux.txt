@@ -1,0 +1,544 @@
+- Nom scientifique : Phidippus regius “Soroa”
+- Nom commun : Araignée sauteuse royale “Soroa”
+- Classification : Arachnida, Araneae, Salticidae
+- Origine géographique : Caraïbes ; la mention « Soroa » correspond à une localité d’élevage cubaine
+- Biotope naturel : Milieux ouverts tropicaux et subtropicaux, lisières, buissons, troncs, palmes et structures verticales ensoleillées
+- Taille adulte : Femelle env. 12–22 mm ; mâle env. 6–18 mm
+- Espérance de vie : Femelle 2–3 ans ; mâle souvent 1–2 ans
+- Température : 22–28 °C, avec un optimum courant autour de 24–26 °C
+- Hygrométrie : 60–75 %, avec excellente ventilation et alternance légère humide/sec
+- Terrarium (taille minimale) : 15 × 15 × 20 cm minimum pour un adulte ; 20 × 20 × 30 cm offre davantage de marge
+- Substrat : Substrat léger retenant modérément l’humidité : fibre de coco, terreau sans engrais ou mélange bioactif
+- Aménagements : Branches fines, écorce, feuillage et cachettes surtout en hauteur ; préserver la zone du nid lors de l’entretien
+- Nourriture : Drosophiles pour les jeunes ; mouches, petits grillons et petites blattes adaptées à la taille
+- Fréquence de nourrissage : Jeunes : petites proies 3 à 5 fois par semaine ; adultes : 1 à 3 repas par semaine selon abdomen, température et activité
+- Eau : Brumisation légère sur une paroi 1 à 3 fois par semaine ; éviter l’eau stagnante et les grosses gouttes sur l’animal
+- Comportement : Diurne, visuelle, curieuse et active ; chasse à vue ; généralement peu défensive mais la manipulation reste à limiter
+- Reproduction : La femelle construit un cocon de ponte dans un nid de soie ; plusieurs pontes peuvent suivre un seul accouplement
+- Difficulté d’élevage : Facile à intermédiaire
+- Remarques importantes : La forme « Soroa » doit être traitée comme une localité/morph d’élevage et non comme une sous-espèce formellement décrite ; ventilation et accès à la lumière du jour indirecte sont essentiels.
+- Image : images/01_phidippus_regius_soroa.jpg
+
+- Nom scientifique : Carausius morosus
+- Nom commun : Phasme morose / phasme indien
+- Classification : Insecta, Phasmatodea, Lonchodidae
+- Origine géographique : Sud de l’Inde ; espèce largement diffusée en élevage et introduite localement ailleurs
+- Biotope naturel : Végétation arbustive et forestière chaude, où l’animal se dissimule dans le feuillage
+- Taille adulte : Femelle env. 8–10 cm ; mâle plus petit et très rare en élevage
+- Espérance de vie : Environ 8–15 mois selon les conditions
+- Température : 20–25 °C ; tolère une température ambiante domestique stable
+- Hygrométrie : 60–75 %, avec bonne aération
+- Terrarium (taille minimale) : 30 × 30 × 45 cm pour un petit groupe
+- Substrat : Papier absorbant pour un entretien simple ou substrat organique peu profond ; éviter l’excès d’eau
+- Aménagements : Bouquet de plantes nourricières, branches verticales et espace libre sous les zones de repos pour permettre les mues
+- Nourriture : Ronce, lierre, rosier, framboisier et autres plantes nourricières reconnues non traitées
+- Fréquence de nourrissage : Feuillage frais disponible en permanence, renouvelé avant dessèchement
+- Eau : Pulvérisation légère 2 à 4 fois par semaine selon ventilation ; les animaux boivent les gouttelettes
+- Comportement : Nocturne, très calme, grégaire et robuste ; réflexe d’immobilité fréquent
+- Reproduction : Reproduction généralement parthénogénétique en élevage ; œufs laissés tomber au sol et incubation longue
+- Difficulté d’élevage : Très facile
+- Remarques importantes : Toujours laver et identifier les plantes nourricières ; ne jamais utiliser de végétaux exposés aux pesticides ou aux traitements routiers.
+- Image : images/02_carausius_morosus.jpg
+
+- Nom scientifique : Extatosoma tiaratum
+- Nom commun : Phasme scorpion
+- Classification : Insecta, Phasmatodea, Phasmatidae
+- Origine géographique : Australie, surtout Queensland et nord-est de l’Australie
+- Biotope naturel : Forêts et lisières arborées où il imite feuilles sèches, rameaux et écorces
+- Taille adulte : Femelle env. 12–15 cm, massive ; mâle env. 9–11 cm, plus fin et ailé
+- Espérance de vie : Environ 12–18 mois, parfois davantage chez les femelles
+- Température : 22–26 °C
+- Hygrométrie : 60–80 %, avec cycles et ventilation pour éviter une ambiance constamment détrempée
+- Terrarium (taille minimale) : 40 × 40 × 60 cm pour un petit groupe d’adultes
+- Substrat : Substrat absorbant ou mélange organique ; garder propre autour des plantes nourricières
+- Aménagements : Nombreuses branches verticales et obliques ; grande hauteur libre pour les mues
+- Nourriture : Ronce, eucalyptus adapté, rosier et framboisier selon disponibilité locale et acceptation
+- Fréquence de nourrissage : Feuillage frais disponible en permanence
+- Eau : Brumisation légère régulière sur le feuillage, sans saturer le terrarium
+- Comportement : Calme mais impressionnant ; la femelle adopte une posture défensive recourbée ; le mâle peut voler
+- Reproduction : Reproduction sexuée ou parthénogénétique ; œufs déposés au sol, incubation souvent longue
+- Difficulté d’élevage : Intermédiaire
+- Remarques importantes : Les mues sont le principal moment à risque : hauteur, accroches et ventilation doivent être irréprochables.
+- Image : images/03_extatosoma_tiaratum.jpg
+
+- Nom scientifique : Sungaya inexpectata
+- Nom commun : Phasme de Sungay
+- Classification : Insecta, Phasmatodea, Heteropterygidae
+- Origine géographique : Philippines, île de Luçon
+- Biotope naturel : Sous-bois tropicaux humides, litière et végétation basse
+- Taille adulte : Femelle env. 8–10 cm ; mâle env. 5–6 cm
+- Espérance de vie : Environ 12–18 mois
+- Température : 22–26 °C
+- Hygrométrie : 65–80 %, avec ventilation permanente
+- Terrarium (taille minimale) : 30 × 30 × 45 cm pour un petit groupe
+- Substrat : Fibre de coco, terreau sans engrais et feuilles mortes ; profondeur modérée utile pour les œufs
+- Aménagements : Branches, écorces, feuillage dense et zones de repos verticales
+- Nourriture : Ronce, framboisier, rosier, chêne et autres plantes acceptées selon la souche
+- Fréquence de nourrissage : Feuillage frais disponible en permanence
+- Eau : Pulvérisation légère 3 à 5 fois par semaine selon ventilation et saison
+- Comportement : Nocturne, calme, assez discret ; vie en groupe possible avec espace et nourriture suffisants
+- Reproduction : Œufs déposés dans ou sur le substrat ; reproduction sexuée, avec des souches pouvant présenter des particularités d’élevage
+- Difficulté d’élevage : Facile à intermédiaire
+- Remarques importantes : Maintenir humide ne signifie pas détrempé : la moisissure et l’air stagnant sont à éviter.
+- Image : images/04_sungaya_inexpectata.jpg
+
+- Nom scientifique : Medauroidea extradentata
+- Nom commun : Phasme vietnamien / phasme d’Annam
+- Classification : Insecta, Phasmatodea, Phasmatidae
+- Origine géographique : Vietnam
+- Biotope naturel : Végétation tropicale et subtropicale, buissons et lisières
+- Taille adulte : Femelle env. 9–11 cm ; mâle env. 7–8 cm
+- Espérance de vie : Environ 8–14 mois
+- Température : 20–25 °C
+- Hygrométrie : 60–75 %, avec bonne ventilation
+- Terrarium (taille minimale) : 30 × 30 × 45 cm pour un petit groupe
+- Substrat : Papier absorbant ou substrat organique simple et propre
+- Aménagements : Branches verticales et bouquets de plantes nourricières laissant une grande hauteur de mue
+- Nourriture : Ronce, lierre, rosier, troène et framboisier selon acceptation
+- Fréquence de nourrissage : Feuillage frais en permanence
+- Eau : Brumisation légère 2 à 4 fois par semaine
+- Comportement : Calme, nocturne et robuste ; espèce adaptée à l’observation et aux débutants
+- Reproduction : Souvent parthénogénétique en élevage ; ponte abondante, œufs laissés tomber au sol
+- Difficulté d’élevage : Très facile
+- Remarques importantes : Surveiller la surpopulation : une souche parthénogénétique peut produire beaucoup de jeunes.
+- Image : images/05_medauroidea_extradentata.jpg
+
+- Nom scientifique : Heterometrus silenus
+- Nom commun : Scorpion forestier asiatique
+- Classification : Arachnida, Scorpiones, Scorpionidae
+- Origine géographique : Asie du Sud-Est
+- Biotope naturel : Forêts tropicales humides, terriers sous les racines, bois mort et pierres
+- Taille adulte : Environ 10–15 cm
+- Espérance de vie : Souvent 5–8 ans, parfois davantage avec de bonnes conditions
+- Température : 24–28 °C, légère baisse nocturne possible
+- Hygrométrie : 75–85 %, sans stagnation d’air
+- Terrarium (taille minimale) : 30 × 30 × 30 cm pour un adulte ; plus grand pour un couple ou un groupe uniquement avec expérience
+- Substrat : 10–15 cm minimum de mélange terreux compactable : terre sans engrais, fibre de coco, feuilles mortes et argile légère
+- Aménagements : Cachette sombre, écorce de liège, terrier amorcé et zones de substrat permettant de creuser
+- Nourriture : Grillons, blattes et autres invertébrés d’élevage adaptés à la taille
+- Fréquence de nourrissage : Adulte : 1 proie adaptée tous les 7 à 14 jours ; jeunes plus souvent en petites portions
+- Eau : Coupelle d’eau peu profonde disponible en permanence
+- Comportement : Nocturne, fouisseur et défensif si dérangé ; ne pas manipuler
+- Reproduction : Vivipare ; gestation longue et jeunes portés sur le dos de la mère jusqu’à la première mue
+- Difficulté d’élevage : Intermédiaire
+- Remarques importantes : Même si le venin est généralement considéré comme moins préoccupant que celui de nombreuses espèces médicalement importantes, toute piqûre doit être évitée ; utiliser pinces longues et protocole anti-évasion.
+- Image : images/06_heterometrus_silenus.jpg
+
+- Nom scientifique : Pandinus imperator
+- Nom commun : Scorpion empereur
+- Classification : Arachnida, Scorpiones, Scorpionidae
+- Origine géographique : Afrique de l’Ouest tropicale
+- Biotope naturel : Forêts humides et savanes boisées, terriers profonds sous racines et débris
+- Taille adulte : Environ 15–20 cm
+- Espérance de vie : Environ 6–10 ans
+- Température : 24–28 °C
+- Hygrométrie : 75–85 %, avec ventilation correcte
+- Terrarium (taille minimale) : 30 × 30 × 30 cm pour un adulte ; davantage d’espace pour toute cohabitation
+- Substrat : 15 cm ou plus de substrat terreux compactable, enrichi en feuilles mortes
+- Aménagements : Terrier amorcé, liège, cachette stable et zone d’eau accessible
+- Nourriture : Grillons, blattes, criquets adaptés et autres invertébrés d’élevage
+- Fréquence de nourrissage : 1 repas tous les 7 à 14 jours chez l’adulte, à adapter à l’état corporel
+- Eau : Coupelle d’eau stable et peu profonde en permanence
+- Comportement : Nocturne et fouisseur ; peut pincer et piquer ; manipulation déconseillée
+- Reproduction : Vivipare ; la femelle porte les jeunes sur son dos après la naissance
+- Difficulté d’élevage : Intermédiaire
+- Remarques importantes : Espèce réglementée au commerce international par la CITES ; vérifier la légalité et conserver les justificatifs d’origine.
+- Image : images/07_pandinus_imperator.jpg
+
+- Nom scientifique : Archispirostreptus gigas
+- Nom commun : Iule géant africain
+- Classification : Diplopoda, Spirostreptida, Spirostreptidae
+- Origine géographique : Afrique de l’Est et zones voisines
+- Biotope naturel : Forêts, savanes boisées et sols riches en litière organique
+- Taille adulte : Environ 20–30 cm
+- Espérance de vie : Souvent 5–10 ans
+- Température : 23–27 °C
+- Hygrométrie : 70–85 %, avec gradient humide et aéré
+- Terrarium (taille minimale) : 45 × 30 × 30 cm pour un petit groupe, avec forte profondeur de substrat
+- Substrat : 15–20 cm ou plus de mélange de feuilles mortes décomposées, bois blanc pourri et terre forestière sûre ; le substrat est aussi la nourriture principale
+- Aménagements : Écorces, mousse localisée, feuilles mortes et cachettes ; laisser une grande surface de fouissage
+- Nourriture : Principalement feuilles mortes et bois blanc décomposé ; compléments végétaux occasionnels et source de calcium
+- Fréquence de nourrissage : Nourriture de fond disponible en permanence ; compléments 1 à 3 fois par semaine en petites quantités
+- Eau : Humidifier une partie du substrat ; petite coupelle possible si stable et très peu profonde
+- Comportement : Paisible, détritivore et fouisseur ; peut émettre un liquide défensif irritant
+- Reproduction : Ponte dans le substrat ; développement lent avec nombreux stades
+- Difficulté d’élevage : Facile
+- Remarques importantes : Ne pas utiliser de bois résineux ni de substrat stérile pauvre : l’animal dépend de matière végétale fortement décomposée.
+- Image : images/08_archispirostreptus_gigas.jpg
+
+- Nom scientifique : Tliltocatl albopilosus
+- Nom commun : Mygale à poils bouclés
+- Classification : Arachnida, Araneae, Theraphosidae
+- Origine géographique : Amérique centrale, notamment Nicaragua et Costa Rica selon les populations
+- Biotope naturel : Forêts tropicales sèches à humides saisonnières, terriers et abris au sol
+- Taille adulte : Envergure env. 12–16 cm
+- Espérance de vie : Femelle 15–20 ans ou plus ; mâle env. 4–6 ans
+- Température : 22–26 °C
+- Hygrométrie : 60–75 %, avec partie du substrat légèrement humide et bonne ventilation
+- Terrarium (taille minimale) : 30 × 30 × 30 cm pour une femelle adulte
+- Substrat : 8–12 cm de terreau sans engrais, fibre de coco et argile légère, compactable
+- Aménagements : Cachette au sol, liège, terrier amorcé et coupelle d’eau
+- Nourriture : Blattes, grillons, criquets adaptés à la taille
+- Fréquence de nourrissage : Adulte : une proie adaptée tous les 7 à 14 jours ; jeunes plus fréquemment
+- Eau : Coupelle d’eau disponible en permanence ; humidifier localement sans détremper
+- Comportement : Terrestre, généralement calme et lente, mais peut lancer des poils urticants
+- Reproduction : Oothèque gardée par la femelle ; reproduction réservée aux éleveurs préparés à gérer de nombreux jeunes
+- Difficulté d’élevage : Facile
+- Remarques importantes : Risque de chute grave pour une mygale terrestre : limiter la hauteur libre au-dessus du substrat et éviter toute manipulation.
+- Image : images/09_tliltocatl_albopilosus.jpg
+
+- Nom scientifique : Grammostola pulchripes
+- Nom commun : Mygale du Chaco à genoux dorés
+- Classification : Arachnida, Araneae, Theraphosidae
+- Origine géographique : Paraguay et régions voisines du Chaco
+- Biotope naturel : Prairies sèches, savanes et terriers terrestres
+- Taille adulte : Envergure env. 15–20 cm
+- Espérance de vie : Femelle 20 ans ou plus ; mâle souvent 5–8 ans
+- Température : 20–26 °C
+- Hygrométrie : 50–70 %, ambiance plutôt sèche avec zone légèrement humide
+- Terrarium (taille minimale) : 30 × 30 × 30 cm minimum pour une adulte
+- Substrat : 10 cm environ de substrat terreux compactable
+- Aménagements : Cachette au sol, liège, terrier amorcé et coupelle d’eau
+- Nourriture : Blattes, grillons et criquets adaptés
+- Fréquence de nourrissage : Adulte : 1 repas tous les 7 à 14 jours, moins en pré-mue ou chez un animal très corpulent
+- Eau : Coupelle d’eau toujours disponible ; humidification localisée occasionnelle
+- Comportement : Calme, lente et excellente espèce d’observation ; poils urticants possibles
+- Reproduction : Oothèque gardée par la femelle ; croissance relativement lente
+- Difficulté d’élevage : Facile
+- Remarques importantes : Ne pas forcer l’alimentation : cette espèce peut jeûner longtemps, notamment avant une mue.
+- Image : images/10_grammostola_pulchripes.jpg
+
+- Nom scientifique : Chromatopelma cyaneopubescens
+- Nom commun : Mygale verte-bouteille / Green Bottle Blue
+- Classification : Arachnida, Araneae, Theraphosidae
+- Origine géographique : Péninsule de Paraguaná, Venezuela
+- Biotope naturel : Milieux xériques et broussailleux secs, abris bas fortement toilés
+- Taille adulte : Envergure env. 12–15 cm
+- Espérance de vie : Femelle env. 12–15 ans ; mâle env. 3–5 ans
+- Température : 24–28 °C
+- Hygrométrie : 40–60 %, ambiance sèche et très bien ventilée
+- Terrarium (taille minimale) : 30 × 30 × 30 cm minimum
+- Substrat : Substrat sec à légèrement humide en profondeur, terreux et stable
+- Aménagements : Nombreux points d’ancrage : liège, branchettes, plantes artificielles ou sèches, cachette basse
+- Nourriture : Blattes, grillons et criquets adaptés
+- Fréquence de nourrissage : Adulte : 1 proie tous les 7 à 10 jours environ, à ajuster
+- Eau : Coupelle d’eau permanente ; éviter les pulvérisations excessives
+- Comportement : Rapide, très active et fortement tisseuse ; plutôt à observer qu’à manipuler
+- Reproduction : Oothèque gardée par la femelle ; croissance assez rapide comparée à des Grammostola
+- Difficulté d’élevage : Intermédiaire
+- Remarques importantes : Le principal danger en élevage est l’excès d’humidité combiné à un manque de ventilation.
+- Image : images/11_chromatopelma_cyaneopubescens.jpg
+
+- Nom scientifique : Caribena versicolor
+- Nom commun : Mygale antillaise / mygale de Martinique
+- Classification : Arachnida, Araneae, Theraphosidae
+- Origine géographique : Martinique
+- Biotope naturel : Forêts tropicales, végétation et abris arboricoles
+- Taille adulte : Envergure env. 11–15 cm
+- Espérance de vie : Femelle env. 10–12 ans ; mâle env. 2–4 ans
+- Température : 24–27 °C
+- Hygrométrie : 65–80 %, mais jamais au prix d’un air stagnant
+- Terrarium (taille minimale) : 30 × 30 × 45 cm vertical pour une adulte
+- Substrat : Fine couche de substrat drainant et légèrement humide selon le cycle ; ne pas saturer
+- Aménagements : Tube de liège vertical, branches et nombreux points d’ancrage pour la toile
+- Nourriture : Petits grillons, blattes et proies adaptées ; jeunes sur petites proies
+- Fréquence de nourrissage : Jeunes : petites proies 2 à 3 fois par semaine ; adultes : environ 1 fois par semaine
+- Eau : Coupelle d’eau pour les adultes ; brumisation légère localisée selon ventilation
+- Comportement : Arboricole, vive et capable de bonds rapides ; belle espèce mais sensible à une mauvaise ventilation
+- Reproduction : Oothèque gardée dans une retraite de soie ; reproduction à planifier avec débouché pour les jeunes
+- Difficulté d’élevage : Intermédiaire
+- Remarques importantes : La ventilation croisée est prioritaire ; une forte hygrométrie sans renouvellement d’air est risquée.
+- Image : images/12_caribena_versicolor.jpg
+
+- Nom scientifique : Damon diadema
+- Nom commun : Amblypyge / araignée-fouet sans queue
+- Classification : Arachnida, Amblypygi, Phrynichidae
+- Origine géographique : Afrique de l’Est, notamment Kenya et Tanzanie
+- Biotope naturel : Grottes, anfractuosités rocheuses, troncs et parois humides à l’abri de la lumière
+- Taille adulte : Corps env. 4–5 cm ; envergure avec pattes pouvant dépasser 20 cm
+- Espérance de vie : Souvent 5–10 ans en captivité
+- Température : 24–28 °C
+- Hygrométrie : 70–85 %, avec air renouvelé
+- Terrarium (taille minimale) : 30 × 30 × 45 cm vertical pour un adulte
+- Substrat : Substrat retenant l’humidité sans être gorgé d’eau
+- Aménagements : Grandes plaques de liège verticales, fissures, parois rugueuses et zones sombres
+- Nourriture : Blattes, grillons et autres petits insectes adaptés
+- Fréquence de nourrissage : 1 à 2 petites proies par semaine chez l’adulte
+- Eau : Humidification régulière des parois et petite coupelle d’eau sécurisée
+- Comportement : Nocturne, fragile et très rapide ; les longues pattes antenniformes sont sensibles aux blessures
+- Reproduction : La femelle porte un sac d’œufs sous l’abdomen puis les jeunes sur le dos après l’éclosion
+- Difficulté d’élevage : Intermédiaire à avancée
+- Remarques importantes : Ne jamais saisir l’animal par une patte ; conserver des surfaces verticales indispensables aux mues.
+- Image : images/13_damon_diadema.jpg
+
+- Nom scientifique : Mastigoproctus giganteus
+- Nom commun : Vinaigrier géant / uropyge géant
+- Classification : Arachnida, Thelyphonida, Thelyphonidae
+- Origine géographique : Sud des États-Unis et Mexique
+- Biotope naturel : Sols chauds, terriers dans zones arides à semi-arides, mais avec microrefuges humides
+- Taille adulte : Corps env. 4–7,5 cm ; longueur totale supérieure avec le flagelle
+- Espérance de vie : Environ 7–10 ans
+- Température : 23–28 °C
+- Hygrométrie : 60–80 % avec zone profonde humide et surface plus sèche
+- Terrarium (taille minimale) : 40 × 30 × 30 cm pour un adulte
+- Substrat : 15 cm ou plus de mélange terreux compactable permettant de creuser
+- Aménagements : Terrier amorcé, liège, pierre stable et cachette sombre
+- Nourriture : Grillons, blattes et vers/invertébrés adaptés en complément
+- Fréquence de nourrissage : 1 proie adaptée tous les 7 à 14 jours
+- Eau : Coupelle d’eau permanente ; maintenir une zone humide en profondeur
+- Comportement : Nocturne, fouisseur, généralement non agressif ; peut projeter un liquide acide à forte odeur en défense
+- Reproduction : La femelle produit un sac d’œufs puis porte les jeunes ; reproduction et soins maternels prolongés
+- Difficulté d’élevage : Intermédiaire
+- Remarques importantes : Le spray défensif peut irriter yeux et muqueuses ; manipulations inutiles à éviter.
+- Image : images/14_mastigoproctus_giganteus.jpg
+
+- Nom scientifique : Gromphadorhina portentosa
+- Nom commun : Blatte souffleuse de Madagascar
+- Classification : Insecta, Blattodea, Blaberidae
+- Origine géographique : Madagascar
+- Biotope naturel : Litière forestière, bois mort, cavités sous écorces et refuges sombres
+- Taille adulte : Environ 5–8 cm
+- Espérance de vie : Environ 2–5 ans
+- Température : 24–30 °C pour activité et reproduction optimales
+- Hygrométrie : 50–70 %, avec une zone plus humide et une ventilation correcte
+- Terrarium (taille minimale) : 40 × 30 × 30 cm pour une colonie de taille modérée
+- Substrat : Fibre de coco, feuilles mortes ou substrat sec à légèrement humide ; entretien régulier
+- Aménagements : Écorces empilées verticalement, cachettes sombres et grande surface d’escalade
+- Nourriture : Légumes et fruits variés en petites portions, nourriture sèche équilibrée ; retirer les restes
+- Fréquence de nourrissage : Petites portions 2 à 4 fois par semaine, avec aliment sec pouvant rester plus longtemps
+- Eau : Source d’eau sécurisée : gel d’eau adapté, légumes hydratants ou abreuvoir anti-noyade
+- Comportement : Grégaire, robuste, nocturne et excellente grimpeuse ; les mâles peuvent être territoriaux
+- Reproduction : Ovovivipare ; la femelle produit des jeunes vivants après incubation de l’oothèque en interne
+- Difficulté d’élevage : Facile
+- Remarques importantes : Couvercle très sécurisé et barrière anti-évasion recommandés : les adultes grimpent sur verre lisse.
+- Image : images/15_gromphadorhina_portentosa.jpg
+
+- Nom scientifique : Pachnoda marginata
+- Nom commun : Cétoine marginée
+- Classification : Insecta, Coleoptera, Scarabaeidae
+- Origine géographique : Afrique subsaharienne, surtout Afrique centrale et occidentale selon les sous-espèces
+- Biotope naturel : Forêts claires, savanes boisées et zones riches en fruits mûrs et matière organique
+- Taille adulte : Adulte env. 2,5–3 cm
+- Espérance de vie : Cycle complet souvent 8–12 mois ; adulte plusieurs mois selon conditions
+- Température : 22–27 °C
+- Hygrométrie : 60–75 %, substrat maintenu légèrement humide
+- Terrarium (taille minimale) : 30 × 30 × 30 cm pour un groupe de reproduction
+- Substrat : 15 cm environ de terreau forestier sans engrais, feuilles mortes et bois blanc décomposé pour les larves
+- Aménagements : Branches, écorces et surface dégagée pour les adultes volants
+- Nourriture : Adultes : fruits mûrs et gelées pour coléoptères ; larves : substrat riche en matière végétale décomposée
+- Fréquence de nourrissage : Adultes : nourriture fraîche renouvelée plusieurs fois par semaine ; substrat nutritif permanent pour les larves
+- Eau : Humidité apportée surtout par substrat et fruits ; éviter les coupelles profondes
+- Comportement : Diurne, active et volante ; cycle larvaire facile à observer
+- Reproduction : Les femelles pondent dans le substrat ; larves saproxylophages puis loge nymphale avant émergence
+- Difficulté d’élevage : Facile
+- Remarques importantes : Le substrat larvaire est un aliment, pas seulement un support ; renouveler progressivement la matière consommée.
+- Image : images/16_pachnoda_marginata.jpg
+
+- Nom scientifique : Hierodula membranacea
+- Nom commun : Mante géante asiatique
+- Classification : Insecta, Mantodea, Mantidae
+- Origine géographique : Asie du Sud et du Sud-Est
+- Biotope naturel : Végétation arbustive et arborée chaude, jardins et lisières tropicales
+- Taille adulte : Femelle env. 8–10 cm ; mâle env. 7–9 cm
+- Espérance de vie : Environ 10–18 mois
+- Température : 24–30 °C, baisse nocturne modérée possible
+- Hygrométrie : 50–70 %, avec ventilation constante
+- Terrarium (taille minimale) : 20 × 20 × 30 cm minimum pour un adulte, hébergement individuel
+- Substrat : Essuie-tout ou fine couche de substrat facile à maintenir propre
+- Aménagements : Branches et filet/plafond offrant des prises sûres ; hauteur libre d’au moins 2 à 3 fois la longueur du corps pour la mue
+- Nourriture : Mouches, grillons, blattes et autres proies vivantes variées et adaptées
+- Fréquence de nourrissage : Jeunes : petites proies fréquentes ; adultes : 2 à 3 repas par semaine en moyenne
+- Eau : Pulvérisation légère sur paroi 2 à 4 fois par semaine ; éviter les grosses gouttes
+- Comportement : Diurne, prédatrice et attentive ; cannibalisme important, surtout hors accouplement contrôlé
+- Reproduction : Oothèques fixées aux supports ; incubation chaude et ventilée ; nombreux jeunes à séparer rapidement
+- Difficulté d’élevage : Intermédiaire
+- Remarques importantes : Retirer les proies non consommées pendant la pré-mue et la mue ; une proie peut blesser une mante vulnérable.
+- Image : images/17_hierodula_membranacea.jpg
+
+- Nom scientifique : Phyllocrania paradoxa
+- Nom commun : Mante fantôme
+- Classification : Insecta, Mantodea, Hymenopodidae
+- Origine géographique : Afrique subsaharienne et Madagascar selon les populations
+- Biotope naturel : Broussailles sèches, feuillage mort, branches fines et végétation où son camouflage imite une feuille sèche
+- Taille adulte : Environ 4,5–5,5 cm
+- Espérance de vie : Environ 8–14 mois
+- Température : 22–28 °C
+- Hygrométrie : 50–70 %, avec bonne ventilation
+- Terrarium (taille minimale) : 20 × 20 × 30 cm par adulte ; certains groupes sont possibles avec grande prudence et nourriture abondante
+- Substrat : Substrat simple, propre et légèrement absorbant
+- Aménagements : Branches fines, feuilles sèches et nombreux points de suspension
+- Nourriture : Drosophiles et petites mouches pour jeunes ; mouches et petites proies volantes pour adultes
+- Fréquence de nourrissage : Jeunes : petites proies plusieurs fois par semaine ; adultes : 2 à 3 nourrissages par semaine
+- Eau : Brumisation légère 2 à 4 fois par semaine selon ventilation
+- Comportement : Calme, mimétique et souvent moins agressive que de grandes mantes, mais le cannibalisme reste possible
+- Reproduction : Oothèques fixées aux branches ; incubation ventilée et séparation progressive des jeunes selon comportement
+- Difficulté d’élevage : Intermédiaire
+- Remarques importantes : Les proies volantes sont particulièrement adaptées ; surveiller individuellement l’état corporel même en élevage de groupe.
+- Image : images/18_phyllocrania_paradoxa.jpg
+
+- Nom scientifique : Armadillidium maculatum
+- Nom commun : Cloporte zébré
+- Classification : Malacostraca, Isopoda, Armadillidiidae
+- Origine géographique : Régions méditerranéennes d’Europe
+- Biotope naturel : Sous pierres, bois mort et litière, dans des microhabitats alternant zones sèches et refuges humides
+- Taille adulte : Environ 1,5–2 cm
+- Espérance de vie : Souvent 2–3 ans
+- Température : 20–26 °C
+- Hygrométrie : Gradient marqué : environ 50–60 % côté sec et 75–90 % dans la zone humide
+- Terrarium (taille minimale) : 20 × 20 × 20 cm pour une colonie de départ
+- Substrat : Terre organique, feuilles mortes, bois blanc décomposé et mousse humide sur une zone seulement
+- Aménagements : Écorce de liège, feuilles mortes épaisses, cachettes et source permanente de calcium
+- Nourriture : Feuilles mortes et bois décomposé en base ; légumes en complément ; protéines occasionnelles et calcium
+- Fréquence de nourrissage : Nourriture de fond permanente ; compléments 1 à 3 fois par semaine en très petites quantités
+- Eau : Humidifier la zone humide ; éviter de détremper tout le bac
+- Comportement : Grégaire, actif et relativement tolérant au sec si une vraie zone humide reste disponible
+- Reproduction : Reproduction sexuée ; femelle incubant les jeunes dans un marsupium ventral
+- Difficulté d’élevage : Facile
+- Remarques importantes : Le gradient sec/humide est plus important qu’une hygrométrie uniforme ; retirer les restes frais avant moisissure.
+- Image : images/19_armadillidium_maculatum.jpg
+
+- Nom scientifique : Cubaris sp. “Rubber Ducky”
+- Nom commun : Cloporte Rubber Ducky
+- Classification : Malacostraca, Isopoda, Cubaridae sensu usage terrariophile
+- Origine géographique : Thaïlande ; forme d’élevage associée à des habitats calcaires et karstiques
+- Biotope naturel : Microhabitats très humides de zones calcaires, fissures, cavités et litière riche
+- Taille adulte : Environ 1,5–2 cm
+- Espérance de vie : Plusieurs années possibles ; cycle lent comparé à de nombreux cloportes courants
+- Température : 22–26 °C
+- Hygrométrie : 75–90 % avec forte humidité localisée et ventilation douce
+- Terrarium (taille minimale) : 20 × 20 × 20 cm pour une colonie de départ, plus grand à mesure de la croissance
+- Substrat : Substrat profond à base de terre organique, feuilles mortes, bois blanc décomposé et source minérale/calcaire
+- Aménagements : Écorces, feuilles mortes épaisses, mousse humide localisée et nombreuses microcachettes
+- Nourriture : Feuilles mortes et bois décomposé en base ; légumes en appoint ; protéines occasionnelles ; calcium disponible
+- Fréquence de nourrissage : Base nutritive permanente ; très petits compléments 1 à 3 fois par semaine
+- Eau : Maintenir le substrat humide mais aéré ; éviter dessèchement complet comme saturation constante
+- Comportement : Discret, fouisseur et plus lent à se multiplier que des espèces de nettoyage classiques
+- Reproduction : Reproduction sexuée avec faible rythme de production ; développement de colonie souvent lent
+- Difficulté d’élevage : Intermédiaire à avancée
+- Remarques importantes : La priorité est la stabilité : éviter les changements brutaux d’humidité, la surchauffe et les nettoyages complets du substrat.
+- Image : images/20_cubaris_sp_rubber_ducky.jpg
+- Nom scientifique : Phidippus audax
+- Nom commun : Araignée sauteuse audacieuse
+- Classification : Arachnida, Araneae, Salticidae
+- Origine géographique : Amérique du Nord
+- Biotope naturel : Jardins, lisières, clôtures et murs ensoleillés
+- Taille adulte : Femelle env. 8–15 mm ; mâle env. 6–13 mm
+- Espérance de vie : 1–2 ans
+- Température : 20–26 °C
+- Hygrométrie : 50–65 %
+- Terrarium (taille minimale) : 15 × 15 × 20 cm pour un adulte
+- Substrat : Fibre de coco ou terreau sans engrais, couche fine
+- Aménagements : Structures verticales, écorces et feuillage en hauteur pour les toiles de repos
+- Nourriture : Drosophiles, mouches, micro-grillons adaptés à la taille
+- Fréquence de nourrissage : Jeunes : 3 à 5 proies/semaine ; adultes : 1 à 3 repas/semaine
+- Eau : Brumisation légère d'une paroi 2 à 3 fois par semaine
+- Comportement : Diurne, vive et curieuse ; plus tolérante au frais que P. regius
+- Reproduction : Cocon de ponte dans un nid de soie ; plusieurs pontes possibles
+- Difficulté d'élevage : Facile
+- Remarques importantes : Suspendre le nourrissage en pré-mue ; mêmes besoins de lumière et de hauteur que les autres Phidippus.
+- Image :
+
+- Nom scientifique : Lasius niger
+- Nom commun : Fourmi noire des jardins
+- Classification : Insecta, Hymenoptera, Formicidae
+- Origine géographique : Europe
+- Biotope naturel : Prairies, jardins et milieux urbains ; nids souterrains
+- Taille adulte : Ouvrières 3–5 mm ; reine env. 9 mm
+- Espérance de vie : Reine jusqu'à 15–20 ans ; ouvrières 1–2 ans
+- Température : 21–26 °C
+- Hygrométrie : 50–65 %
+- Terrarium (taille minimale) : Tube de fondation puis nid + aire de chasse modulables
+- Substrat : Nid en béton cellulaire, plâtre ou acrylique ; aire de chasse sable/terre
+- Aménagements : Zones de nid sombres et humides, aire de fourragement sèche et ventilée
+- Nourriture : Eau miellée en continu ; protéines (insectes) 1 à 2 fois par semaine
+- Fréquence de nourrissage : Eau miellée 2 à 3 fois/semaine ; protéines selon le couvain
+- Eau : Abreuvoir anti-noyade ; humidifier une partie du nid
+- Comportement : Colonie dynamique à croissance rapide dès la deuxième année
+- Reproduction : Fondation indépendante et claustrale par une reine seule
+- Difficulté d'élevage : Facile
+- Remarques importantes : Diapause obligatoire de novembre à mars vers 8–12 °C (cave ou réfrigérateur ventilé) ; protéger des évasions (talc, paraffine).
+- Image :
+
+- Nom scientifique : Lasius flavus
+- Nom commun : Fourmi jaune
+- Classification : Insecta, Hymenoptera, Formicidae
+- Origine géographique : Europe
+- Biotope naturel : Prairies ; espèce souterraine formant des dômes de terre
+- Taille adulte : Ouvrières 2–4 mm ; reine env. 8 mm
+- Espérance de vie : Reine 15–20 ans ; ouvrières 1–2 ans
+- Température : 18–24 °C
+- Hygrométrie : 60–75 %
+- Terrarium (taille minimale) : Tube de fondation puis nid enterré + petite aire de chasse
+- Substrat : Nid en terre/plâtre humide ; l'espèce vit presque exclusivement sous terre
+- Aménagements : Nid sombre et bien humide indispensable ; lumière réduite
+- Nourriture : Eau miellée ; petites proies molles (drosophiles, morceaux d'insectes)
+- Fréquence de nourrissage : Eau miellée 2 fois/semaine ; protéines selon le couvain
+- Eau : Humidité du nid prioritaire ; abreuvoir sécurisé
+- Comportement : Très discrète et lucifuge ; fondation lente, colonie paisible
+- Reproduction : Fondation claustrale, parfois en pléométrose (plusieurs reines au départ)
+- Difficulté d'élevage : Facile à intermédiaire
+- Remarques importantes : Diapause obligatoire de novembre à mars ; patience requise, la croissance est lente les deux premières années.
+- Image :
+
+- Nom scientifique : Messor barbarus
+- Nom commun : Fourmi moissonneuse
+- Classification : Insecta, Hymenoptera, Formicidae
+- Origine géographique : Bassin méditerranéen
+- Biotope naturel : Milieux secs et ouverts ; colonies granivore à polymorphisme marqué
+- Taille adulte : Ouvrières 3–14 mm (majors à grosse tête) ; reine env. 14 mm
+- Espérance de vie : Reine jusqu'à 20 ans
+- Température : 21–28 °C
+- Hygrométrie : 30–50 % côté aire de chasse ; nid légèrement humide
+- Terrarium (taille minimale) : Nid + aire de fourragement sèche ; prévoir de l'espace, colonies populeuses
+- Substrat : Nid plâtre/béton cellulaire ; aire sablonneuse sèche
+- Aménagements : Greniers à graines secs ; gradient d'humidité dans le nid
+- Nourriture : Graines variées à volonté (le « pain de fourmi ») ; insecte occasionnel
+- Fréquence de nourrissage : Graines en stock permanent ; protéines 1 fois par semaine
+- Eau : Abreuvoir ; humidifier modérément une zone du nid
+- Comportement : Fascinante à observer (transport et broyage des graines) ; évite les vibrations
+- Reproduction : Fondation claustrale ; croissance soutenue avec majors spectaculaires
+- Difficulté d'élevage : Facile
+- Remarques importantes : Diapause douce (12–15 °C) de décembre à février ; les graines moisissent si le stock est humide, garder le grenier au sec.
+- Image :
+
+- Nom scientifique : Eublepharis macularius
+- Nom commun : Gecko léopard
+- Classification : Reptilia, Squamata, Eublepharidae
+- Origine géographique : Asie du Sud-Ouest (Pakistan, Afghanistan, Inde)
+- Biotope naturel : Milieux rocheux arides et semi-désertiques ; crépusculaire et terrestre
+- Taille adulte : 20–25 cm
+- Espérance de vie : 15–20 ans, parfois davantage
+- Température : 24–32 °C avec point chaud à 31–32 °C et zone fraîche à 24 °C
+- Hygrométrie : 30–45 % avec une boîte humide permanente
+- Terrarium (taille minimale) : 60 × 40 × 40 cm pour un adulte
+- Substrat : Dalle, essuie-tout, ou mélange terre/sable tassé pour les adultes ; éviter le sable pur chez les jeunes
+- Aménagements : Cachette chaude, cachette fraîche et boîte humide pour la mue ; pierres stables
+- Nourriture : Grillons, blattes, vers (limiter les vers de farine) ; proies saupoudrées
+- Fréquence de nourrissage : Jeunes : tous les jours ; adultes : 2 à 3 fois par semaine
+- Eau : Coupelle d'eau propre en permanence
+- Comportement : Crépusculaire, calme et facile à manipuler avec douceur ; queue riche en réserves
+- Reproduction : Ovipare ; ponte de 2 œufs, incubation dépendante de la température
+- Difficulté d'élevage : Facile
+- Remarques importantes : Supplémentation calcium + D3 indispensable ; chaleur par le sol (tapis régulé par thermostat) plutôt que lampe forte.
+- Image :
+
+- Nom scientifique : Dendrobates tinctorius
+- Nom commun : Dendrobate à tapirer
+- Classification : Amphibia, Anura, Dendrobatidae
+- Origine géographique : Plateau des Guyanes (Guyane, Suriname, Brésil)
+- Biotope naturel : Sol des forêts tropicales humides, près des points d'eau
+- Taille adulte : 4–5 cm
+- Espérance de vie : 10–15 ans en captivité
+- Température : 22–26 °C ; jamais au-dessus de 28 °C
+- Hygrométrie : 80–100 % avec brumisations quotidiennes et drainage
+- Terrarium (taille minimale) : 60 × 45 × 45 cm planté pour un couple
+- Substrat : Couche drainante + substrat tropical + feuilles mortes ; terrarium bioactif idéal
+- Aménagements : Végétation dense, broméliacées, cachettes, petite zone d'eau peu profonde
+- Nourriture : Drosophiles aptères poudrées, collemboles, micro-proies
+- Fréquence de nourrissage : Tous les 1 à 2 jours, proies saupoudrées de vitamines/calcium
+- Eau : Brumisation quotidienne à l'eau osmosée ; drainage efficace obligatoire
+- Comportement : Diurne, actif et coloré ; territorial entre femelles
+- Reproduction : Ponte sur feuille ou abri ; le mâle transporte les têtards
+- Difficulté d'élevage : Intermédiaire
+- Remarques importantes : Ne jamais manipuler à mains nues (peau fragile des deux côtés) ; eau du robinet à proscrire, utiliser eau osmosée ou de pluie filtrée.
+- Image :

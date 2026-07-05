@@ -125,19 +125,14 @@ struct DashboardView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
-                    // Observation rapide : choisir l'animal ouvre directement le
-                    // formulaire complet du journal.
-                    Menu {
-                        ForEach(animals) { animal in
-                            Button {
-                                observationAnimal = animal
-                            } label: {
-                                Label(animal.name, systemImage: animal.type.symbolName)
-                            }
-                        }
+                    // Observation rapide : formulaire du journal en mode
+                    // multi-animaux (une entrée créée pour chaque animal coché).
+                    Button {
+                        observationAnimal = visibleAnimals.first ?? animals.first
                     } label: {
                         Image(systemName: "square.and.pencil")
                     }
+                    .disabled(animals.isEmpty)
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
@@ -148,7 +143,7 @@ struct DashboardView: View {
                 }
             }
             .sheet(item: $observationAnimal) { animal in
-                JournalEntryView(animal: animal)
+                JournalEntryView(animal: animal, allowsMultipleAnimals: true)
             }
             .sheet(isPresented: $showingCustomize) {
                 DashboardCustomizeView()

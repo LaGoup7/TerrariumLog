@@ -713,8 +713,13 @@ struct JournalEntryView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var context
     @Query(sort: [SortDescriptor<CustomPreyType>(\.name)]) private var customPreyTypes: [CustomPreyType]
+    @Query(sort: [SortDescriptor<Animal>(\.dashboardSortOrder)]) private var allAnimals: [Animal]
     let animal: Animal
+    /// Mode Dashboard : l'observation peut être appliquée à plusieurs animaux
+    /// à la fois (une entrée de journal est créée pour chacun).
+    var allowsMultipleAnimals: Bool = false
 
+    @State private var selectedAnimalIDs: Set<PersistentIdentifier>
     @State private var selectedDate = Date()
     @State private var eventType: ObservationEventType
     @State private var note = ""
@@ -739,18 +744,62 @@ struct JournalEntryView: View {
         UIImagePickerController.isSourceTypeAvailable(.camera)
     }
 
-    init(animal: Animal, initialEventType: ObservationEventType = .other) {
+    init(animal: Animal, initialEventType: ObservationEventType = .other, allowsMultipleAnimals: Bool = false) {
         self.animal = animal
+        self.allowsMultipleAnimals = allowsMultipleAnimals
         _eventType = State(initialValue: initialEventType)
         _previousStage = State(initialValue: animal.currentStage)
+        _selectedAnimalIDs = State(initialValue: [animal.persistentModelID])
+    }
+
+    /// Animaux visés par l'observation (l'animal d'origine en mode simple).
+    private var targetAnimals: [Animal] {
+        guard allowsMultipleAnimals else { return [animal] }
+        return allAnimals.filter { selectedAnimalIDs.contains($0.persistentModelID) }
+    }
+
+    /// Types d'événements proposés : union des types disponibles pour les
+    /// animaux sélectionnés (un événement valable pour l'un reste proposé).
+    private var availableEventTypes: [ObservationEventType] {
+        let targets = targetAnimals.isEmpty ? [animal] : targetAnimals
+        return ObservationEventType.allCases.filter { type in
+            targets.contains { type.isAvailable(for: $0.type) }
+        }
+    }
+
+    private var availablePreyTypes: [PreyType] {
+        let targets = targetAnimals.isEmpty ? [animal] : targetAnimals
+        return PreyType.allCases.filter { prey in
+            targets.contains { prey.isAvailable(for: $0.type) }
+        }
     }
 
     var body: some View {
         NavigationStack {
             Form {
+                if allowsMultipleAnimals {
+                    Section("Animaux concernés") {
+                        ForEach(allAnimals) { candidate in
+                            Toggle(isOn: Binding(
+                                get: { selectedAnimalIDs.contains(candidate.persistentModelID) },
+                                set: { isOn in
+                                    if isOn {
+                                        selectedAnimalIDs.insert(candidate.persistentModelID)
+                                    } else {
+                                        selectedAnimalIDs.remove(candidate.persistentModelID)
+                                    }
+                                }
+                            )) {
+                                Label(candidate.name, systemImage: candidate.type.symbolName)
+                            }
+                            .tint(Brand.primary)
+                        }
+                    }
+                }
+
                 DatePicker("Date", selection: $selectedDate, displayedComponents: [.date, .hourAndMinute])
                 Picker("Type", selection: $eventType) {
-                    ForEach(ObservationEventType.allCases.filter { $0.isAvailable(for: animal.type) }, id: \.self) { type in
+                    ForEach(availableEventTypes, id: \.self) { type in
                         Text(type.displayName).tag(type)
                     }
                 }
@@ -758,7 +807,7 @@ struct JournalEntryView: View {
                 if eventType == .feeding {
                     Section("Repas") {
                         Picker("Proie", selection: $preyTypeRawValue) {
-                            ForEach(PreyType.allCases.filter { $0.isAvailable(for: animal.type) }, id: \.self) { prey in
+                            ForEach(availablePreyTypes, id: \.self) { prey in
                                 Text(prey.displayName).tag(prey.rawValue)
                             }
                             ForEach(customPreyTypes) { custom in
@@ -840,33 +889,38 @@ struct JournalEntryView: View {
                 ToolbarItem(placement: .topBarLeading) { Button("Annuler") { dismiss() } }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("Enregistrer") {
-                        let entry = ObservationEntry(
-                            date: selectedDate,
-                            eventType: eventType.rawValue,
-                            note: note,
-                            photoPaths: photoPaths,
-                            preyType: eventType == .feeding ? preyTypeRawValue : nil,
-                            preyQuantity: eventType == .feeding ? Int(preyQuantity) : nil,
-                            eatenStatus: eventType == .feeding ? eatenStatus.rawValue : nil,
-                            captureTimeMinutes: eventType == .feeding ? Double(captureTimeMinutes) : nil,
-                            previousStage: eventType == .molt ? previousStage : nil,
-                            newStage: eventType == .molt ? newStage : nil,
-                            animal: animal
-                        )
-                        context.insert(entry)
-                        if eventType == .molt, !newStage.isEmpty {
-                            animal.currentStage = newStage
-                        }
-                        if eventType == .feeding {
-                            PreyStock.consume(
-                                typeRawValue: preyTypeRawValue,
-                                quantity: Int(preyQuantity),
-                                context: context
+                        // Une entrée par animal sélectionné (les photos sont
+                        // partagées entre les entrées).
+                        for target in targetAnimals {
+                            let entry = ObservationEntry(
+                                date: selectedDate,
+                                eventType: eventType.rawValue,
+                                note: note,
+                                photoPaths: photoPaths,
+                                preyType: eventType == .feeding ? preyTypeRawValue : nil,
+                                preyQuantity: eventType == .feeding ? Int(preyQuantity) : nil,
+                                eatenStatus: eventType == .feeding ? eatenStatus.rawValue : nil,
+                                captureTimeMinutes: eventType == .feeding ? Double(captureTimeMinutes) : nil,
+                                previousStage: eventType == .molt ? previousStage : nil,
+                                newStage: eventType == .molt ? newStage : nil,
+                                animal: target
                             )
+                            context.insert(entry)
+                            if eventType == .molt, !newStage.isEmpty, target.type.tracksMolting {
+                                target.currentStage = newStage
+                            }
+                            if eventType == .feeding {
+                                PreyStock.consume(
+                                    typeRawValue: preyTypeRawValue,
+                                    quantity: Int(preyQuantity),
+                                    context: context
+                                )
+                            }
                         }
                         try? context.save()
                         dismiss()
                     }
+                    .disabled(targetAnimals.isEmpty)
                 }
             }
         }

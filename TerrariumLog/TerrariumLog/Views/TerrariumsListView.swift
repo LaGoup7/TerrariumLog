@@ -196,12 +196,17 @@ struct TerrariumFormView: View {
         _targetHumMax = State(initialValue: text(terrarium?.targetHumidityMax))
     }
 
-    /// Applique les plages recommandées d'une fiche espèce aux champs cibles.
+    /// Applique les plages recommandées d'une fiche espèce aux champs cibles
+    /// (seules les grandeurs dont la fiche donne une plage sont remplies).
     private func applySpeciesSheet(_ sheet: SpeciesSheet) {
-        targetTempMin = String(Int(sheet.temperatureMin))
-        targetTempMax = String(Int(sheet.temperatureMax))
-        targetHumMin = String(Int(sheet.humidityMin))
-        targetHumMax = String(Int(sheet.humidityMax))
+        if let temperature = sheet.temperatureRange {
+            targetTempMin = String(Int(temperature.min))
+            targetTempMax = String(Int(temperature.max))
+        }
+        if let humidity = sheet.humidityRange {
+            targetHumMin = String(Int(humidity.min))
+            targetHumMax = String(Int(humidity.max))
+        }
     }
 
     /// Convertit la saisie en nombre (accepte la virgule française).
