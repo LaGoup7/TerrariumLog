@@ -63,7 +63,10 @@ struct TurnTerrariumLightsOnIntent: AppIntent {
 
     func perform() async throws -> some IntentResult & ProvidesDialog {
         let count = await HabitatIntentActions.setAllLights(on: true)
-        return .result(dialog: count > 0 ? "\(count) lampe(s) allumée(s)." : "Aucune lampe configurée dans Habitat.")
+        if count > 0 {
+            return .result(dialog: "\(count) lampe(s) allumée(s).")
+        }
+        return .result(dialog: "Aucune lampe configurée dans Habitat.")
     }
 }
 
@@ -73,7 +76,10 @@ struct TurnTerrariumLightsOffIntent: AppIntent {
 
     func perform() async throws -> some IntentResult & ProvidesDialog {
         let count = await HabitatIntentActions.setAllLights(on: false)
-        return .result(dialog: count > 0 ? "\(count) lampe(s) éteinte(s)." : "Aucune lampe configurée dans Habitat.")
+        if count > 0 {
+            return .result(dialog: "\(count) lampe(s) éteinte(s).")
+        }
+        return .result(dialog: "Aucune lampe configurée dans Habitat.")
     }
 }
 
@@ -83,7 +89,10 @@ struct MistTerrariumIntent: AppIntent {
 
     func perform() async throws -> some IntentResult & ProvidesDialog {
         let count = await HabitatIntentActions.triggerSensorAction(mist: true)
-        return .result(dialog: count > 0 ? "Brumisation déclenchée (\(count) terrarium(s))." : "Aucun module capteurs joignable.")
+        if count > 0 {
+            return .result(dialog: "Brumisation déclenchée (\(count) terrarium(s)).")
+        }
+        return .result(dialog: "Aucun module capteurs joignable.")
     }
 }
 
@@ -93,7 +102,10 @@ struct WaterTerrariumIntent: AppIntent {
 
     func perform() async throws -> some IntentResult & ProvidesDialog {
         let count = await HabitatIntentActions.triggerSensorAction(mist: false)
-        return .result(dialog: count > 0 ? "Arrosage déclenché (\(count) terrarium(s))." : "Aucun module capteurs joignable.")
+        if count > 0 {
+            return .result(dialog: "Arrosage déclenché (\(count) terrarium(s)).")
+        }
+        return .result(dialog: "Aucun module capteurs joignable.")
     }
 }
 
