@@ -13,8 +13,6 @@ struct CameraLiveView: View {
     // nil = aucun lecteur actif (fenêtre de fermeture entre deux sessions RTSP).
     @State private var reloadToken: UUID? = UUID()
     @State private var diagnosticMessage: String?
-    @State private var isTesting = false
-    @State private var logLines: [String] = []
     @State private var snapshotImage: UIImage?
     @State private var isFetchingSnapshot = false
     @State private var snapshotTrigger = 0
@@ -53,9 +51,8 @@ struct CameraLiveView: View {
                     ptzPad
                     qualityPicker
                 }
-                statusSection
                 buttonsRow
-                technicalJournal
+                statusSection
             }
             .padding()
         }
@@ -73,7 +70,12 @@ struct CameraLiveView: View {
             }
         }
         .onAppear {
-            ptz.log = { line in appendLog(line) }
+            // Seules les erreurs PTZ remontent à l'utilisateur (via l'alerte).
+            ptz.log = { line in
+                if line.hasPrefix("PTZ: échec") {
+                    diagnosticMessage = "Mouvement impossible : vérifie que la caméra est joignable et que le compte caméra est renseigné."
+                }
+            }
         }
         .onChange(of: scenePhase) { _, phase in
             // Libère la session RTSP quand l'app passe en arrière-plan (évite les
@@ -118,7 +120,7 @@ struct CameraLiveView: View {
             Text(comingSoonMessage ?? "")
         }
         .alert(
-            "Test de connexion",
+            "Caméra",
             isPresented: Binding(
                 get: { diagnosticMessage != nil },
                 set: { if !$0 { diagnosticMessage = nil } }
@@ -132,12 +134,14 @@ struct CameraLiveView: View {
 
     /// Ouvre l'app Tapo officielle (live fluide via leur protocole propriétaire).
     /// iOS ne permet pas de cibler directement une caméra précise : on ouvre
-    /// l'app, ou sa fiche App Store si elle n'est pas installée.
+    /// l'app, ou sa fiche App Store si l'ouverture échoue. On tente l'ouverture
+    /// directement (sans `canOpenURL`, peu fiable pour les schémas tiers).
     private func openTapoApp() {
-        if let tapoURL = URL(string: "tapo://"), UIApplication.shared.canOpenURL(tapoURL) {
-            UIApplication.shared.open(tapoURL)
-        } else if let storeURL = URL(string: "https://apps.apple.com/app/id1472718009") {
-            UIApplication.shared.open(storeURL)
+        guard let tapoURL = URL(string: "tapo://") else { return }
+        UIApplication.shared.open(tapoURL, options: [:]) { success in
+            if !success, let storeURL = URL(string: "https://apps.apple.com/app/id1472718009") {
+                UIApplication.shared.open(storeURL)
+            }
         }
     }
 
@@ -162,47 +166,22 @@ struct CameraLiveView: View {
         }
         isFetchingSnapshot = true
         Task {
-            var client = OnvifClient(
+            let client = OnvifClient(
                 host: host,
                 username: camera.username ?? "",
                 password: camera.password ?? ""
             )
-            client.log = { line in Task { @MainActor in appendLog(line) } }
             do {
                 let data = try await client.fetchSnapshot()
                 if let image = UIImage(data: data) {
-                    appendLog("ONVIF: ✅ photo \(Int(image.size.width))×\(Int(image.size.height))")
                     snapshotImage = image
                 } else {
-                    appendLog("ONVIF: réponse reçue mais pas une image (\(data.count) octets)")
                     diagnosticMessage = "La caméra a répondu, mais pas avec une image. Réessaie."
                 }
             } catch {
-                appendLog("ONVIF: échec — \(error.localizedDescription)")
                 diagnosticMessage = "Cette caméra ne fournit pas de capture sans flux (limitation Tapo). Lance le Live, puis appuie sur Photo une fois l'image affichée : la capture sera instantanée."
             }
             isFetchingSnapshot = false
-        }
-    }
-
-    private func testConnection() {
-        guard let url = streamProvider.playableURL(for: camera, streamPathOverride: pathOverride), let host = url.host, !host.isEmpty else {
-            diagnosticMessage = "URL du flux vide ou invalide. Renseigne l'URL (rtsp://…:554/stream1) ou l'IP + les identifiants dans Réglages."
-            return
-        }
-        let port = UInt16(url.port ?? 554)
-        isTesting = true
-        // L'alerte n'est présentée qu'une fois le résultat connu : une alerte
-        // SwiftUI ne rafraîchit pas son texte tant qu'elle reste affichée.
-        Task {
-            let outcome = await NetworkProbe.probe(host: host, port: port, timeout: 6)
-            isTesting = false
-            var lines = [outcome.reachable ? "✅ \(host):\(port) joignable" : "❌ \(host):\(port) injoignable", "", outcome.detail]
-            if outcome.reachable {
-                lines.append("")
-                lines.append("Le réseau est bon. Si l'image reste noire, vérifie le chemin (/stream1 en HD, /stream2 en SD) et surtout les identifiants du COMPTE CAMÉRA (app Tapo → Paramètres avancés → Compte de la caméra), différents du compte TP-Link.")
-            }
-            diagnosticMessage = lines.joined(separator: "\n")
         }
     }
 
@@ -234,8 +213,7 @@ struct CameraLiveView: View {
                         onStatusChange: { status, detail in
                             streamStatus = status
                             streamDetail = detail
-                        },
-                        onLog: { line in appendLog(line) }
+                        }
                     )
                     .id(token)
                 }
@@ -253,17 +231,12 @@ struct CameraLiveView: View {
                         Image(systemName: "wifi.exclamationmark")
                             .font(.system(size: 34))
                             .foregroundStyle(.white.opacity(0.7))
-                        Text("État : \(streamDetail)")
+                        Text(streamDetail)
                             .font(.caption.weight(.semibold))
                             .foregroundStyle(.white)
-                        if let attempted = streamProvider.redactedURLString(for: camera, streamPathOverride: pathOverride) {
-                            Text(attempted)
-                                .font(.caption2.monospaced())
-                                .foregroundStyle(.white.opacity(0.7))
-                                .multilineTextAlignment(.center)
-                                .padding(.horizontal)
-                        }
-                        Text("Réseau OK mais lecture KO ? Essaie l'autre qualité (HD/Fluide) ci-dessous, et vérifie le compte caméra.")
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal)
+                        Text("Appuie sur Live pour réessayer, ou passe en « Fluide ».")
                             .font(.caption2)
                             .foregroundStyle(.white.opacity(0.8))
                             .multilineTextAlignment(.center)
@@ -292,47 +265,9 @@ struct CameraLiveView: View {
     private func reconnect() {
         streamStatus = .connecting
         streamDetail = "Reconnexion…"
-        logLines.removeAll()
         reloadToken = nil
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
             reloadToken = UUID()
-        }
-    }
-
-    private func appendLog(_ line: String) {
-        let stamp = Date.now.formatted(date: .omitted, time: .standard)
-        logLines.append("\(stamp)  \(line)")
-        if logLines.count > 80 {
-            logLines.removeFirst(logLines.count - 80)
-        }
-    }
-
-    @ViewBuilder
-    private var technicalJournal: some View {
-        if !logLines.isEmpty {
-            DisclosureGroup("Journal technique") {
-                VStack(alignment: .leading, spacing: 4) {
-                    ForEach(Array(logLines.enumerated()), id: \.offset) { _, line in
-                        Text(line)
-                            .font(.caption2.monospaced())
-                            .foregroundStyle(.secondary)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .textSelection(.enabled)
-                    }
-                    Button {
-                        UIPasteboard.general.string = logLines.joined(separator: "\n")
-                    } label: {
-                        Label("Copier le journal", systemImage: "doc.on.doc")
-                            .font(.caption)
-                    }
-                    .padding(.top, 6)
-                }
-                .padding(.top, 6)
-            }
-            .font(.subheadline)
-            .padding()
-            .background(.ultraThinMaterial)
-            .clipShape(RoundedRectangle(cornerRadius: 16))
         }
     }
 
@@ -388,9 +323,10 @@ struct CameraLiveView: View {
             .onChange(of: quality) { _, _ in
                 reconnect()
             }
-            Text("HD = flux principal (2K). Si l'image tarde ou reste noire, essaie « Fluide » (plus léger).")
+            Text("Fluide = démarrage plus rapide • HD = pleine résolution")
                 .font(.caption2)
                 .foregroundStyle(.secondary)
+                .frame(maxWidth: .infinity, alignment: .center)
         }
     }
 
@@ -428,18 +364,13 @@ struct CameraLiveView: View {
 
     private var statusSection: some View {
         VStack(alignment: .leading, spacing: 6) {
-            LabeledContent("Statut", value: camera.isConfigured ? "Configurée" : "Non configurée")
-            LabeledContent("Marque", value: camera.brand.displayName)
             if !camera.model.isEmpty {
                 LabeledContent("Modèle", value: camera.model)
+            } else {
+                LabeledContent("Marque", value: camera.brand.displayName)
             }
-            LabeledContent("Connexion", value: camera.connectionType.displayName)
             if let terrarium = camera.terrarium {
                 LabeledContent("Terrarium", value: terrarium.name)
-            }
-            if let displayURL = streamProvider.redactedURLString(for: camera, streamPathOverride: pathOverride) {
-                LabeledContent("URL du flux", value: displayURL)
-                    .font(.caption)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -488,23 +419,6 @@ struct CameraLiveView: View {
                 .frame(maxWidth: .infinity)
             }
             .disabled(streamStatus != .playing && !isRecording)
-            Button {
-                testConnection()
-            } label: {
-                VStack(spacing: 4) {
-                    if isTesting {
-                        ProgressView()
-                            .frame(height: 22)
-                    } else {
-                        Image(systemName: "network")
-                            .font(.title2)
-                    }
-                    Text(isTesting ? "Test…" : "Tester")
-                        .font(.caption)
-                }
-                .frame(maxWidth: .infinity)
-            }
-            .disabled(isTesting)
             actionButton(title: "Réglages", systemImage: "gearshape.fill") {
                 showingConfig = true
             }

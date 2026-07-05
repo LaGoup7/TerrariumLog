@@ -34,6 +34,9 @@ struct CameraStreamView: UIViewRepresentable {
     var onStatusChange: (CameraStreamStatus, String) -> Void = { _, _ in }
     /// Journal technique compact (tentatives, états, erreurs).
     var onLog: (String) -> Void = { _ in }
+    /// Active le log natif de libvlc (diagnostic RTSP/RTP détaillé).
+    /// Coûteux : à réserver au débogage.
+    var verboseVLCLogging: Bool = false
 
     func makeUIView(context: Context) -> PlayerContainerView {
         let view = PlayerContainerView()
@@ -61,7 +64,7 @@ struct CameraStreamView: UIViewRepresentable {
     }
 
     func makeCoordinator() -> Coordinator {
-        Coordinator(onStatusChange: onStatusChange, onLog: onLog)
+        Coordinator(onStatusChange: onStatusChange, onLog: onLog, verbose: verboseVLCLogging)
     }
 
     static func dismantleUIView(_ uiView: PlayerContainerView, coordinator: Coordinator) {
@@ -103,11 +106,14 @@ struct CameraStreamView: UIViewRepresentable {
 
         private let onStatusChange: (CameraStreamStatus, String) -> Void
         private let onLog: (String) -> Void
+        private let verbose: Bool
 
         init(onStatusChange: @escaping (CameraStreamStatus, String) -> Void,
-             onLog: @escaping (String) -> Void) {
+             onLog: @escaping (String) -> Void,
+             verbose: Bool = false) {
             self.onStatusChange = onStatusChange
             self.onLog = onLog
+            self.verbose = verbose
         }
 
         private func log(_ message: String) {
@@ -123,7 +129,10 @@ struct CameraStreamView: UIViewRepresentable {
             attempt = 0
             isStopped = false
             didSucceed = false
-            enableVLCLogging()
+            // Log natif de libvlc uniquement en mode diagnostic (coûteux).
+            if verbose {
+                enableVLCLogging()
+            }
             log("Ouverture : \(Self.redactedURL(url))")
             launchAttempt()
         }
