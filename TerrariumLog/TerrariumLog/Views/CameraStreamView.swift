@@ -63,9 +63,13 @@ struct CameraStreamView: UIViewRepresentable {
     }
 
     final class Coordinator: NSObject, VLCMediaPlayerDelegate {
-        // Réglages de la stratégie de reprise.
-        private let maxAttempts = 3
-        private let attemptTimeout: TimeInterval = 20
+        // Réglages de la stratégie de reprise. Le délai par tentative doit couvrir
+        // une négociation RTSP LENTE : sur ce réseau, chaque échange prend ~10 s
+        // (retransmissions Wi-Fi) et la première image est arrivée à ~35 s lors du
+        // cas réussi. Un délai trop court tue des connexions sur le point d'aboutir
+        // (bug observé : "successfully opened" 1 s après le couperet à 20 s).
+        private let maxAttempts = 2
+        private let attemptTimeout: TimeInterval = 50
         private let retryDelay: TimeInterval = 2
 
         private var player: VLCMediaPlayer?
@@ -127,8 +131,8 @@ struct CameraStreamView: UIViewRepresentable {
         private func launchAttempt() {
             guard !isStopped, let url, let drawable else { return }
             attempt += 1
-            log("Tentative \(attempt)/\(maxAttempts)")
-            onStatusChange(.connecting, "Connexion (essai \(attempt)/\(maxAttempts))…")
+            log("Tentative \(attempt)/\(maxAttempts) (délai \(Int(attemptTimeout)) s)")
+            onStatusChange(.connecting, "Connexion \(attempt)/\(maxAttempts) — peut prendre ~1 min…")
 
             let player = VLCMediaPlayer()
             player.drawable = drawable
