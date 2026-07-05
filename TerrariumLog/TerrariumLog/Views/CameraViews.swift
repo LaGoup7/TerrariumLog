@@ -61,6 +61,17 @@ struct CameraLiveView: View {
         }
         .navigationTitle(camera.name)
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            if camera.brand == .tapo {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        openTapoApp()
+                    } label: {
+                        Label("Ouvrir dans Tapo", systemImage: "arrow.up.forward.app")
+                    }
+                }
+            }
+        }
         .onAppear {
             ptz.log = { line in appendLog(line) }
         }
@@ -116,6 +127,17 @@ struct CameraLiveView: View {
             Button("OK") { diagnosticMessage = nil }
         } message: {
             Text(diagnosticMessage ?? "")
+        }
+    }
+
+    /// Ouvre l'app Tapo officielle (live fluide via leur protocole propriétaire).
+    /// iOS ne permet pas de cibler directement une caméra précise : on ouvre
+    /// l'app, ou sa fiche App Store si elle n'est pas installée.
+    private func openTapoApp() {
+        if let tapoURL = URL(string: "tapo://"), UIApplication.shared.canOpenURL(tapoURL) {
+            UIApplication.shared.open(tapoURL)
+        } else if let storeURL = URL(string: "https://apps.apple.com/app/id1472718009") {
+            UIApplication.shared.open(storeURL)
         }
     }
 
