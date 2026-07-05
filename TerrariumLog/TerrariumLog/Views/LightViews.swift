@@ -21,6 +21,7 @@ struct LightControlView: View {
     /// Boucle d'animation des ambiances Pluie/Orage (annulée à la sortie).
     @State private var ambianceTask: Task<Void, Never>?
     @State private var isSoundPlaying = AmbientSoundEngine.shared.isPlaying
+    @State private var isSoundPaused = AmbientSoundEngine.shared.isPaused
     /// "none" / "builtin" (sons intégrés) / "spotify".
     @AppStorage("ambianceSoundMode") private var ambianceSoundMode = "builtin"
     @AppStorage("ambianceVolume") private var ambianceVolume = 0.7
@@ -241,14 +242,30 @@ struct LightControlView: View {
                             .foregroundStyle(.secondary)
                     }
                     if isSoundPlaying {
-                        Button {
-                            AmbientSoundEngine.shared.stop()
-                            isSoundPlaying = false
-                        } label: {
-                            Label("Arrêter le son", systemImage: "stop.circle.fill")
-                                .font(.caption.weight(.semibold))
+                        HStack(spacing: 16) {
+                            Button {
+                                if AmbientSoundEngine.shared.isPaused {
+                                    AmbientSoundEngine.shared.resume()
+                                } else {
+                                    AmbientSoundEngine.shared.pause()
+                                }
+                                isSoundPaused = AmbientSoundEngine.shared.isPaused
+                            } label: {
+                                Label(isSoundPaused ? "Reprendre" : "Pause",
+                                      systemImage: isSoundPaused ? "play.circle.fill" : "pause.circle.fill")
+                                    .font(.caption.weight(.semibold))
+                            }
+                            .tint(Brand.primary)
+                            Button {
+                                AmbientSoundEngine.shared.stop()
+                                isSoundPlaying = false
+                                isSoundPaused = false
+                            } label: {
+                                Label("Arrêter", systemImage: "stop.circle.fill")
+                                    .font(.caption.weight(.semibold))
+                            }
+                            .tint(Brand.error)
                         }
-                        .tint(Brand.error)
                     }
                 }
             }

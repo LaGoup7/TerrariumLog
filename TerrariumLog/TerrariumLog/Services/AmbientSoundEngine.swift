@@ -1,4 +1,5 @@
 import AVFoundation
+import MediaPlayer
 
 /// Sons d'ambiance générés par synthèse en temps réel (aucun fichier audio
 /// embarqué) : pluie, orage, vagues, criquets nocturnes, feu de camp.
@@ -22,6 +23,9 @@ final class AmbientSoundEngine {
     private var sourceNode: AVAudioSourceNode?
     private var filePlayer: AVAudioPlayer?
     private(set) var isPlaying = false
+    private(set) var isPaused = false
+    private var currentTitle: String?
+    private var remoteCommandsConfigured = false
 
     var volume: Float = 0.7 {
         didSet {
@@ -37,11 +41,38 @@ final class AmbientSoundEngine {
     @discardableResult
     func play(ambiance: LightAmbiance, volume: Float) -> Bool {
         stop()
+        currentTitle = "Ambiance \(ambiance.displayName)"
+        let started: Bool
         if let url = bundledFileURL(for: ambiance) {
-            return playFile(url, volume: volume)
+            started = playFile(url, volume: volume)
+        } else if let soundscape = ambiance.builtinSoundscape {
+            started = playSynthesized(soundscape, volume: volume)
+        } else {
+            started = false
         }
-        guard let soundscape = ambiance.builtinSoundscape else { return false }
-        return playSynthesized(soundscape, volume: volume)
+        if started {
+            configureRemoteCommands()
+            updateNowPlaying(playing: true)
+        }
+        return started
+    }
+
+    /// Met en pause (contrôlable depuis l'écran verrouillé / Centre de contrôle).
+    func pause() {
+        guard isPlaying, !isPaused else { return }
+        filePlayer?.pause()
+        if sourceNode != nil { engine.pause() }
+        isPaused = true
+        updateNowPlaying(playing: false)
+    }
+
+    /// Reprend la lecture après une pause.
+    func resume() {
+        guard isPlaying, isPaused else { return }
+        filePlayer?.play()
+        if sourceNode != nil { try? engine.start() }
+        isPaused = false
+        updateNowPlaying(playing: true)
     }
 
     /// Fichier optionnel fourni par l'utilisateur dans le bundle :
@@ -111,7 +142,46 @@ final class AmbientSoundEngine {
             sourceNode = nil
         }
         isPlaying = false
+        isPaused = false
+        currentTitle = nil
+        MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
         try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+    }
+
+    // MARK: Écran verrouillé / Centre de contrôle
+
+    /// Boutons lecture/pause/stop de l'écran verrouillé, du Centre de contrôle
+    /// et des écouteurs (AirPods, casque Bluetooth).
+    private func configureRemoteCommands() {
+        guard !remoteCommandsConfigured else { return }
+        remoteCommandsConfigured = true
+        let center = MPRemoteCommandCenter.shared()
+        center.playCommand.addTarget { [weak self] _ in
+            self?.resume()
+            return .success
+        }
+        center.pauseCommand.addTarget { [weak self] _ in
+            self?.pause()
+            return .success
+        }
+        center.togglePlayPauseCommand.addTarget { [weak self] _ in
+            guard let self else { return .commandFailed }
+            self.isPaused ? self.resume() : self.pause()
+            return .success
+        }
+        center.stopCommand.addTarget { [weak self] _ in
+            self?.stop()
+            return .success
+        }
+    }
+
+    private func updateNowPlaying(playing: Bool) {
+        MPNowPlayingInfoCenter.default().nowPlayingInfo = [
+            MPMediaItemPropertyTitle: currentTitle ?? "Ambiance",
+            MPMediaItemPropertyArtist: "Habitat",
+            MPNowPlayingInfoPropertyIsLiveStream: true,
+            MPNowPlayingInfoPropertyPlaybackRate: playing ? 1.0 : 0.0
+        ]
     }
 }
 
