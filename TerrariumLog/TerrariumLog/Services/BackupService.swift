@@ -14,6 +14,7 @@ struct BackupService {
         let terrariums = (try? context.fetch(FetchDescriptor<Terrarium>())) ?? []
         let animals = (try? context.fetch(FetchDescriptor<Animal>())) ?? []
         let customPreyTypes = (try? context.fetch(FetchDescriptor<CustomPreyType>())) ?? []
+        let preyStocks = (try? context.fetch(FetchDescriptor<PreyStock>())) ?? []
 
         let terrariumDTOs = terrariums.map(makeTerrariumDTO)
         let unassignedAnimalDTOs = animals.filter { $0.terrarium == nil }.map(makeAnimalDTO)
@@ -22,7 +23,10 @@ struct BackupService {
             exportedAt: .now,
             terrariums: terrariumDTOs,
             unassignedAnimals: unassignedAnimalDTOs,
-            customPreyTypeNames: customPreyTypes.map(\.name)
+            customPreyTypeNames: customPreyTypes.map(\.name),
+            preyStocks: preyStocks.map {
+                PreyStockDTO(typeRawValue: $0.typeRawValue, quantity: $0.quantity, lowThreshold: $0.lowThreshold, updatedAt: $0.updatedAt)
+            }
         )
 
         let encoder = JSONEncoder()
@@ -216,6 +220,9 @@ struct BackupService {
         for customPreyType in try context.fetch(FetchDescriptor<CustomPreyType>()) {
             context.delete(customPreyType)
         }
+        for preyStock in try context.fetch(FetchDescriptor<PreyStock>()) {
+            context.delete(preyStock)
+        }
         try context.save()
 
         for terrariumDTO in backup.terrariums {
@@ -226,6 +233,14 @@ struct BackupService {
         }
         for name in backup.customPreyTypeNames ?? [] {
             context.insert(CustomPreyType(name: name))
+        }
+        for stockDTO in backup.preyStocks ?? [] {
+            context.insert(PreyStock(
+                typeRawValue: stockDTO.typeRawValue,
+                quantity: stockDTO.quantity,
+                lowThreshold: stockDTO.lowThreshold,
+                updatedAt: stockDTO.updatedAt
+            ))
         }
 
         try context.save()

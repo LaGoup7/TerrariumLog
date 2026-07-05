@@ -8,6 +8,11 @@ struct DashboardView: View {
     @Query private var cameras: [Camera]
     @Query(sort: [SortDescriptor<Light>(\.name)]) private var lights: [Light]
     @Query(sort: [SortDescriptor<Terrarium>(\.name)]) private var terrariums: [Terrarium]
+    @Query private var preyStocks: [PreyStock]
+
+    private var lowStocks: [PreyStock] {
+        preyStocks.filter(\.isLow)
+    }
 
     @State private var showingAddReminder = false
     @State private var showingAddLight = false
@@ -50,6 +55,15 @@ struct DashboardView: View {
                 .listRowSeparator(.hidden)
                 .listRowBackground(Color.clear)
                 .listRowInsets(cardInsets)
+
+                if !lowStocks.isEmpty {
+                    Section {
+                        lowStockCard
+                    }
+                    .listRowSeparator(.hidden)
+                    .listRowBackground(Color.clear)
+                    .listRowInsets(cardInsets)
+                }
 
                 if !cameras.isEmpty {
                     Section {
@@ -202,6 +216,28 @@ struct DashboardView: View {
         }
     }
 
+    /// Alerte de stock bas, affichée seulement quand un stock passe sous son seuil.
+    private var lowStockCard: some View {
+        ZStack {
+            NavigationLink(destination: PreyStockView()) { EmptyView() }
+                .opacity(0)
+            HStack(spacing: 12) {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .foregroundStyle(Brand.warning)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Stock de proies bas")
+                        .font(.headline)
+                    Text(lowStocks.map { "\($0.displayName) (\($0.quantity))" }.joined(separator: " · "))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(2)
+                }
+                Spacer()
+            }
+            .dashboardCard()
+        }
+    }
+
     private var camerasSection: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text("Caméras")
@@ -317,9 +353,12 @@ struct DashboardView: View {
 
 struct AnimalCardView: View {
     let animal: Animal
+    @Environment(\.modelContext) private var context
     @State private var image: UIImage?
     @State private var lightIsOn = false
     @State private var isSendingLightCommand = false
+    /// Type d'événement qui vient d'être ajouté en un tap (feedback ✓ éphémère).
+    @State private var quickLoggedEvent: ObservationEventType?
 
     private var terrariumLightIP: String? {
         guard let ip = animal.terrarium?.wizLightIP, !ip.isEmpty else { return nil }
@@ -386,10 +425,8 @@ struct AnimalCardView: View {
             }
             .buttonStyle(.plain)
 
-            if terrariumLightIP != nil || terrariumCamera != nil {
-                Divider()
-                quickActionsRow
-            }
+            Divider()
+            quickActionsRow
         }
         .dashboardCard()
         .onAppear {
@@ -400,7 +437,9 @@ struct AnimalCardView: View {
     }
 
     private var quickActionsRow: some View {
-        HStack(spacing: 20) {
+        HStack(spacing: 18) {
+            quickLogButton(event: .feeding, title: "Nourri", icon: "fork.knife")
+            quickLogButton(event: .humidifying, title: "Brumisé", icon: "drop")
             if let lightIP = terrariumLightIP {
                 Button {
                     lightIsOn.toggle()
@@ -420,6 +459,35 @@ struct AnimalCardView: View {
         }
         .font(.caption)
         .buttonStyle(.plain)
+    }
+
+    /// Journalisation en un tap depuis le Dashboard : crée l'événement daté de
+    /// maintenant, avec un ✓ éphémère en retour.
+    private func quickLogButton(event: ObservationEventType, title: String, icon: String) -> some View {
+        let justLogged = quickLoggedEvent == event
+        return Button {
+            quickLog(event)
+        } label: {
+            Label(justLogged ? "\(title) ✓" : title, systemImage: justLogged ? "checkmark.circle.fill" : icon)
+                .foregroundStyle(justLogged ? Brand.success : Brand.primary)
+        }
+        .disabled(justLogged)
+    }
+
+    private func quickLog(_ event: ObservationEventType) {
+        let entry = ObservationEntry(
+            date: .now,
+            eventType: event.rawValue,
+            note: "Ajout rapide",
+            animal: animal
+        )
+        context.insert(entry)
+        try? context.save()
+        UINotificationFeedbackGenerator().notificationOccurred(.success)
+        withAnimation { quickLoggedEvent = event }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+            withAnimation { quickLoggedEvent = nil }
+        }
     }
 
     private func sendLightCommand(_ command: WizCommand, ip: String) {

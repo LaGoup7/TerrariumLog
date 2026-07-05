@@ -123,6 +123,14 @@ struct SettingsView: View {
                     }
                 }
 
+                Section("Élevage") {
+                    NavigationLink {
+                        PreyStockView()
+                    } label: {
+                        Label("Stock de proies", systemImage: "shippingbox")
+                    }
+                }
+
                 if !customPreyTypes.isEmpty {
                     Section("Types de proies personnalisés") {
                         ForEach(customPreyTypes) { custom in

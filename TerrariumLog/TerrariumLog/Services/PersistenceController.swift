@@ -17,7 +17,8 @@ struct PersistenceController {
             Camera.self,
             Light.self,
             CustomPreyType.self,
-            AnimalVideo.self
+            AnimalVideo.self,
+            PreyStock.self
         ])
 
         let configuration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: inMemory)

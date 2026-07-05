@@ -840,6 +840,13 @@ struct JournalEntryView: View {
                         if eventType == .molt, !newStage.isEmpty {
                             animal.currentStage = newStage
                         }
+                        if eventType == .feeding {
+                            PreyStock.consume(
+                                typeRawValue: preyTypeRawValue,
+                                quantity: Int(preyQuantity),
+                                context: context
+                            )
+                        }
                         try? context.save()
                         dismiss()
                     }
