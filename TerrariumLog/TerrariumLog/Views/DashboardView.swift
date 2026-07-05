@@ -17,6 +17,8 @@ struct DashboardView: View {
     @State private var showingAddReminder = false
     @State private var showingAddLight = false
     @State private var showingAnimalVisibility = false
+    /// Animal choisi pour une observation rapide depuis la barre du Dashboard.
+    @State private var observationAnimal: Animal?
 
     /// Marges verticales/horizontales uniformes entre toutes les cartes du Dashboard.
     /// Espacement vertical généreux pour aérer la hiérarchie visuelle.
@@ -114,6 +116,21 @@ struct DashboardView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
+                    // Observation rapide : choisir l'animal ouvre directement le
+                    // formulaire complet du journal.
+                    Menu {
+                        ForEach(animals) { animal in
+                            Button {
+                                observationAnimal = animal
+                            } label: {
+                                Label(animal.name, systemImage: animal.type.symbolName)
+                            }
+                        }
+                    } label: {
+                        Image(systemName: "square.and.pencil")
+                    }
+                }
+                ToolbarItem(placement: .topBarTrailing) {
                     Button {
                         showingAnimalVisibility = true
                     } label: {
@@ -123,6 +140,9 @@ struct DashboardView: View {
                 ToolbarItem(placement: .topBarTrailing) {
                     EditButton()
                 }
+            }
+            .sheet(item: $observationAnimal) { animal in
+                JournalEntryView(animal: animal)
             }
             .sheet(isPresented: $showingAnimalVisibility) {
                 AnimalVisibilityView()
