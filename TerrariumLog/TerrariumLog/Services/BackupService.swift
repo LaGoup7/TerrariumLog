@@ -110,6 +110,7 @@ struct BackupService {
             primaryPhotoOffsetY: animal.primaryPhotoOffsetY,
             dashboardSortOrder: animal.dashboardSortOrder,
             isHiddenFromDashboard: animal.isHiddenFromDashboard,
+            dietPreyRawValues: animal.dietPreyRawValues,
             estimatedWorkerCount: animal.estimatedWorkerCount,
             queenCount: animal.queenCount,
             broodPresent: animal.broodPresent,
@@ -329,6 +330,7 @@ struct BackupService {
             broodPresent: dto.broodPresent,
             swarmingDateEstimate: dto.swarmingDateEstimate
         )
+        animal.dietPreyRawValues = dto.dietPreyRawValues ?? []
         animal.terrarium = terrarium
         context.insert(animal)
 

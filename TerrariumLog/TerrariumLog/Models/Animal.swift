@@ -30,6 +30,11 @@ final class Animal {
     /// Masque l'animal de la liste du Dashboard sans le supprimer (voir DashboardCustomizeView).
     var isHiddenFromDashboard: Bool = false
 
+    /// Régime alimentaire de CET animal : rawValues des proies à mettre en
+    /// rotation (vide = tous les types adaptés à l'espèce). Alimente les
+    /// suggestions de diversité (voir FeedingDiversity).
+    var dietPreyRawValues: [String] = []
+
     // Champs colonie (fourmis), utilisés seulement si type == .antColony
     var estimatedWorkerCount: Int?
     var queenCount: Int?

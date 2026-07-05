@@ -122,6 +122,15 @@ struct ReminderCalendarView: View {
                             Text(reminder.animal?.name ?? "Sans animal")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
+                            // Nourrissage : proie suggérée par la rotation du
+                            // régime de l'animal, directement dans le calendrier.
+                            if reminder.category == .feeding,
+                               let animal = reminder.animal,
+                               let suggestion = FeedingDiversity.analyze(animal: animal).suggestionDisplayName {
+                                Label("Suggestion : \(suggestion)", systemImage: "arrow.triangle.2.circlepath")
+                                    .font(.caption2)
+                                    .foregroundStyle(Brand.primary)
+                            }
                         }
                         Spacer()
                         if reminder.isCompleted {

@@ -26,6 +26,7 @@ struct AnimalDetailView: View {
     @State private var selectedGalleryItems: [PhotosPickerItem] = []
     @State private var editingJournalEntry: ObservationEntry?
     @State private var showingEvolutionCompare = false
+    @State private var showingDietConfig = false
 
     private var isCameraAvailable: Bool {
         UIImagePickerController.isSourceTypeAvailable(.camera)
@@ -302,9 +303,21 @@ struct AnimalDetailView: View {
 
     private var feedingSection: some View {
         let stats = FeedingStats.compute(from: animal.journalEntries)
+        let diversity = FeedingDiversity.analyze(animal: animal)
         return VStack(alignment: .leading, spacing: 10) {
-            Text("Repas")
-                .font(.headline)
+            HStack {
+                Text("Repas")
+                    .font(.headline)
+                Spacer()
+                Button {
+                    showingDietConfig = true
+                } label: {
+                    Label("Régime", systemImage: "fork.knife.circle")
+                        .font(.caption.weight(.semibold))
+                }
+                .buttonStyle(.borderless)
+                .tint(Brand.primary)
+            }
             if let lastFeeding = stats.lastFeedingDate {
                 LabeledContent("Dernier repas", value: lastFeeding.formatted(date: .abbreviated, time: .omitted))
             } else {
@@ -316,11 +329,30 @@ struct AnimalDetailView: View {
                 LabeledContent("Intervalle moyen", value: "\(Int(average.rounded())) j")
             }
             LabeledContent("Refus", value: "\(stats.refusalCount)")
+            if let suggestion = diversity.suggestionDisplayName {
+                Label {
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text("Prochaine proie suggérée : \(suggestion)")
+                            .font(.footnote.weight(.semibold))
+                        if let reason = diversity.reason {
+                            Text(reason)
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                } icon: {
+                    Image(systemName: "arrow.triangle.2.circlepath.circle.fill")
+                        .foregroundStyle(Brand.primary)
+                }
+            }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding()
         .background(Brand.surface)
         .clipShape(RoundedRectangle(cornerRadius: 20))
+        .sheet(isPresented: $showingDietConfig) {
+            DietConfigView(animal: animal)
+        }
     }
 
     private var moltSection: some View {
@@ -919,6 +951,21 @@ struct JournalEntryView: View {
         Double(moltSize.trimmingCharacters(in: .whitespaces).replacingOccurrences(of: ",", with: "."))
     }
 
+    /// Analyse de diversité pour la suggestion de proie (régime de l'animal).
+    private var dietAnalysis: FeedingDiversityAnalysis {
+        FeedingDiversity.analyze(animal: animal)
+    }
+    @State private var appliedDietSuggestion = false
+
+    /// Pré-sélectionne la proie suggérée à l'ouverture d'un nouveau repas
+    /// (une seule fois — les choix manuels sont respectés ensuite).
+    private func applyDietSuggestionIfNeeded() {
+        guard editingEntry == nil, !appliedDietSuggestion, eventType == .feeding,
+              let suggestion = dietAnalysis.suggestionRawValue else { return }
+        preyTypeRawValue = suggestion
+        appliedDietSuggestion = true
+    }
+
     /// Animaux visés par l'observation (l'animal d'origine en mode simple).
     private var targetAnimals: [Animal] {
         guard allowsMultipleAnimals else { return [animal] }
@@ -973,6 +1020,15 @@ struct JournalEntryView: View {
 
                 if eventType == .feeding {
                     Section("Repas") {
+                        if editingEntry == nil, let suggestion = dietAnalysis.suggestionDisplayName {
+                            Label {
+                                Text("Suggestion : \(suggestion)\(dietAnalysis.reason.map { " — \($0)" } ?? "")")
+                                    .font(.caption)
+                            } icon: {
+                                Image(systemName: "arrow.triangle.2.circlepath")
+                            }
+                            .foregroundStyle(Brand.primary)
+                        }
                         Picker("Proie", selection: $preyTypeRawValue) {
                             ForEach(availablePreyTypes, id: \.self) { prey in
                                 Text(prey.displayName).tag(prey.rawValue)
@@ -1031,6 +1087,8 @@ struct JournalEntryView: View {
                 }
             }
             .navigationTitle(editingEntry == nil ? "Nouvelle observation" : "Modifier l'observation")
+            .onAppear { applyDietSuggestionIfNeeded() }
+            .onChange(of: eventType) { _, _ in applyDietSuggestionIfNeeded() }
             .fullScreenCover(isPresented: $showingCamera) {
                 CameraCaptureView { image in
                     if let path = try? PhotoStorage.shared.saveImage(image, for: animal.name) {

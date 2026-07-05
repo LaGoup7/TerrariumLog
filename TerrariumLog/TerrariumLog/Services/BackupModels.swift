@@ -56,6 +56,7 @@ struct AnimalDTO: Codable {
     var primaryPhotoOffsetY: Double?
     var dashboardSortOrder: Int?
     var isHiddenFromDashboard: Bool?
+    var dietPreyRawValues: [String]?
     var estimatedWorkerCount: Int?
     var queenCount: Int?
     var broodPresent: Bool

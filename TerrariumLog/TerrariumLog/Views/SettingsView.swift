@@ -139,6 +139,11 @@ struct SettingsView: View {
                     } label: {
                         Label("Fiches espèces", systemImage: "book.closed")
                     }
+                    NavigationLink {
+                        AnalyticsView()
+                    } label: {
+                        Label("Analyses", systemImage: "chart.bar.xaxis")
+                    }
                 }
 
                 if !customPreyTypes.isEmpty {

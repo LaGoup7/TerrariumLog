@@ -254,6 +254,15 @@ struct DashboardView: View {
                             Text(reminder.animal?.name ?? "Général")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
+                            // Rappel de nourrissage : la proie suggérée par la
+                            // rotation du régime est visible directement ici.
+                            if reminder.category == .feeding,
+                               let animal = reminder.animal,
+                               let suggestion = FeedingDiversity.analyze(animal: animal).suggestionDisplayName {
+                                Label("Suggestion : \(suggestion)", systemImage: "arrow.triangle.2.circlepath")
+                                    .font(.caption2)
+                                    .foregroundStyle(Brand.primary)
+                            }
                         }
                         Spacer()
                         Text(reminder.reminderDate.formatted(date: .abbreviated, time: .omitted))
