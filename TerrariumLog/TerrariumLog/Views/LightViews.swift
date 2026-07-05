@@ -17,6 +17,10 @@ struct LightControlView: View {
     @State private var errorMessage: String?
     @State private var showingConfig = false
     @State private var showingDeleteConfirmation = false
+    @State private var activeAmbiance: LightAmbiance?
+    /// Boucle d'animation des ambiances Pluie/Orage (annulée à la sortie).
+    @State private var ambianceTask: Task<Void, Never>?
+    @AppStorage("spotifyAmbianceEnabled") private var spotifyAmbianceEnabled = false
 
     private var controller: LightController {
         LightControllerFactory.controller(for: light.brand)
@@ -40,6 +44,7 @@ struct LightControlView: View {
                     brightnessCard
                     whiteCard
                     if controller.supportsEffects {
+                        ambiancesCard
                         effectsCard
                     }
                 } else {
@@ -179,6 +184,123 @@ struct LightControlView: View {
         .disabled(isSending)
     }
 
+    // MARK: Ambiances thématiques
+
+    private var ambiancesCard: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Ambiances")
+                .font(.headline)
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: 90), spacing: 12)], spacing: 12) {
+                ForEach(LightAmbiance.allCases) { ambiance in
+                    Button {
+                        applyAmbiance(ambiance)
+                    } label: {
+                        VStack(spacing: 6) {
+                            Image(systemName: ambiance.symbolName)
+                                .font(.title3)
+                            Text(ambiance.displayName)
+                                .font(.caption)
+                                .multilineTextAlignment(.center)
+                                .lineLimit(2)
+                                .minimumScaleFactor(0.8)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 12)
+                        .background(
+                            (activeAmbiance == ambiance ? Brand.accent.opacity(0.22) : Brand.accent.opacity(0.10)),
+                            in: RoundedRectangle(cornerRadius: 14, style: .continuous)
+                        )
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                                .strokeBorder(activeAmbiance == ambiance ? Brand.accent : Color.clear, lineWidth: 1.5)
+                        )
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            Toggle(isOn: $spotifyAmbianceEnabled) {
+                Label("Ambiance sonore Spotify", systemImage: "music.note")
+                    .font(.caption)
+            }
+            .tint(Brand.primary)
+            Text("Pluie et Orage sont animées par l'app : elles jouent tant que cet écran reste ouvert. Avec Spotify activé, l'ambiance sonore assortie se lance en même temps.")
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+        }
+        .lightCard()
+        .onDisappear {
+            ambianceTask?.cancel()
+            ambianceTask = nil
+        }
+    }
+
+    private func applyAmbiance(_ ambiance: LightAmbiance) {
+        ambianceTask?.cancel()
+        ambianceTask = nil
+        activeAmbiance = ambiance
+
+        if let sceneId = ambiance.wizSceneId {
+            perform { try await WizLightService.shared.send(WizCommandBuilder.scene(id: sceneId), to: $0) }
+        } else {
+            guard let ip = light.ipAddress, !ip.isEmpty else {
+                errorMessage = "Aucune adresse IP configurée pour cette lampe."
+                return
+            }
+            ambianceTask = Task { await runAnimatedAmbiance(ambiance, ip: ip) }
+        }
+
+        if spotifyAmbianceEnabled {
+            openSpotify(search: ambiance.spotifySearch)
+        }
+    }
+
+    /// Ambiances animées localement : la lampe WiZ n'a pas de scène pluie/orage,
+    /// on séquence donc nous-mêmes couleurs et éclairs.
+    private func runAnimatedAmbiance(_ ambiance: LightAmbiance, ip: String) async {
+        let service = WizLightService.shared
+        switch ambiance {
+        case .rain:
+            // Bleu-gris qui respire lentement, comme un ciel de pluie.
+            while !Task.isCancelled {
+                try? await service.send(WizCommandBuilder.color(red: 40, green: 70, blue: 110), to: ip)
+                try? await service.send(WizCommandBuilder.brightness(35), to: ip)
+                try? await Task.sleep(nanoseconds: 2_500_000_000)
+                if Task.isCancelled { break }
+                try? await service.send(WizCommandBuilder.brightness(15), to: ip)
+                try? await Task.sleep(nanoseconds: 2_500_000_000)
+            }
+        case .storm:
+            // Pénombre bleutée entrecoupée de salves d'éclairs blancs.
+            while !Task.isCancelled {
+                try? await service.send(WizCommandBuilder.color(red: 25, green: 35, blue: 70), to: ip)
+                try? await service.send(WizCommandBuilder.brightness(15), to: ip)
+                try? await Task.sleep(nanoseconds: UInt64.random(in: 2_000_000_000...6_000_000_000))
+                if Task.isCancelled { break }
+                for _ in 0..<Int.random(in: 1...3) where !Task.isCancelled {
+                    try? await service.send(WizCommandBuilder.color(red: 255, green: 255, blue: 255), to: ip)
+                    try? await service.send(WizCommandBuilder.brightness(100), to: ip)
+                    try? await Task.sleep(nanoseconds: UInt64.random(in: 80_000_000...200_000_000))
+                    try? await service.send(WizCommandBuilder.color(red: 25, green: 35, blue: 70), to: ip)
+                    try? await service.send(WizCommandBuilder.brightness(15), to: ip)
+                    try? await Task.sleep(nanoseconds: UInt64.random(in: 100_000_000...300_000_000))
+                }
+            }
+        default:
+            break
+        }
+    }
+
+    /// Ouvre Spotify sur la recherche d'ambiance (fiche App Store en repli).
+    private func openSpotify(search: String) {
+        let encoded = search.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? search
+        guard let url = URL(string: "spotify:search:\(encoded)") else { return }
+        UIApplication.shared.open(url, options: [:]) { success in
+            if !success, let store = URL(string: "https://apps.apple.com/app/id324684580") {
+                UIApplication.shared.open(store)
+            }
+        }
+    }
+
     private var effectsCard: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Effets")
@@ -230,7 +352,10 @@ struct LightControlView: View {
     }
 
     /// Envoie une commande au contrôleur en gérant l'état d'envoi et les erreurs.
+    /// Toute commande manuelle interrompt l'ambiance animée en cours.
     private func perform(_ action: @escaping (String) async throws -> Void) {
+        ambianceTask?.cancel()
+        ambianceTask = nil
         guard let ip = light.ipAddress, !ip.isEmpty else {
             errorMessage = "Aucune adresse IP configurée pour cette lampe."
             return

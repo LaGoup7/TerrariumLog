@@ -436,42 +436,66 @@ struct AnimalCardView: View {
         }
     }
 
+    /// Rangée d'actions en tuiles compactes de largeur égale : tient sur UNE
+    /// ligne même avec les quatre actions (Nourri, Brumisé, Lumière, Caméra).
     private var quickActionsRow: some View {
-        HStack(spacing: 18) {
-            quickLogButton(event: .feeding, title: "Nourri", icon: "fork.knife")
-            quickLogButton(event: .humidifying, title: "Brumisé", icon: "drop")
+        HStack(spacing: 8) {
+            actionTile(
+                title: "Nourri",
+                icon: quickLoggedEvent == .feeding ? "checkmark.circle.fill" : "fork.knife",
+                tint: quickLoggedEvent == .feeding ? Brand.success : Brand.primary,
+                disabled: quickLoggedEvent == .feeding
+            ) { quickLog(.feeding) }
+
+            actionTile(
+                title: "Brumisé",
+                icon: quickLoggedEvent == .humidifying ? "checkmark.circle.fill" : "drop",
+                tint: quickLoggedEvent == .humidifying ? Brand.success : Brand.primary,
+                disabled: quickLoggedEvent == .humidifying
+            ) { quickLog(.humidifying) }
+
             if let lightIP = terrariumLightIP {
-                Button {
+                actionTile(
+                    title: lightIsOn ? "Éteindre" : "Lumière",
+                    icon: lightIsOn ? "lightbulb.fill" : "lightbulb",
+                    tint: lightIsOn ? Brand.warning : Brand.accent,
+                    disabled: isSendingLightCommand
+                ) {
                     lightIsOn.toggle()
                     sendLightCommand(WizCommandBuilder.power(lightIsOn), ip: lightIP)
-                } label: {
-                    Label(lightIsOn ? "Éteindre" : "Lumière", systemImage: lightIsOn ? "lightbulb.fill" : "lightbulb")
-                        .foregroundStyle(lightIsOn ? Brand.warning : Brand.accent)
                 }
-                .disabled(isSendingLightCommand)
             }
+
             if let camera = terrariumCamera {
                 NavigationLink(destination: CameraLiveView(camera: camera)) {
-                    Label("Caméra", systemImage: "video")
+                    tileLabel(title: "Caméra", icon: "video", tint: Brand.accent)
                 }
+                .buttonStyle(.plain)
             }
-            Spacer()
         }
-        .font(.caption)
-        .buttonStyle(.plain)
     }
 
-    /// Journalisation en un tap depuis le Dashboard : crée l'événement daté de
-    /// maintenant, avec un ✓ éphémère en retour.
-    private func quickLogButton(event: ObservationEventType, title: String, icon: String) -> some View {
-        let justLogged = quickLoggedEvent == event
-        return Button {
-            quickLog(event)
-        } label: {
-            Label(justLogged ? "\(title) ✓" : title, systemImage: justLogged ? "checkmark.circle.fill" : icon)
-                .foregroundStyle(justLogged ? Brand.success : Brand.primary)
+    private func actionTile(title: String, icon: String, tint: Color, disabled: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            tileLabel(title: title, icon: icon, tint: tint)
         }
-        .disabled(justLogged)
+        .buttonStyle(.plain)
+        .disabled(disabled)
+    }
+
+    private func tileLabel(title: String, icon: String, tint: Color) -> some View {
+        VStack(spacing: 4) {
+            Image(systemName: icon)
+                .font(.body)
+            Text(title)
+                .font(.caption2)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 8)
+        .background(Brand.surfaceElevated, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .foregroundStyle(tint)
     }
 
     private func quickLog(_ event: ObservationEventType) {

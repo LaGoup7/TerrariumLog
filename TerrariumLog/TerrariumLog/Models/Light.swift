@@ -73,6 +73,83 @@ enum LightBrand: String, Codable, CaseIterable, Sendable {
     }
 }
 
+/// Ambiances thématiques : des atmosphères complètes (Cuba, forêt tropicale,
+/// orage…) plutôt que de simples effets. La plupart s'appuient sur des scènes
+/// WiZ natives ; « Pluie » et « Orage » sont animées par l'app (séquences de
+/// couleurs/éclairs) et ne tournent que tant que l'écran lampe est ouvert.
+/// Chaque ambiance porte aussi une recherche Spotify pour l'ambiance sonore.
+enum LightAmbiance: String, CaseIterable, Identifiable, Sendable {
+    case cuba
+    case rainforest
+    case deepOcean
+    case reef
+    case sunset
+    case campfire
+    case night
+    case rain
+    case storm
+
+    var id: String { rawValue }
+
+    var displayName: String {
+        switch self {
+        case .cuba: return "Cuba"
+        case .rainforest: return "Forêt tropicale"
+        case .deepOcean: return "Océan profond"
+        case .reef: return "Récif"
+        case .sunset: return "Coucher de soleil"
+        case .campfire: return "Feu de camp"
+        case .night: return "Nuit"
+        case .rain: return "Pluie"
+        case .storm: return "Orage"
+        }
+    }
+
+    var symbolName: String {
+        switch self {
+        case .cuba: return "beach.umbrella.fill"
+        case .rainforest: return "tree.fill"
+        case .deepOcean: return "water.waves"
+        case .reef: return "fish.fill"
+        case .sunset: return "sun.horizon.fill"
+        case .campfire: return "flame.fill"
+        case .night: return "moon.stars.fill"
+        case .rain: return "cloud.rain.fill"
+        case .storm: return "cloud.bolt.rain.fill"
+        }
+    }
+
+    /// Scène WiZ native correspondante, ou `nil` pour les ambiances animées
+    /// par l'app (pluie, orage).
+    var wizSceneId: Int? {
+        switch self {
+        case .cuba: return 25        // Mojito
+        case .rainforest: return 24  // Jungle
+        case .deepOcean: return 23   // Deep dive
+        case .reef: return 1         // Ocean
+        case .sunset: return 3       // Sunset
+        case .campfire: return 5     // Fireplace
+        case .night: return 14       // Night light
+        case .rain, .storm: return nil
+        }
+    }
+
+    /// Recherche lancée dans Spotify pour accompagner l'ambiance.
+    var spotifySearch: String {
+        switch self {
+        case .cuba: return "cuban salsa ambiance"
+        case .rainforest: return "rainforest sounds"
+        case .deepOcean: return "deep ocean sounds"
+        case .reef: return "coral reef ambience"
+        case .sunset: return "sunset chill"
+        case .campfire: return "campfire sounds"
+        case .night: return "night nature sounds"
+        case .rain: return "rain sounds"
+        case .storm: return "thunderstorm sounds"
+        }
+    }
+}
+
 /// Effets dynamiques proposés à l'utilisateur. Chaque effet est mappé sur un
 /// identifiant de scène WiZ (`sceneId`) ; certaines animations (respiration,
 /// clignotement) réutilisent la scène « Pulse » à des vitesses différentes.

@@ -37,6 +37,11 @@ enum WizCommandBuilder {
         WizCommand(method: "setPilot", params: WizPilotParams(sceneId: effect.wizSceneId, speed: effect.wizSpeed.map(clampSpeed)))
     }
 
+    /// Scène WiZ arbitraire (utilisée par les ambiances thématiques).
+    static func scene(id: Int, speed: Int? = nil) -> WizCommand {
+        WizCommand(method: "setPilot", params: WizPilotParams(sceneId: id, speed: speed.map(clampSpeed)))
+    }
+
     static func clampBrightness(_ percent: Int) -> Int {
         min(max(percent, 10), 100)
     }
