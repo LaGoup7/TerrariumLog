@@ -33,6 +33,47 @@ enum HabitatIntentActions {
         return ips.count
     }
 
+    /// Applique la consigne « biotope » (soleil réel de la région d'origine,
+    /// météo de la veille si activée) à toutes les lampes configurées.
+    static func syncBiotopeLights() async -> Int {
+        let context = PersistenceController.shared.container.mainContext
+        let lights = (try? context.fetch(FetchDescriptor<Light>())) ?? []
+        var applied = 0
+        for light in lights {
+            guard let preset = BiotopePreset.preset(id: light.biotopePresetID),
+                  let ip = light.ipAddress, !ip.isEmpty else { continue }
+
+            var state = SunCalculator.currentState(for: preset, shiftedToLocalClock: light.biotopeShiftedToLocal)
+            if light.biotopeWeatherEnabled, state.isDaylight,
+               let weather = await BiotopeWeatherService.shared.yesterdayWeather(for: preset) {
+                var calendar = Calendar.current
+                if !light.biotopeShiftedToLocal { calendar.timeZone = preset.timeZone }
+                let hour = calendar.component(.hour, from: .now)
+                let factor = weather.lightFactor(hour: hour)
+                state = SunLightState(
+                    isDaylight: true,
+                    brightness: max(10, Int(Double(state.brightness) * factor)),
+                    colorTemperature: state.colorTemperature,
+                    elevation: state.elevation
+                )
+            }
+
+            let service = WizLightService.shared
+            if state.isDaylight {
+                try? await service.send(WizCommandBuilder.power(true), to: ip)
+                try? await service.send(WizCommandBuilder.brightness(state.brightness), to: ip)
+                try? await service.send(WizCommandBuilder.colorTemperature(state.colorTemperature), to: ip)
+                light.lastKnownOn = true
+            } else {
+                try? await service.send(WizCommandBuilder.power(false), to: ip)
+                light.lastKnownOn = false
+            }
+            applied += 1
+        }
+        try? context.save()
+        return applied
+    }
+
     /// Déclenche la brumisation (`mist == true`) ou l'arrosage sur tous les
     /// terrariums équipés d'un module capteurs. Renvoie le nombre de succès.
     static func triggerSensorAction(mist: Bool) async -> Int {
@@ -109,6 +150,19 @@ struct WaterTerrariumIntent: AppIntent {
     }
 }
 
+struct SyncBiotopeIntent: AppIntent {
+    static var title: LocalizedStringResource = "Synchroniser le biotope"
+    static var description = IntentDescription("Aligne les lampes sur le soleil réel de la région d'origine (et la météo de la veille si activée).")
+
+    func perform() async throws -> some IntentResult & ProvidesDialog {
+        let count = await HabitatIntentActions.syncBiotopeLights()
+        if count > 0 {
+            return .result(dialog: "Biotope synchronisé (\(count) lampe(s)).")
+        }
+        return .result(dialog: "Aucune lampe avec un biotope configuré.")
+    }
+}
+
 /// Phrases Siri et raccourcis proposés d'office dans l'app Raccourcis.
 struct HabitatShortcuts: AppShortcutsProvider {
     static var appShortcuts: [AppShortcut] {
@@ -129,6 +183,12 @@ struct HabitatShortcuts: AppShortcutsProvider {
             phrases: ["Brumise le terrarium avec \(.applicationName)"],
             shortTitle: "Brumiser",
             systemImageName: "cloud.fog.fill"
+        )
+        AppShortcut(
+            intent: SyncBiotopeIntent(),
+            phrases: ["Synchronise le biotope avec \(.applicationName)"],
+            shortTitle: "Biotope",
+            systemImageName: "globe.americas.fill"
         )
         AppShortcut(
             intent: WaterTerrariumIntent(),

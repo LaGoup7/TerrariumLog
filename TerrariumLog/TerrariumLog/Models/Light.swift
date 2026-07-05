@@ -17,6 +17,13 @@ final class Light {
     var createdAt: Date
     var lastKnownOn: Bool = false
     var lastBrightness: Int = 100
+    /// Biotope suivi par la lampe (id d'un `BiotopePreset`), ou nil.
+    var biotopePresetID: String?
+    /// true = la courbe du soleil du biotope est rejouée sur l'horaire local ;
+    /// false = temps réel du biotope (décalage horaire vécu).
+    var biotopeShiftedToLocal: Bool = true
+    /// Reproduit la météo réelle de la veille du biotope (nuages → intensité).
+    var biotopeWeatherEnabled: Bool = false
 
     var terrarium: Terrarium?
 

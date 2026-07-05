@@ -51,6 +51,7 @@ struct LightControlView: View {
                         ambiancesCard
                         effectsCard
                     }
+                    biotopeCard
                     scheduleCard
                 } else {
                     notConfiguredCard
@@ -388,6 +389,146 @@ struct LightControlView: View {
             }
         }
         .lightCard()
+    }
+
+    // MARK: Biotope (soleil réel de la région d'origine)
+
+    private var selectedBiotope: BiotopePreset? {
+        BiotopePreset.preset(id: light.biotopePresetID)
+    }
+
+    private var biotopeCard: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Label("Biotope", systemImage: "globe.americas.fill")
+                .font(.headline)
+
+            Picker("Région", selection: Binding(
+                get: { light.biotopePresetID ?? "" },
+                set: { newValue in
+                    light.biotopePresetID = newValue.isEmpty ? nil : newValue
+                    try? context.save()
+                    applyBiotopeNow()
+                }
+            )) {
+                Text("Désactivé").tag("")
+                ForEach(BiotopePreset.all) { preset in
+                    Text(preset.name).tag(preset.id)
+                }
+            }
+
+            if let preset = selectedBiotope {
+                Toggle(isOn: Binding(
+                    get: { light.biotopeShiftedToLocal },
+                    set: { newValue in
+                        light.biotopeShiftedToLocal = newValue
+                        try? context.save()
+                        applyBiotopeNow()
+                    }
+                )) {
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text("Caler sur ma journée")
+                            .font(.subheadline)
+                        Text(light.biotopeShiftedToLocal
+                             ? "La journée de \(preset.name) est rejouée sur ton horaire."
+                             : "Temps réel là-bas : le décalage horaire est vécu.")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .tint(Brand.primary)
+
+                Toggle(isOn: Binding(
+                    get: { light.biotopeWeatherEnabled },
+                    set: { newValue in
+                        light.biotopeWeatherEnabled = newValue
+                        try? context.save()
+                        applyBiotopeNow()
+                    }
+                )) {
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text("Météo réelle (la veille)")
+                            .font(.subheadline)
+                        Text("Le ciel d'hier là-bas module la lampe (nuages, pluie).")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .tint(Brand.accent)
+
+                if !biotopeStatus.isEmpty {
+                    Label(biotopeStatus, systemImage: biotopeStatusIcon)
+                        .font(.caption)
+                        .foregroundStyle(Brand.accent)
+                }
+
+                Text("Suivi automatique tant que cet écran est ouvert (ou que le son d'ambiance joue). App fermée : Automatisation iOS → « Synchroniser le biotope » (ex. toutes les heures).")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .lightCard()
+        .task(id: light.biotopePresetID) {
+            // Suivi en direct : application immédiate puis toutes les 5 minutes
+            // tant que l'écran est affiché.
+            guard selectedBiotope != nil else { return }
+            applyBiotopeNow()
+            while !Task.isCancelled {
+                try? await Task.sleep(nanoseconds: 300_000_000_000)
+                if Task.isCancelled { break }
+                applyBiotopeNow()
+            }
+        }
+    }
+
+    @State private var biotopeStatus = ""
+    @State private var biotopeStatusIcon = "sun.max"
+
+    /// Calcule la consigne (soleil + météo éventuelle) et l'envoie à la lampe.
+    private func applyBiotopeNow() {
+        guard let preset = selectedBiotope,
+              let ip = light.ipAddress, !ip.isEmpty else {
+            biotopeStatus = ""
+            return
+        }
+        let shifted = light.biotopeShiftedToLocal
+        let weatherWanted = light.biotopeWeatherEnabled
+        Task {
+            var state = SunCalculator.currentState(for: preset, shiftedToLocalClock: shifted)
+            var weatherNote = ""
+
+            if weatherWanted, state.isDaylight,
+               let weather = await BiotopeWeatherService.shared.yesterdayWeather(for: preset) {
+                var calendar = Calendar.current
+                if !shifted { calendar.timeZone = preset.timeZone }
+                let hour = calendar.component(.hour, from: .now)
+                let factor = weather.lightFactor(hour: hour)
+                state = SunLightState(
+                    isDaylight: true,
+                    brightness: max(10, Int(Double(state.brightness) * factor)),
+                    colorTemperature: state.colorTemperature,
+                    elevation: state.elevation
+                )
+                weatherNote = weather.isRaining(hour: hour) ? " · pluie là-bas 🌧️" : (factor < 0.75 ? " · nuageux" : "")
+            }
+
+            let service = WizLightService.shared
+            if state.isDaylight {
+                try? await service.send(WizCommandBuilder.power(true), to: ip)
+                try? await service.send(WizCommandBuilder.brightness(state.brightness), to: ip)
+                try? await service.send(WizCommandBuilder.colorTemperature(state.colorTemperature), to: ip)
+                light.lastKnownOn = true
+                isOn = true
+                biotopeStatusIcon = "sun.max.fill"
+                biotopeStatus = "Soleil à \(Int(state.elevation))° → \(state.brightness) %\(weatherNote)"
+            } else {
+                try? await service.send(WizCommandBuilder.power(false), to: ip)
+                light.lastKnownOn = false
+                isOn = false
+                biotopeStatusIcon = "moon.stars.fill"
+                biotopeStatus = "Nuit sur le biotope — lampe éteinte"
+            }
+            try? context.save()
+        }
     }
 
     /// L'allumage/extinction programmés passent par les Automatisations iOS
