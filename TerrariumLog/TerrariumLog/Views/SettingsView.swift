@@ -129,6 +129,11 @@ struct SettingsView: View {
                     } label: {
                         Label("Stock de proies", systemImage: "shippingbox")
                     }
+                    NavigationLink {
+                        AllPhotosView()
+                    } label: {
+                        Label("Toutes les photos", systemImage: "photo.on.rectangle.angled")
+                    }
                 }
 
                 if !customPreyTypes.isEmpty {
