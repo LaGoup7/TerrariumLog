@@ -17,44 +17,37 @@ struct AnimalsListView: View {
 
     var body: some View {
         NavigationStack {
-            List {
-                ForEach(filteredAnimals) { animal in
-                    NavigationLink(destination: AnimalDetailView(animal: animal)) {
-                        HStack(spacing: 14) {
-                            AnimalRowThumbnail(animal: animal)
-                            VStack(alignment: .leading, spacing: 3) {
-                                Text(animal.name)
-                                    .font(.headline)
-                                Text(animal.species)
-                                    .font(.subheadline)
-                                    .foregroundStyle(.secondary)
-                                if let colonySummary = animal.colonySummary {
-                                    Text(colonySummary)
-                                        .font(.caption)
-                                        .foregroundStyle(Brand.accent)
+            ScrollView {
+                LazyVStack(spacing: 12) {
+                    if filteredAnimals.isEmpty {
+                        ContentUnavailableView(
+                            searchText.isEmpty ? "Aucun animal" : "Aucun résultat",
+                            systemImage: "pawprint",
+                            description: Text(searchText.isEmpty
+                                ? "Ajoute ton premier animal avec le bouton +."
+                                : "Aucun animal ne correspond à « \(searchText) ».")
+                        )
+                        .padding(.top, 60)
+                    } else {
+                        ForEach(filteredAnimals) { animal in
+                            NavigationLink(destination: AnimalDetailView(animal: animal)) {
+                                AnimalListCard(animal: animal)
+                            }
+                            .buttonStyle(.plain)
+                            .contextMenu {
+                                Button(role: .destructive) {
+                                    context.delete(animal)
+                                    try? context.save()
+                                } label: {
+                                    Label("Supprimer", systemImage: "trash")
                                 }
                             }
-                            Spacer(minLength: 8)
-                            Text(animal.status.displayName)
-                                .font(.caption.bold())
-                                .foregroundStyle(Brand.primary)
-                                .padding(.horizontal, 10)
-                                .padding(.vertical, 5)
-                                .background(Brand.primary.opacity(0.16))
-                                .clipShape(Capsule())
-                        }
-                        .padding(.vertical, 4)
-                    }
-                    .swipeActions {
-                        Button(role: .destructive) {
-                            context.delete(animal)
-                            try? context.save()
-                        } label: {
-                            Label("Supprimer", systemImage: "trash")
                         }
                     }
                 }
+                .padding(16)
             }
+            .background(Brand.backgroundGradient.ignoresSafeArea())
             .navigationTitle("Animaux")
             .searchable(text: $searchText, prompt: "Rechercher un animal")
             .toolbar {
@@ -68,6 +61,47 @@ struct AnimalsListView: View {
                 AnimalFormView(animal: nil)
             }
         }
+    }
+}
+
+/// Carte d'un animal dans la liste : photo mise en valeur, nom lisible,
+/// badge de statut insécable — même langage que les cartes du Dashboard.
+struct AnimalListCard: View {
+    let animal: Animal
+
+    var body: some View {
+        HStack(spacing: 14) {
+            AnimalRowThumbnail(animal: animal)
+            VStack(alignment: .leading, spacing: 3) {
+                Text(animal.name)
+                    .font(.headline)
+                    .lineLimit(2)
+                    .multilineTextAlignment(.leading)
+                Text(animal.species)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                if let colonySummary = animal.colonySummary {
+                    Text(colonySummary)
+                        .font(.caption)
+                        .foregroundStyle(Brand.accent)
+                        .lineLimit(1)
+                }
+            }
+            Spacer(minLength: 10)
+            Text(animal.status.displayName)
+                .font(.caption.bold())
+                .foregroundStyle(Brand.primary)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 5)
+                .background(Brand.primary.opacity(0.16))
+                .clipShape(Capsule())
+                .fixedSize()
+            Image(systemName: "chevron.right")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.tertiary)
+        }
+        .brandCard()
     }
 }
 

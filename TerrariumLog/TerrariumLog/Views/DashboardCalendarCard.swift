@@ -18,7 +18,11 @@ struct DashboardCalendarCard: View {
     }
 
     var body: some View {
-        NavigationLink(destination: ReminderCalendarView()) {
+        // NavigationLink invisible sous la carte : garde le tap vers le
+        // calendrier complet sans le chevron système ajouté par la List.
+        ZStack {
+            NavigationLink(destination: ReminderCalendarView()) { EmptyView() }
+                .opacity(0)
             VStack(alignment: .leading, spacing: 14) {
                 header
                 weekdayHeader
@@ -26,7 +30,6 @@ struct DashboardCalendarCard: View {
             }
             .dashboardCard()
         }
-        .buttonStyle(.plain)
     }
 
     private var header: some View {
