@@ -20,7 +20,10 @@ struct LightControlView: View {
     @State private var activeAmbiance: LightAmbiance?
     /// Boucle d'animation des ambiances Pluie/Orage (annulée à la sortie).
     @State private var ambianceTask: Task<Void, Never>?
-    @AppStorage("spotifyAmbianceEnabled") private var spotifyAmbianceEnabled = false
+    @State private var isSoundPlaying = AmbientSoundEngine.shared.isPlaying
+    /// "none" / "builtin" (sons intégrés) / "spotify".
+    @AppStorage("ambianceSoundMode") private var ambianceSoundMode = "builtin"
+    @AppStorage("ambianceVolume") private var ambianceVolume = 0.7
 
     private var controller: LightController {
         LightControllerFactory.controller(for: light.brand)
@@ -218,12 +221,39 @@ struct LightControlView: View {
                     .buttonStyle(.plain)
                 }
             }
-            Toggle(isOn: $spotifyAmbianceEnabled) {
-                Label("Ambiance sonore Spotify", systemImage: "music.note")
-                    .font(.caption)
+            VStack(alignment: .leading, spacing: 8) {
+                Picker("Son d'ambiance", selection: $ambianceSoundMode) {
+                    Text("Silencieux").tag("none")
+                    Text("Son intégré").tag("builtin")
+                    Text("Spotify").tag("spotify")
+                }
+                .pickerStyle(.segmented)
+
+                if ambianceSoundMode == "builtin" {
+                    HStack(spacing: 10) {
+                        Image(systemName: "speaker.wave.1")
+                            .foregroundStyle(.secondary)
+                        Slider(value: $ambianceVolume, in: 0...1)
+                            .onChange(of: ambianceVolume) { _, newValue in
+                                AmbientSoundEngine.shared.volume = Float(newValue)
+                            }
+                        Image(systemName: "speaker.wave.3")
+                            .foregroundStyle(.secondary)
+                    }
+                    if isSoundPlaying {
+                        Button {
+                            AmbientSoundEngine.shared.stop()
+                            isSoundPlaying = false
+                        } label: {
+                            Label("Arrêter le son", systemImage: "stop.circle.fill")
+                                .font(.caption.weight(.semibold))
+                        }
+                        .tint(Brand.error)
+                    }
+                }
             }
-            .tint(Brand.primary)
-            Text("Pluie et Orage sont animées par l'app : elles jouent tant que cet écran reste ouvert. Avec Spotify activé, l'ambiance sonore assortie se lance en même temps.")
+
+            Text("Son intégré : pluie, orage, vagues, criquets et feu de camp joués par l'app — le son continue téléphone verrouillé et sort sur l'enceinte Bluetooth connectée. Cuba et Coucher de soleil (musicales) passent par Spotify. Les lumières Pluie/Orage s'animent tant que cet écran est ouvert.")
                 .font(.caption2)
                 .foregroundStyle(.secondary)
         }
@@ -249,8 +279,21 @@ struct LightControlView: View {
             ambianceTask = Task { await runAnimatedAmbiance(ambiance, ip: ip) }
         }
 
-        if spotifyAmbianceEnabled {
+        switch ambianceSoundMode {
+        case "builtin":
+            let played = AmbientSoundEngine.shared.play(ambiance: ambiance, volume: Float(ambianceVolume))
+            isSoundPlaying = played
+            if !played, ambiance.builtinSoundscape == nil {
+                // Ambiance musicale sans fichier fourni : proposer Spotify.
+                openSpotify(search: ambiance.spotifySearch)
+            }
+        case "spotify":
+            AmbientSoundEngine.shared.stop()
+            isSoundPlaying = false
             openSpotify(search: ambiance.spotifySearch)
+        default:
+            AmbientSoundEngine.shared.stop()
+            isSoundPlaying = false
         }
     }
 
