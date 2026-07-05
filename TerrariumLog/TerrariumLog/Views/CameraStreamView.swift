@@ -22,6 +22,10 @@ enum CameraStreamStatus: Equatable {
 ///   premier essai mais réussissent le suivant.
 struct CameraStreamView: UIViewRepresentable {
     let url: URL
+    /// Incrémenter cette valeur déclenche la capture de l'image affichée
+    /// (photo instantanée depuis le flux, sans requête réseau supplémentaire).
+    var snapshotTrigger: Int = 0
+    var onSnapshot: (UIImage?) -> Void = { _ in }
     var onStatusChange: (CameraStreamStatus, String) -> Void = { _, _ in }
     /// Journal technique compact (tentatives, états, erreurs).
     var onLog: (String) -> Void = { _ in }
@@ -38,7 +42,14 @@ struct CameraStreamView: UIViewRepresentable {
         return view
     }
 
-    func updateUIView(_ uiView: PlayerContainerView, context: Context) {}
+    func updateUIView(_ uiView: PlayerContainerView, context: Context) {
+        if snapshotTrigger != context.coordinator.handledSnapshotTrigger {
+            context.coordinator.handledSnapshotTrigger = snapshotTrigger
+            if snapshotTrigger > 0 {
+                context.coordinator.captureSnapshot(completion: onSnapshot)
+            }
+        }
+    }
 
     func makeCoordinator() -> Coordinator {
         Coordinator(onStatusChange: onStatusChange, onLog: onLog)
@@ -115,6 +126,53 @@ struct CameraStreamView: UIViewRepresentable {
             disableVLCLogging()
             teardownPlayer()
             log("Flux fermé")
+        }
+
+        // MARK: Capture d'image depuis le flux
+
+        var handledSnapshotTrigger = 0
+        private var snapshotCompletion: ((UIImage?) -> Void)?
+        private var snapshotPath: String?
+
+        /// Enregistre l'image actuellement affichée (VLC l'extrait du flux en
+        /// cours de lecture) et la renvoie via `completion`.
+        func captureSnapshot(completion: @escaping (UIImage?) -> Void) {
+            guard let player, player.hasVideoOut else {
+                log("Capture impossible : aucune image en cours de lecture")
+                completion(nil)
+                return
+            }
+            let path = NSTemporaryDirectory() + "habitat-snapshot-\(UUID().uuidString).png"
+            snapshotCompletion = completion
+            snapshotPath = path
+            player.saveVideoSnapshot(at: path, withWidth: 0, andHeight: 0)
+            // Filet de sécurité si le délégué ne confirme pas la capture.
+            DispatchQueue.main.asyncAfter(deadline: .now() + 3) { [weak self] in
+                self?.finishSnapshot()
+            }
+        }
+
+        func mediaPlayerSnapshot(_ aNotification: Notification) {
+            DispatchQueue.main.async { [weak self] in
+                self?.finishSnapshot()
+            }
+        }
+
+        private func finishSnapshot() {
+            guard let completion = snapshotCompletion else { return }
+            snapshotCompletion = nil
+            var image: UIImage?
+            if let path = snapshotPath {
+                image = UIImage(contentsOfFile: path)
+                try? FileManager.default.removeItem(atPath: path)
+            }
+            snapshotPath = nil
+            if let image {
+                log("📸 Image capturée \(Int(image.size.width))×\(Int(image.size.height))")
+            } else {
+                log("Capture échouée (pas de fichier produit)")
+            }
+            completion(image)
         }
 
         /// Détruit proprement le lecteur courant (ferme la session RTSP côté caméra).

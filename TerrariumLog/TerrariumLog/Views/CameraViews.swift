@@ -17,6 +17,7 @@ struct CameraLiveView: View {
     @State private var logLines: [String] = []
     @State private var snapshotImage: UIImage?
     @State private var isFetchingSnapshot = false
+    @State private var snapshotTrigger = 0
     // Flux léger (/stream2, 640×360) par défaut : bien moins exigeant pour le
     // Wi-Fi et le décodage — le plus fiable sur iPhone. « HD » reste disponible.
     @State private var quality: StreamQuality = .sd
@@ -92,9 +93,19 @@ struct CameraLiveView: View {
         }
     }
 
-    /// Capture instantanée via ONVIF (indépendante du flux vidéo : fonctionne
-    /// même quand le live rame, car un JPEG passe bien mieux qu'un flux RTP).
+    /// Capture d'image : si le flux est en lecture, on prend l'image affichée
+    /// (instantané, sans réseau). Sinon, on tente le snapshot ONVIF — pas
+    /// toujours supporté par les Tapo, mais tracé dans le journal.
     private func takeSnapshot() {
+        if streamStatus == .playing {
+            isFetchingSnapshot = true
+            snapshotTrigger += 1
+            return
+        }
+        fetchOnvifSnapshot()
+    }
+
+    private func fetchOnvifSnapshot() {
         let host = streamProvider.playableURL(for: camera, streamPathOverride: nil)?.host
             ?? (camera.ipAddress ?? "")
         guard !host.isEmpty else {
@@ -120,7 +131,7 @@ struct CameraLiveView: View {
                 }
             } catch {
                 appendLog("ONVIF: échec — \(error.localizedDescription)")
-                diagnosticMessage = "Capture impossible : \(error.localizedDescription)\n\nVérifie que l'ONVIF est actif sur la caméra (souvent lié au compte caméra dans l'app Tapo)."
+                diagnosticMessage = "Cette caméra ne fournit pas de capture sans flux (limitation Tapo). Lance le Live, puis appuie sur Photo une fois l'image affichée : la capture sera instantanée."
             }
             isFetchingSnapshot = false
         }
@@ -154,6 +165,15 @@ struct CameraLiveView: View {
                 if let token = reloadToken {
                     CameraStreamView(
                         url: url,
+                        snapshotTrigger: snapshotTrigger,
+                        onSnapshot: { image in
+                            isFetchingSnapshot = false
+                            if let image {
+                                snapshotImage = image
+                            } else {
+                                diagnosticMessage = "Capture impossible pour le moment. Attends que l'image soit affichée, puis réessaie."
+                            }
+                        },
                         onStatusChange: { status, detail in
                             streamStatus = status
                             streamDetail = detail

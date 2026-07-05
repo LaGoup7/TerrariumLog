@@ -16,7 +16,7 @@ enum OnvifXML {
 
     /// Adresse du service Média dans une réponse GetCapabilities.
     static func mediaXAddr(from xml: String) -> String? {
-        firstMatch(in: xml, pattern: #"<(?:\w+:)?Media>.*?<(?:\w+:)?XAddr>\s*([^<\s]+)\s*</"#)
+        firstMatch(in: xml, pattern: #"<(?:[\w-]+:)?Media>.*?<(?:[\w-]+:)?XAddr>\s*([^<\s]+)\s*</"#)
     }
 
     /// Premier jeton de profil dans une réponse GetProfiles.
@@ -26,14 +26,14 @@ enum OnvifXML {
 
     /// URI dans une réponse GetSnapshotUri / GetStreamUri.
     static func uri(from xml: String) -> String? {
-        firstMatch(in: xml, pattern: #"<(?:\w+:)?Uri>\s*([^<\s]+)\s*</"#)
+        firstMatch(in: xml, pattern: #"<(?:[\w-]+:)?Uri>\s*([^<\s]+)\s*</"#)
     }
 
     /// Date UTC de la caméra dans une réponse GetSystemDateAndTime.
     static func utcDateTime(from xml: String) -> Date? {
-        guard let block = firstMatch(in: xml, pattern: #"<(?:\w+:)?UTCDateTime>(.*?)</(?:\w+:)?UTCDateTime>"#) else { return nil }
+        guard let block = firstMatch(in: xml, pattern: #"<(?:[\w-]+:)?UTCDateTime>(.*?)</(?:[\w-]+:)?UTCDateTime>"#) else { return nil }
         func value(_ field: String) -> Int? {
-            firstMatch(in: block, pattern: "<(?:\\w+:)?\(field)>\\s*(\\d+)\\s*</").flatMap(Int.init)
+            firstMatch(in: block, pattern: "<(?:[\\w-]+:)?\(field)>\\s*(\\d+)\\s*</").flatMap(Int.init)
         }
         guard let hour = value("Hour"), let minute = value("Minute"), let second = value("Second"),
               let year = value("Year"), let month = value("Month"), let day = value("Day") else { return nil }
@@ -49,9 +49,10 @@ enum OnvifXML {
     }
 
     /// Raison lisible d'une faute SOAP (ex. « NotAuthorized »).
+    /// Les préfixes peuvent contenir des tirets (`SOAP-ENV:`), d'où `[\w-]+`.
     static func faultReason(from xml: String) -> String? {
-        firstMatch(in: xml, pattern: #"<(?:\w+:)?Text[^>]*>\s*([^<]+?)\s*</"#)
-            ?? firstMatch(in: xml, pattern: #"<(?:\w+:)?Subcode>.*?<(?:\w+:)?Value>\s*([^<]+?)\s*</"#)
+        firstMatch(in: xml, pattern: #"<(?:[\w-]+:)?Text[^>]*>\s*([^<]+?)\s*</"#)
+            ?? firstMatch(in: xml, pattern: #"<(?:[\w-]+:)?Subcode>.*?<(?:[\w-]+:)?Value>\s*([^<]+?)\s*</"#)
     }
 }
 
@@ -183,7 +184,8 @@ struct OnvifClient {
             // La faute SOAP contient la vraie raison (NotAuthorized, etc.) :
             // on la remonte dans le journal au lieu de deviner.
             let bodyText = String(data: data, encoding: .utf8) ?? ""
-            let reason = OnvifXML.faultReason(from: bodyText) ?? String(bodyText.prefix(160))
+            let flattened = bodyText.replacingOccurrences(of: "\n", with: " ")
+            let reason = OnvifXML.faultReason(from: bodyText) ?? String(flattened.suffix(300))
             log("ONVIF: HTTP \(status) sur \(url.lastPathComponent) — \(reason)")
             throw OnvifError.http(status)
         }
