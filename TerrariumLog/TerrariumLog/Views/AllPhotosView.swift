@@ -34,6 +34,11 @@ struct AllPhotosView: View {
             if let path = terrarium.mainPhotoPath, seen.insert(path).inserted {
                 result.append(GalleryPhoto(path: path, date: terrarium.createdAt, eventType: ObservationEventType.photo.rawValue))
             }
+            for entry in terrarium.observations {
+                for path in entry.photoPaths where seen.insert(path).inserted {
+                    result.append(GalleryPhoto(path: path, date: entry.date, eventType: entry.eventType))
+                }
+            }
         }
         return result.sorted { $0.date > $1.date }
     }

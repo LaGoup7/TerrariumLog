@@ -24,6 +24,12 @@ final class ObservationEntry {
 
     var animal: Animal?
 
+    /// Terrarium rattaché quand l'observation ne concerne pas un animal précis
+    /// (photo du décor, d'une plante, du terrarium lui-même). Mutuellement
+    /// exclusif avec `animal` en pratique : une entrée vise soit un animal, soit
+    /// un terrarium. Nil pour toutes les entrées créées avant cette évolution.
+    var terrarium: Terrarium?
+
     init(
         date: Date,
         eventType: String,
@@ -38,7 +44,8 @@ final class ObservationEntry {
         newStage: String? = nil,
         moltSuspectedStartDate: Date? = nil,
         moltSizeMM: Double? = nil,
-        animal: Animal? = nil
+        animal: Animal? = nil,
+        terrarium: Terrarium? = nil
     ) {
         self.date = date
         self.eventType = eventType
@@ -54,6 +61,7 @@ final class ObservationEntry {
         self.moltSuspectedStartDate = moltSuspectedStartDate
         self.moltSizeMM = moltSizeMM
         self.animal = animal
+        self.terrarium = terrarium
     }
 }
 

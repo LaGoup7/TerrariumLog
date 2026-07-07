@@ -23,7 +23,26 @@ struct TerrariumDetailView: View {
     @State private var runningAction: SensorAction?
     @State private var didRecordReading = false
 
+    /// Ouvre la visionneuse plein écran sur la photo d'observation touchée.
+    @State private var observationViewer: ObservationViewerContext?
+
     private enum SensorAction { case mist, water }
+
+    struct ObservationViewerContext: Identifiable {
+        let id = UUID()
+        let index: Int
+    }
+
+    /// Photos rattachées au terrarium (pas à un animal), plus récentes d'abord.
+    private var terrariumPhotos: [GalleryPhoto] {
+        terrarium.observations
+            .flatMap { entry in entry.photoPaths.map { GalleryPhoto(path: $0, date: entry.date, eventType: entry.eventType) } }
+            .sorted { $0.date > $1.date }
+    }
+
+    private var sortedObservations: [ObservationEntry] {
+        terrarium.observations.sorted { $0.date > $1.date }
+    }
 
     private var isCameraAvailable: Bool {
         UIImagePickerController.isSourceTypeAvailable(.camera)
@@ -40,6 +59,7 @@ struct TerrariumDetailView: View {
                 lightSection
                 camerasSection
                 animalsSection
+                observationsSection
                 plantsSection
                 measurementsSection
             }
@@ -94,6 +114,77 @@ struct TerrariumDetailView: View {
             }
             .ignoresSafeArea()
         }
+        .fullScreenCover(item: $observationViewer) { viewer in
+            PhotoGalleryViewer(photos: terrariumPhotos, selectedIndex: viewer.index)
+        }
+    }
+
+    private var observationsSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Observations & photos")
+                .font(.headline)
+            if terrarium.observations.isEmpty {
+                Text("Aucune photo. Utilise le bouton appareil photo du tableau de bord pour rattacher une photo à ce terrarium.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            } else {
+                ForEach(Array(sortedObservations.enumerated()), id: \.element.id) { index, entry in
+                    observationRow(entry)
+                    if index < sortedObservations.count - 1 {
+                        Divider()
+                    }
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding()
+        .background(Brand.surface)
+        .clipShape(RoundedRectangle(cornerRadius: 20))
+    }
+
+    @ViewBuilder
+    private func observationRow(_ entry: ObservationEntry) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            if !entry.photoPaths.isEmpty {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 6) {
+                        ForEach(entry.photoPaths, id: \.self) { path in
+                            Button {
+                                if let index = terrariumPhotos.firstIndex(where: { $0.path == path }) {
+                                    observationViewer = ObservationViewerContext(index: index)
+                                }
+                            } label: {
+                                TerrariumPhotoThumbnail(path: path)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                }
+            }
+            if !entry.note.isEmpty {
+                Text(entry.note)
+                    .font(.subheadline)
+            }
+            Text(entry.date.formatted(date: .abbreviated, time: .shortened))
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .contextMenu {
+            Button(role: .destructive) {
+                deleteObservation(entry)
+            } label: {
+                Label("Supprimer", systemImage: "trash")
+            }
+        }
+    }
+
+    private func deleteObservation(_ entry: ObservationEntry) {
+        for path in entry.photoPaths {
+            try? PhotoStorage.shared.deleteImage(at: path)
+        }
+        context.delete(entry)
+        try? context.save()
     }
 
     private var photoSection: some View {
@@ -630,6 +721,32 @@ struct TerrariumDetailView: View {
         case .ok: return Brand.success
         case .dry, .tooHumid: return Brand.warning
         case .mold, .pest: return Brand.error
+        }
+    }
+}
+
+/// Vignette carrée (80×80) d'une photo d'observation de terrarium.
+private struct TerrariumPhotoThumbnail: View {
+    let path: String
+    @State private var image: UIImage?
+
+    var body: some View {
+        Group {
+            if let image {
+                Image(uiImage: image)
+                    .resizable()
+                    .scaledToFill()
+            } else {
+                Rectangle()
+                    .fill(Brand.surfaceElevated)
+            }
+        }
+        .frame(width: 80, height: 80)
+        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .onAppear {
+            if image == nil {
+                image = ThumbnailStore.shared.thumbnail(for: path, maxDimension: 200)
+            }
         }
     }
 }

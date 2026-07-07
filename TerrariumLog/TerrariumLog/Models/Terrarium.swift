@@ -36,6 +36,11 @@ final class Terrarium {
     @Relationship(deleteRule: .cascade, inverse: \Light.terrarium)
     var lights: [Light] = []
 
+    /// Observations/photos rattachées directement au terrarium (pas à un animal) :
+    /// décor, plantes, vue d'ensemble. Supprimées avec le terrarium.
+    @Relationship(deleteRule: .cascade, inverse: \ObservationEntry.terrarium)
+    var observations: [ObservationEntry] = []
+
     init(
         name: String,
         type: TerrariumType,

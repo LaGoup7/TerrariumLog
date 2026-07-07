@@ -76,6 +76,37 @@ final class BackupServiceTests: XCTestCase {
         XCTAssertTrue(terrariums.first?.cameras.first?.isConfigured ?? false)
     }
 
+    func testTerrariumObservationRoundTrip() throws {
+        let controller = PersistenceController(inMemory: true)
+        let context = controller.container.mainContext
+
+        let terrarium = Terrarium(name: "Bac planté", type: .terrarium)
+        context.insert(terrarium)
+
+        let observation = ObservationEntry(
+            date: .now,
+            eventType: ObservationEventType.behavior.rawValue,
+            note: "Nouvelle mousse sur la racine",
+            photoPaths: ["terrarium_photo.jpg"],
+            terrarium: terrarium
+        )
+        context.insert(observation)
+        try context.save()
+
+        let data = try BackupService.shared.exportData(context: context)
+        try BackupService.shared.importData(data, context: context)
+
+        let terrariums = try context.fetch(FetchDescriptor<Terrarium>())
+        XCTAssertEqual(terrariums.count, 1)
+        XCTAssertEqual(terrariums.first?.observations.count, 1)
+        XCTAssertEqual(terrariums.first?.observations.first?.note, "Nouvelle mousse sur la racine")
+        XCTAssertEqual(terrariums.first?.observations.first?.photoPaths, ["terrarium_photo.jpg"])
+
+        // Une observation de terrarium n'est pas rattachée à un animal.
+        let orphanAnimals = try context.fetch(FetchDescriptor<Animal>())
+        XCTAssertTrue(orphanAnimals.isEmpty)
+    }
+
     func testImportRejectsInvalidData() {
         let controller = PersistenceController(inMemory: true)
         let context = controller.container.mainContext

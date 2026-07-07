@@ -35,6 +35,9 @@ struct TerrariumDTO: Codable {
     var animals: [AnimalDTO]
     var plants: [PlantDTO]
     var cameras: [CameraDTO]
+    /// Observations/photos rattachées au terrarium (pas à un animal).
+    /// Optionnel : absent des sauvegardes antérieures à cette évolution.
+    var observations: [ObservationEntryDTO]?
 }
 
 struct AnimalDTO: Codable {

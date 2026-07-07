@@ -50,6 +50,9 @@ struct BackupService {
             if let path = terrarium.mainPhotoPath {
                 photoPaths.insert(path)
             }
+            for entry in terrarium.observations {
+                photoPaths.formUnion(entry.photoPaths)
+            }
         }
         for animal in animals {
             if let path = animal.primaryPhotoPath {
@@ -86,7 +89,8 @@ struct BackupService {
             targetHumidityMax: terrarium.targetHumidityMax,
             animals: terrarium.animals.map(makeAnimalDTO),
             plants: terrarium.plants.map(makePlantDTO),
-            cameras: terrarium.cameras.map(makeCameraDTO)
+            cameras: terrarium.cameras.map(makeCameraDTO),
+            observations: terrarium.observations.map(makeObservationEntryDTO)
         )
     }
 
@@ -298,6 +302,26 @@ struct BackupService {
                 terrarium: terrarium
             )
             context.insert(camera)
+        }
+
+        for entryDTO in dto.observations ?? [] {
+            let entry = ObservationEntry(
+                date: entryDTO.date,
+                eventType: entryDTO.eventType,
+                note: entryDTO.note,
+                photoPaths: entryDTO.photoPaths,
+                preyType: entryDTO.preyType,
+                preySize: entryDTO.preySize,
+                preyQuantity: entryDTO.preyQuantity,
+                eatenStatus: entryDTO.eatenStatus,
+                captureTimeMinutes: entryDTO.captureTimeMinutes,
+                previousStage: entryDTO.previousStage,
+                newStage: entryDTO.newStage,
+                moltSuspectedStartDate: entryDTO.moltSuspectedStartDate,
+                moltSizeMM: entryDTO.moltSizeMM,
+                terrarium: terrarium
+            )
+            context.insert(entry)
         }
 
         for animalDTO in dto.animals {

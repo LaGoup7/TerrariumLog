@@ -64,6 +64,8 @@ struct DashboardView: View {
     @State private var showingAddReminder = false
     @State private var showingAddLight = false
     @State private var showingCustomize = false
+    /// Capture photo rapide (appareil d'abord) depuis la barre du Dashboard.
+    @State private var showingQuickPhoto = false
     /// Animal choisi pour une observation rapide depuis la barre du Dashboard.
     @State private var observationAnimal: Animal?
     @AppStorage("dashboardSectionOrder") private var sectionOrderRaw = ""
@@ -125,6 +127,16 @@ struct DashboardView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
+                    // Photo rapide : l'appareil s'ouvre tout de suite, puis note
+                    // + rattachement à un animal ou un terrarium.
+                    Button {
+                        showingQuickPhoto = true
+                    } label: {
+                        Image(systemName: "camera")
+                    }
+                    .disabled(animals.isEmpty && terrariums.isEmpty)
+                }
+                ToolbarItem(placement: .topBarTrailing) {
                     // Observation rapide : formulaire du journal en mode
                     // multi-animaux (une entrée créée pour chaque animal coché).
                     Button {
@@ -144,6 +156,9 @@ struct DashboardView: View {
             }
             .sheet(item: $observationAnimal) { animal in
                 JournalEntryView(animal: animal, allowsMultipleAnimals: true)
+            }
+            .sheet(isPresented: $showingQuickPhoto) {
+                QuickPhotoCaptureView()
             }
             .sheet(isPresented: $showingCustomize) {
                 DashboardCustomizeView()
