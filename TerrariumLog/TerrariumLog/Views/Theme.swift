@@ -76,6 +76,28 @@ enum Brand {
         )
     }
 
+    // MARK: Couleurs de catégorie du journal
+    /// Couleur associée à une catégorie d'événement de journal (timeline, saisie).
+    /// Réutilise les jetons de marque pour rester cohérent avec le reste de l'app.
+    static func color(for category: ObservationCategory) -> Color {
+        switch category {
+        case .feeding: return primary
+        case .molting: return accent
+        case .behavior: return Color(uiColor: behaviorUI)
+        case .health: return error
+        case .maintenance: return warning
+        case .environment: return Color(uiColor: environmentUI)
+        case .lifecycle: return Color(uiColor: lifecycleUI)
+        case .note: return textSecondary
+        }
+    }
+
+    /// Teintes propres aux catégories sans jeton dédié (violet comportement,
+    /// bleu environnement, indigo cycle de vie), déclinées clair/sombre.
+    static let behaviorUI = dynamic(light: 0x8B5CF6, dark: 0xA78BFA)
+    static let environmentUI = dynamic(light: 0x0EA5E9, dark: 0x38BDF8)
+    static let lifecycleUI = dynamic(light: 0x6366F1, dark: 0x818CF8)
+
     // MARK: Fabrique de couleurs dynamiques
     private static func dynamic(light: UInt, lightAlpha: Double = 1, dark: UInt, darkAlpha: Double = 1) -> UIColor {
         UIColor { traits in

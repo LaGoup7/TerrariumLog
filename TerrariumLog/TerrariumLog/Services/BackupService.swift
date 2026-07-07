@@ -145,7 +145,13 @@ struct BackupService {
             previousStage: entry.previousStage,
             newStage: entry.newStage,
             moltSuspectedStartDate: entry.moltSuspectedStartDate,
-            moltSizeMM: entry.moltSizeMM
+            moltSizeMM: entry.moltSizeMM,
+            snapshotTemperature: entry.snapshotTemperature,
+            snapshotHumidity: entry.snapshotHumidity,
+            snapshotSoilMoisture: entry.snapshotSoilMoisture,
+            snapshotLuminosity: entry.snapshotLuminosity,
+            weightGrams: entry.weightGrams,
+            tags: entry.tags.isEmpty ? nil : entry.tags
         )
     }
 
@@ -349,6 +355,12 @@ struct BackupService {
                 newStage: entryDTO.newStage,
                 moltSuspectedStartDate: entryDTO.moltSuspectedStartDate,
                 moltSizeMM: entryDTO.moltSizeMM,
+                snapshotTemperature: entryDTO.snapshotTemperature,
+                snapshotHumidity: entryDTO.snapshotHumidity,
+                snapshotSoilMoisture: entryDTO.snapshotSoilMoisture,
+                snapshotLuminosity: entryDTO.snapshotLuminosity,
+                weightGrams: entryDTO.weightGrams,
+                tags: entryDTO.tags ?? [],
                 animal: animal
             )
             context.insert(entry)

@@ -88,6 +88,13 @@ struct ObservationEntryDTO: Codable {
     var newStage: String?
     var moltSuspectedStartDate: Date?
     var moltSizeMM: Double?
+    // Champs Habitat Journal (optionnels : sauvegardes antérieures compatibles).
+    var snapshotTemperature: Double?
+    var snapshotHumidity: Double?
+    var snapshotSoilMoisture: Double?
+    var snapshotLuminosity: Double?
+    var weightGrams: Double?
+    var tags: [String]?
 }
 
 struct ReminderDTO: Codable {

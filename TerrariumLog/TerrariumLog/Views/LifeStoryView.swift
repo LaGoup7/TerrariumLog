@@ -5,7 +5,14 @@ struct LifeStoryView: View {
     @State private var selectedGalleryIndex: Int?
     @State private var exportedPDF: ExportedPDF?
 
+    @State private var exportedCSV: ExportedFile?
+
     struct ExportedPDF: Identifiable {
+        let id = UUID()
+        let url: URL
+    }
+
+    struct ExportedFile: Identifiable {
         let id = UUID()
         let url: URL
     }
@@ -48,14 +55,50 @@ struct LifeStoryView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
-                Button {
-                    if let url = LifeStoryPDFExporter.export(animal: animal) {
-                        exportedPDF = ExportedPDF(url: url)
+                Menu {
+                    Button {
+                        if let url = LifeStoryPDFExporter.export(animal: animal) {
+                            exportedPDF = ExportedPDF(url: url)
+                        }
+                    } label: {
+                        Label("Exporter en PDF", systemImage: "doc.richtext")
+                    }
+                    Button {
+                        if let url = JournalCSVExporter.export(animal: animal) {
+                            exportedCSV = ExportedFile(url: url)
+                        }
+                    } label: {
+                        Label("Exporter en CSV", systemImage: "tablecells")
                     }
                 } label: {
                     Image(systemName: "square.and.arrow.up")
                 }
             }
+        }
+        .sheet(item: $exportedCSV) { csv in
+            NavigationStack {
+                VStack(spacing: 16) {
+                    Image(systemName: "tablecells")
+                        .font(.system(size: 48))
+                        .foregroundStyle(Brand.primary)
+                    Text("Journal exporté en CSV")
+                        .font(.headline)
+                    ShareLink(item: csv.url) {
+                        Label("Partager le CSV", systemImage: "square.and.arrow.up")
+                            .font(.body.weight(.semibold))
+                            .padding(.horizontal, 18)
+                            .padding(.vertical, 12)
+                            .background(Brand.primary.opacity(0.16), in: Capsule())
+                    }
+                }
+                .padding()
+                .toolbar {
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button("Fermer") { exportedCSV = nil }
+                    }
+                }
+            }
+            .presentationDetents([.medium])
         }
         .sheet(item: $exportedPDF) { pdf in
             NavigationStack {

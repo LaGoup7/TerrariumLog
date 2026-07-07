@@ -909,17 +909,26 @@ struct JournalEntryView: View {
     @State private var newStage = ""
     @State private var moltSize = ""
 
+    // Champs santé / note
+    @State private var weight = ""
+    @State private var tagsText = ""
+
+    /// Snapshot capteurs capturé à l'ouverture (best-effort), figé dans la
+    /// nouvelle entrée pour documenter le contexte environnemental.
+    @State private var capturedSnapshot: TerrariumSensorReading?
+
     @State private var showingCamera = false
 
     private var isCameraAvailable: Bool {
         UIImagePickerController.isSourceTypeAvailable(.camera)
     }
 
-    init(animal: Animal, initialEventType: ObservationEventType = .other, allowsMultipleAnimals: Bool = false) {
+    init(animal: Animal, initialEventType: ObservationEventType = .other, initialNote: String = "", allowsMultipleAnimals: Bool = false) {
         self.animal = animal
         self.allowsMultipleAnimals = allowsMultipleAnimals
         self.editingEntry = nil
         _eventType = State(initialValue: initialEventType)
+        _note = State(initialValue: initialNote)
         _previousStage = State(initialValue: animal.currentStage)
         _selectedAnimalIDs = State(initialValue: [animal.persistentModelID])
     }
@@ -944,6 +953,64 @@ struct JournalEntryView: View {
         _moltSize = State(initialValue: entry.moltSizeMM.map { value in
             value.truncatingRemainder(dividingBy: 1) == 0 ? String(Int(value)) : String(value)
         } ?? "")
+        _weight = State(initialValue: entry.weightGrams.map { value in
+            value.truncatingRemainder(dividingBy: 1) == 0 ? String(Int(value)) : String(value)
+        } ?? "")
+        _tagsText = State(initialValue: entry.tags.joined(separator: ", "))
+    }
+
+    /// Poids saisi converti (virgule française acceptée).
+    private var parsedWeight: Double? {
+        Double(weight.trimmingCharacters(in: .whitespaces).replacingOccurrences(of: ",", with: "."))
+    }
+
+    /// Tags nettoyés à partir du champ séparé par des virgules.
+    private var parsedTags: [String] {
+        tagsText
+            .split(separator: ",")
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty }
+    }
+
+    /// Catégories réellement disponibles pour les animaux visés (ordre stable).
+    private var availableCategories: [ObservationCategory] {
+        var seen: [ObservationCategory] = []
+        for type in availableEventTypes where !seen.contains(type.category) {
+            seen.append(type.category)
+        }
+        return seen
+    }
+
+    private func types(in category: ObservationCategory) -> [ObservationEventType] {
+        availableEventTypes.filter { $0.category == category }
+    }
+
+    /// Récupère un relevé capteurs si le terrarium en expose un (best-effort).
+    private func captureSnapshotIfPossible() async {
+        guard editingEntry == nil, capturedSnapshot == nil,
+              let ip = animal.terrarium?.sensorModuleIP,
+              !ip.trimmingCharacters(in: .whitespaces).isEmpty else { return }
+        capturedSnapshot = try? await TerrariumSensorClient(ip: ip).fetchReading()
+    }
+
+    @ViewBuilder
+    private func snapshotSummaryRow(_ snapshot: TerrariumSensorReading) -> some View {
+        HStack(spacing: 14) {
+            if let t = snapshot.temperature {
+                Label("\(t, specifier: "%.1f")°C", systemImage: "thermometer.medium")
+            }
+            if let h = snapshot.humidity {
+                Label("\(h, specifier: "%.0f")%", systemImage: "humidity")
+            }
+            if let s = snapshot.soilMoisture {
+                Label("\(s, specifier: "%.0f")%", systemImage: "leaf")
+            }
+            if let l = snapshot.luminosity {
+                Label("\(l, specifier: "%.0f")", systemImage: "sun.max")
+            }
+        }
+        .font(.caption)
+        .foregroundStyle(.secondary)
     }
 
     /// Taille saisie convertie (virgule française acceptée).
@@ -1013,8 +1080,12 @@ struct JournalEntryView: View {
 
                 DatePicker("Date", selection: $selectedDate, displayedComponents: [.date, .hourAndMinute])
                 Picker("Type", selection: $eventType) {
-                    ForEach(availableEventTypes, id: \.self) { type in
-                        Text(type.displayName).tag(type)
+                    ForEach(availableCategories) { category in
+                        Section(category.displayName) {
+                            ForEach(types(in: category), id: \.self) { type in
+                                Label(type.displayName, systemImage: type.symbolName).tag(type)
+                            }
+                        }
                     }
                 }
 
@@ -1062,8 +1133,23 @@ struct JournalEntryView: View {
                     }
                 }
 
+                if eventType.category == .health {
+                    Section("Santé") {
+                        TextField("Poids (g)", text: $weight)
+                            .keyboardType(.decimalPad)
+                    }
+                }
+
+                if let snapshot = capturedSnapshot, !snapshot.isEmpty {
+                    Section("Relevé capteurs (au moment de l'observation)") {
+                        snapshotSummaryRow(snapshot)
+                    }
+                }
+
                 TextEditor(text: $note)
                     .frame(minHeight: 120)
+                TextField("Tags (séparés par des virgules)", text: $tagsText)
+                    .autocorrectionDisabled()
                 PhotosPicker(selection: $selectedItems, matching: .images) {
                     Label("Ajouter des photos", systemImage: "photo.on.rectangle")
                 }
@@ -1088,6 +1174,7 @@ struct JournalEntryView: View {
             }
             .navigationTitle(editingEntry == nil ? "Nouvelle observation" : "Modifier l'observation")
             .onAppear { applyDietSuggestionIfNeeded() }
+            .task { await captureSnapshotIfPossible() }
             .onChange(of: eventType) { _, _ in applyDietSuggestionIfNeeded() }
             .fullScreenCover(isPresented: $showingCamera) {
                 CameraCaptureView { image in
@@ -1129,6 +1216,8 @@ struct JournalEntryView: View {
                             editingEntry.previousStage = eventType == .molt ? previousStage : nil
                             editingEntry.newStage = eventType == .molt ? newStage : nil
                             editingEntry.moltSizeMM = eventType == .molt ? parsedMoltSize : nil
+                            editingEntry.weightGrams = eventType.category == .health ? parsedWeight : editingEntry.weightGrams
+                            editingEntry.tags = parsedTags
                             if eventType == .molt, !newStage.isEmpty, animal.type.tracksMolting {
                                 animal.currentStage = newStage
                             }
@@ -1151,6 +1240,12 @@ struct JournalEntryView: View {
                                 previousStage: eventType == .molt ? previousStage : nil,
                                 newStage: eventType == .molt ? newStage : nil,
                                 moltSizeMM: eventType == .molt ? parsedMoltSize : nil,
+                                snapshotTemperature: capturedSnapshot?.temperature,
+                                snapshotHumidity: capturedSnapshot?.humidity,
+                                snapshotSoilMoisture: capturedSnapshot?.soilMoisture,
+                                snapshotLuminosity: capturedSnapshot?.luminosity,
+                                weightGrams: eventType.category == .health ? parsedWeight : nil,
+                                tags: parsedTags,
                                 animal: target
                             )
                             context.insert(entry)

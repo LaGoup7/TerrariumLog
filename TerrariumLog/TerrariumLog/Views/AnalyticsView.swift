@@ -7,6 +7,12 @@ import Charts
 struct AnalyticsView: View {
     @Query(sort: [SortDescriptor<Animal>(\.dashboardSortOrder)]) private var animals: [Animal]
     @State private var selectedAnimalID: PersistentIdentifier?
+    @State private var exportedCSV: ExportedCSV?
+
+    struct ExportedCSV: Identifiable {
+        let id = UUID()
+        let url: URL
+    }
 
     private var selectedAnimal: Animal? {
         guard let selectedAnimalID else { return nil }
@@ -19,21 +25,174 @@ struct AnalyticsView: View {
         return source.flatMap(\.journalEntries).filter { !$0.isPhotoOnly }
     }
 
+    /// Synthèses transversales sur le périmètre courant.
+    private var insights: JournalInsights {
+        JournalInsights.compute(from: scopedEntries)
+    }
+
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
                 animalPicker
                 activityCard
+                insightsCard
+                if !insights.weightSeries.isEmpty {
+                    weightCard
+                }
                 if let animal = selectedAnimal {
                     diversityCard(for: animal)
                 }
                 refusalsCard
                 moltComparisonCard
+                maintenanceCard
             }
             .padding()
         }
         .background(Brand.backgroundGradient.ignoresSafeArea())
         .navigationTitle("Analyses")
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button {
+                    let scope = selectedAnimal.map { [$0] } ?? animals
+                    let name = selectedAnimal?.name ?? "journal-complet"
+                    if let url = JournalCSVExporter.export(animals: scope, filename: "journal-\(name)") {
+                        exportedCSV = ExportedCSV(url: url)
+                    }
+                } label: {
+                    Image(systemName: "square.and.arrow.up")
+                }
+            }
+        }
+        .sheet(item: $exportedCSV) { csv in
+            NavigationStack {
+                VStack(spacing: 16) {
+                    Image(systemName: "tablecells")
+                        .font(.system(size: 48))
+                        .foregroundStyle(Brand.primary)
+                    Text("Journal exporté en CSV")
+                        .font(.headline)
+                    ShareLink(item: csv.url) {
+                        Label("Partager le CSV", systemImage: "square.and.arrow.up")
+                            .font(.body.weight(.semibold))
+                            .padding(.horizontal, 18)
+                            .padding(.vertical, 12)
+                            .background(Brand.primary.opacity(0.16), in: Capsule())
+                    }
+                }
+                .padding()
+                .toolbar {
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button("Fermer") { exportedCSV = nil }
+                    }
+                }
+            }
+            .presentationDetents([.medium])
+        }
+    }
+
+    // MARK: Synthèses (jeûne, compteurs)
+
+    private var insightsCard: some View {
+        let stats = insights
+        return VStack(alignment: .leading, spacing: 12) {
+            Text("Synthèse du journal")
+                .font(.headline)
+            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
+                metric("Nourrissages", "\(stats.feedingCount)", "fork.knife", Brand.primary)
+                metric("Refus", "\(stats.refusalCount)", "xmark.circle", Brand.warning)
+                metric("Mues", "\(stats.moltCount)", "arrow.triangle.2.circlepath", Brand.accent)
+                if let fast = stats.longestFastingDays {
+                    metric("Jeûne max", "\(Int(fast.rounded())) j", "hourglass", Brand.warning)
+                }
+                if let interval = stats.averageFeedingIntervalDays {
+                    metric("Intervalle repas", "\(Int(interval.rounded())) j", "calendar", Brand.primary)
+                }
+                if let moltInterval = stats.averageMoltIntervalDays {
+                    metric("Cycle de mue", "\(Int(moltInterval.rounded())) j", "clock.arrow.circlepath", Brand.accent)
+                }
+            }
+        }
+        .brandCard()
+    }
+
+    private func metric(_ label: String, _ value: String, _ icon: String, _ tint: Color) -> some View {
+        HStack(spacing: 10) {
+            Image(systemName: icon)
+                .font(.headline)
+                .foregroundStyle(tint)
+                .frame(width: 28)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(value)
+                    .font(.subheadline.bold())
+                Text(label)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
+            Spacer()
+        }
+        .padding(10)
+        .background(Brand.surfaceElevated, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+    }
+
+    // MARK: Évolution du poids
+
+    private var weightCard: some View {
+        let series = insights.weightSeries
+        return VStack(alignment: .leading, spacing: 10) {
+            Text("Évolution du poids")
+                .font(.headline)
+            Chart(series) { point in
+                LineMark(
+                    x: .value("Date", point.date),
+                    y: .value("Poids (g)", point.grams)
+                )
+                .foregroundStyle(Brand.primary)
+                PointMark(
+                    x: .value("Date", point.date),
+                    y: .value("Poids (g)", point.grams)
+                )
+                .foregroundStyle(Brand.primary)
+            }
+            .frame(height: 160)
+            if let first = series.first, let last = series.last, series.count > 1 {
+                let delta = last.grams - first.grams
+                Text("\(delta >= 0 ? "+" : "")\(trim(delta)) g depuis le \(first.date.formatted(date: .abbreviated, time: .omitted))")
+                    .font(.caption2)
+                    .foregroundStyle(delta >= 0 ? Brand.success : Brand.warning)
+            }
+        }
+        .brandCard()
+    }
+
+    // MARK: Fréquence de maintenance
+
+    private var maintenanceCard: some View {
+        let stats = insights
+        return Group {
+            if stats.maintenanceCount > 0 {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Maintenance de l'habitat")
+                        .font(.headline)
+                    HStack {
+                        Label("\(stats.maintenanceCount) opérations", systemImage: "wrench.and.screwdriver")
+                            .font(.footnote)
+                        Spacer()
+                        if let perMonth = stats.maintenancePerMonth {
+                            Text("~\(String(format: "%.1f", perMonth))/mois")
+                                .font(.footnote.weight(.semibold))
+                                .foregroundStyle(Brand.warning)
+                        }
+                    }
+                }
+                .brandCard()
+            }
+        }
+    }
+
+    private func trim(_ value: Double) -> String {
+        value.truncatingRemainder(dividingBy: 1) == 0
+            ? String(Int(value))
+            : String(format: "%.1f", value)
     }
 
     // MARK: Filtre animal
