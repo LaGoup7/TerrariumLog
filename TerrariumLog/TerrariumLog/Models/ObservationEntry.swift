@@ -457,6 +457,7 @@ enum ObservationEventType: String, CaseIterable, Codable, Sendable {
         case .moltFailed: return "exclamationmark.triangle"
         case .arrival, .capture: return "sparkles"
         case .death: return "heart.slash"
+        case .behavior: return "eye"
         case .humidifying: return "drop"
         case .cleaning: return "sparkle"
         case .webBuilding, .eggSac: return "circle.hexagongrid"
