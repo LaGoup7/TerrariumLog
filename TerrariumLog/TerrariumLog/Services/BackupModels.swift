@@ -6,6 +6,8 @@ struct BackupData: Codable {
     var unassignedAnimals: [AnimalDTO]
     var customPreyTypeNames: [String]?
     var preyStocks: [PreyStockDTO]?
+    /// Lampes sans terrarium associé. Optionnel : absent des anciennes sauvegardes.
+    var unassignedLights: [LightDTO]?
 }
 
 struct PreyStockDTO: Codable {
@@ -38,6 +40,25 @@ struct TerrariumDTO: Codable {
     /// Observations/photos rattachées au terrarium (pas à un animal).
     /// Optionnel : absent des sauvegardes antérieures à cette évolution.
     var observations: [ObservationEntryDTO]?
+    /// Lampes du terrarium. Optionnel : absent des anciennes sauvegardes.
+    var lights: [LightDTO]?
+}
+
+struct LightDTO: Codable {
+    var name: String
+    var brand: LightBrand
+    var ipAddress: String?
+    var notes: String
+    var createdAt: Date
+    var scheduleModeRawValue: String?
+    var dayStartMinutes: Int?
+    var dayEndMinutes: Int?
+    var dayBrightness: Int?
+    var biotopePresetID: String?
+    var biotopeShiftedToLocal: Bool?
+    var biotopeWeatherEnabled: Bool?
+    var biotopeStormSyncEnabled: Bool?
+    var biotopeMoonEnabled: Bool?
 }
 
 struct AnimalDTO: Codable {

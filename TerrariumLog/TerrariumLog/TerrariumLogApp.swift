@@ -11,6 +11,8 @@ struct TerrariumLogApp: App {
         self.container = persistence.container
         let context = persistence.container.mainContext
         persistence.seedDemoDataIfNeeded(context: context)
+        // Ancien système d'éclairage (IP WiZ sur le terrarium) → modèle Light.
+        LightScheduleEngine.migrateLegacyTerrariumLights(context: context)
 
         UNUserNotificationCenter.current().delegate = NotificationDelegate.shared
         NotificationService.shared.registerNotificationCategories()

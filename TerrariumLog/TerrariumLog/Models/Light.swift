@@ -17,6 +17,21 @@ final class Light {
     var createdAt: Date
     var lastKnownOn: Bool = false
     var lastBrightness: Int = 100
+
+    // MARK: Cycle jour/nuit
+    /// Mode de pilotage (rawValue de `LightScheduleMode`) : "manual" (aucun
+    /// cycle), "fixed" (photopériode à horaires fixes) ou "biotope" (soleil réel
+    /// de la région d'origine). Stocké en String pour rester robuste aux
+    /// évolutions du schéma.
+    var scheduleModeRawValue: String = LightScheduleMode.manual.rawValue
+    /// Photopériode fixe : lever en minutes depuis minuit (ex. 540 = 9 h 00).
+    var dayStartMinutes: Int = 540
+    /// Photopériode fixe : coucher en minutes depuis minuit (ex. 1260 = 21 h 00).
+    var dayEndMinutes: Int = 1260
+    /// Intensité maximale du plateau de jour (10–100 %). La montée/descente
+    /// aube/crépuscule est calculée automatiquement (courbe naturelle).
+    var dayBrightness: Int = 100
+
     /// Biotope suivi par la lampe (id d'un `BiotopePreset`), ou nil.
     var biotopePresetID: String?
     /// true = la courbe du soleil du biotope est rejouée sur l'horaire local ;
@@ -53,6 +68,38 @@ final class Light {
 
     var isConfigured: Bool {
         !(ipAddress ?? "").isEmpty
+    }
+
+    var scheduleMode: LightScheduleMode {
+        get { LightScheduleMode(rawValue: scheduleModeRawValue) ?? .manual }
+        set { scheduleModeRawValue = newValue.rawValue }
+    }
+}
+
+/// Mode de pilotage du cycle jour/nuit d'une lampe.
+enum LightScheduleMode: String, CaseIterable, Codable, Sendable {
+    /// Aucun cycle : la lampe garde le dernier réglage manuel.
+    case manual
+    /// Photopériode à horaires fixes (standard en élevage) : aube et crépuscule
+    /// progressifs autour d'un plateau de jour.
+    case fixed
+    /// Soleil réel de la région d'origine (élévation solaire → intensité/teinte).
+    case biotope
+
+    var displayName: String {
+        switch self {
+        case .manual: return "Manuel"
+        case .fixed: return "Horaires fixes"
+        case .biotope: return "Biotope"
+        }
+    }
+
+    var symbolName: String {
+        switch self {
+        case .manual: return "hand.raised"
+        case .fixed: return "clock"
+        case .biotope: return "globe.americas.fill"
+        }
     }
 }
 

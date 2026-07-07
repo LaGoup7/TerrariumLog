@@ -167,7 +167,6 @@ struct TerrariumFormView: View {
     @State private var substrate: String
     @State private var decor: String
     @State private var notes: String
-    @State private var wizLightIP: String
     @State private var sensorModuleIP: String
     @State private var targetTempMin: String
     @State private var targetTempMax: String
@@ -182,7 +181,6 @@ struct TerrariumFormView: View {
         _substrate = State(initialValue: terrarium?.substrate ?? "")
         _decor = State(initialValue: terrarium?.decor ?? "")
         _notes = State(initialValue: terrarium?.notes ?? "")
-        _wizLightIP = State(initialValue: terrarium?.wizLightIP ?? "")
         _sensorModuleIP = State(initialValue: terrarium?.sensorModuleIP ?? "")
         func text(_ value: Double?) -> String {
             guard let value else { return "" }
@@ -227,12 +225,6 @@ struct TerrariumFormView: View {
                     TextField("Dimensions (ex: 20 x 20 x 35 cm)", text: $dimensions)
                     TextField("Substrat", text: $substrate)
                     TextField("Décor", text: $decor)
-                }
-                Section("Éclairage") {
-                    TextField("Adresse IP lampe WiZ (ex: 192.168.1.42)", text: $wizLightIP)
-                        .keyboardType(.numbersAndPunctuation)
-                        .autocorrectionDisabled()
-                        .textInputAutocapitalization(.never)
                 }
                 Section {
                     TextField("Adresse IP du module (ex: 192.168.1.60)", text: $sensorModuleIP)
@@ -288,7 +280,6 @@ struct TerrariumFormView: View {
                         terrarium.substrate = substrate
                         terrarium.decor = decor
                         terrarium.notes = notes
-                        terrarium.wizLightIP = wizLightIP.isEmpty ? nil : wizLightIP
                         terrarium.sensorModuleIP = sensorModuleIP.isEmpty ? nil : sensorModuleIP
                         terrarium.targetTemperatureMin = parseTarget(targetTempMin)
                         terrarium.targetTemperatureMax = parseTarget(targetTempMax)

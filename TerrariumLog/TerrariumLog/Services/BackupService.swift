@@ -15,6 +15,7 @@ struct BackupService {
         let animals = (try? context.fetch(FetchDescriptor<Animal>())) ?? []
         let customPreyTypes = (try? context.fetch(FetchDescriptor<CustomPreyType>())) ?? []
         let preyStocks = (try? context.fetch(FetchDescriptor<PreyStock>())) ?? []
+        let lights = (try? context.fetch(FetchDescriptor<Light>())) ?? []
 
         let terrariumDTOs = terrariums.map(makeTerrariumDTO)
         let unassignedAnimalDTOs = animals.filter { $0.terrarium == nil }.map(makeAnimalDTO)
@@ -26,7 +27,8 @@ struct BackupService {
             customPreyTypeNames: customPreyTypes.map(\.name),
             preyStocks: preyStocks.map {
                 PreyStockDTO(typeRawValue: $0.typeRawValue, quantity: $0.quantity, lowThreshold: $0.lowThreshold, updatedAt: $0.updatedAt)
-            }
+            },
+            unassignedLights: lights.filter { $0.terrarium == nil }.map(makeLightDTO)
         )
 
         let encoder = JSONEncoder()
@@ -90,7 +92,27 @@ struct BackupService {
             animals: terrarium.animals.map(makeAnimalDTO),
             plants: terrarium.plants.map(makePlantDTO),
             cameras: terrarium.cameras.map(makeCameraDTO),
-            observations: terrarium.observations.map(makeObservationEntryDTO)
+            observations: terrarium.observations.map(makeObservationEntryDTO),
+            lights: terrarium.lights.map(makeLightDTO)
+        )
+    }
+
+    private func makeLightDTO(_ light: Light) -> LightDTO {
+        LightDTO(
+            name: light.name,
+            brand: light.brand,
+            ipAddress: light.ipAddress,
+            notes: light.notes,
+            createdAt: light.createdAt,
+            scheduleModeRawValue: light.scheduleModeRawValue,
+            dayStartMinutes: light.dayStartMinutes,
+            dayEndMinutes: light.dayEndMinutes,
+            dayBrightness: light.dayBrightness,
+            biotopePresetID: light.biotopePresetID,
+            biotopeShiftedToLocal: light.biotopeShiftedToLocal,
+            biotopeWeatherEnabled: light.biotopeWeatherEnabled,
+            biotopeStormSyncEnabled: light.biotopeStormSyncEnabled,
+            biotopeMoonEnabled: light.biotopeMoonEnabled
         )
     }
 
@@ -229,6 +251,11 @@ struct BackupService {
         for preyStock in try context.fetch(FetchDescriptor<PreyStock>()) {
             context.delete(preyStock)
         }
+        // Les lampes rattachées partent avec leur terrarium (cascade) ; il faut
+        // aussi supprimer celles sans terrarium.
+        for light in try context.fetch(FetchDescriptor<Light>()) {
+            context.delete(light)
+        }
         try context.save()
 
         for terrariumDTO in backup.terrariums {
@@ -248,9 +275,35 @@ struct BackupService {
                 updatedAt: stockDTO.updatedAt
             ))
         }
+        for lightDTO in backup.unassignedLights ?? [] {
+            insert(lightDTO, terrarium: nil, into: context)
+        }
 
         try context.save()
+        // Anciennes sauvegardes : l'IP WiZ portée par le terrarium devient une lampe.
+        LightScheduleEngine.migrateLegacyTerrariumLights(context: context)
         ReminderService.shared.refreshWidgetSnapshot(context: context)
+    }
+
+    private func insert(_ dto: LightDTO, terrarium: Terrarium?, into context: ModelContext) {
+        let light = Light(
+            name: dto.name,
+            brand: dto.brand,
+            ipAddress: dto.ipAddress,
+            notes: dto.notes,
+            createdAt: dto.createdAt,
+            terrarium: terrarium
+        )
+        light.scheduleModeRawValue = dto.scheduleModeRawValue ?? LightScheduleMode.manual.rawValue
+        light.dayStartMinutes = dto.dayStartMinutes ?? 540
+        light.dayEndMinutes = dto.dayEndMinutes ?? 1260
+        light.dayBrightness = dto.dayBrightness ?? 100
+        light.biotopePresetID = dto.biotopePresetID
+        light.biotopeShiftedToLocal = dto.biotopeShiftedToLocal ?? true
+        light.biotopeWeatherEnabled = dto.biotopeWeatherEnabled ?? false
+        light.biotopeStormSyncEnabled = dto.biotopeStormSyncEnabled ?? false
+        light.biotopeMoonEnabled = dto.biotopeMoonEnabled ?? false
+        context.insert(light)
     }
 
     private func insert(_ dto: TerrariumDTO, into context: ModelContext) {
@@ -302,6 +355,10 @@ struct BackupService {
                 terrarium: terrarium
             )
             context.insert(camera)
+        }
+
+        for lightDTO in dto.lights ?? [] {
+            insert(lightDTO, terrarium: terrarium, into: context)
         }
 
         for entryDTO in dto.observations ?? [] {

@@ -8,85 +8,33 @@ import SwiftData
 /// sans ouvrir l'app.
 @MainActor
 enum HabitatIntentActions {
-    /// Allume/éteint toutes les lampes configurées (modèle `Light` + IP WiZ
-    /// héritée des terrariums), en dédupliquant les adresses.
+    /// Allume/éteint toutes les lampes configurées, via le contrôleur de la
+    /// marque de chaque lampe. L'ancienne IP WiZ des terrariums est migrée en
+    /// `Light` au préalable (voir `LightScheduleEngine`).
     static func setAllLights(on: Bool) async -> Int {
         let context = PersistenceController.shared.container.mainContext
-        var ips = Set<String>()
+        LightScheduleEngine.migrateLegacyTerrariumLights(context: context)
 
         let lights = (try? context.fetch(FetchDescriptor<Light>())) ?? []
+        var count = 0
         for light in lights {
-            if let ip = light.ipAddress, !ip.isEmpty { ips.insert(ip) }
-        }
-        let terrariums = (try? context.fetch(FetchDescriptor<Terrarium>())) ?? []
-        for terrarium in terrariums {
-            if let ip = terrarium.wizLightIP, !ip.isEmpty { ips.insert(ip) }
-        }
-
-        for ip in ips {
-            try? await WizLightService.shared.send(WizCommandBuilder.power(on), to: ip)
-        }
-        for light in lights where light.isConfigured {
+            guard let ip = light.ipAddress, !ip.isEmpty else { continue }
+            let controller = LightControllerFactory.controller(for: light.brand)
+            try? await controller.setPower(on, ip: ip)
             light.lastKnownOn = on
+            count += 1
         }
         try? context.save()
-        return ips.count
+        return count
     }
 
-    /// Applique la consigne « biotope » (soleil réel de la région d'origine,
-    /// météo de la veille si activée) à toutes les lampes configurées.
-    static func syncBiotopeLights() async -> Int {
+    /// Applique le cycle jour/nuit du moment (photopériode fixe ou biotope) à
+    /// toutes les lampes qui en ont un — même logique que l'écran lampe, via le
+    /// `LightScheduleEngine`.
+    static func syncScheduledLights() async -> Int {
         let context = PersistenceController.shared.container.mainContext
-        let lights = (try? context.fetch(FetchDescriptor<Light>())) ?? []
-        var applied = 0
-        for light in lights {
-            guard let preset = BiotopePreset.preset(id: light.biotopePresetID),
-                  let ip = light.ipAddress, !ip.isEmpty else { continue }
-
-            var state = SunCalculator.currentState(for: preset, shiftedToLocalClock: light.biotopeShiftedToLocal)
-            var isRainingNow = false
-            if light.biotopeWeatherEnabled, state.isDaylight,
-               let weather = await BiotopeWeatherService.shared.yesterdayWeather(for: preset) {
-                var calendar = Calendar.current
-                if !light.biotopeShiftedToLocal { calendar.timeZone = preset.timeZone }
-                let hour = calendar.component(.hour, from: .now)
-                let factor = weather.lightFactor(hour: hour)
-                isRainingNow = weather.isRaining(hour: hour)
-                state = SunLightState(
-                    isDaylight: true,
-                    brightness: max(10, Int(Double(state.brightness) * factor)),
-                    colorTemperature: state.colorTemperature,
-                    elevation: state.elevation
-                )
-            }
-
-            let service = WizLightService.shared
-            if state.isDaylight {
-                if light.biotopeStormSyncEnabled && isRainingNow {
-                    // Pluie réelle sur le biotope : lumière d'orage bleu-gris.
-                    try? await service.send(WizCommandBuilder.power(true), to: ip)
-                    try? await service.send(WizCommandBuilder.color(red: 45, green: 65, blue: 105), to: ip)
-                    try? await service.send(WizCommandBuilder.brightness(max(10, state.brightness / 2)), to: ip)
-                } else {
-                    try? await service.send(WizCommandBuilder.power(true), to: ip)
-                    try? await service.send(WizCommandBuilder.brightness(state.brightness), to: ip)
-                    try? await service.send(WizCommandBuilder.colorTemperature(state.colorTemperature), to: ip)
-                }
-                light.lastKnownOn = true
-            } else if light.biotopeMoonEnabled, MoonCalculator.illumination() >= 0.55 {
-                // Veilleuse des nuits de pleine lune.
-                try? await service.send(WizCommandBuilder.power(true), to: ip)
-                try? await service.send(WizCommandBuilder.color(red: 70, green: 80, blue: 130), to: ip)
-                try? await service.send(WizCommandBuilder.brightness(10), to: ip)
-                light.lastKnownOn = true
-            } else {
-                try? await service.send(WizCommandBuilder.power(false), to: ip)
-                light.lastKnownOn = false
-            }
-            applied += 1
-        }
-        try? context.save()
-        return applied
+        LightScheduleEngine.migrateLegacyTerrariumLights(context: context)
+        return await LightScheduleEngine.syncAll(context: context)
     }
 
     /// Déclenche la brumisation (`mist == true`) ou l'arrosage sur tous les
@@ -166,15 +114,15 @@ struct WaterTerrariumIntent: AppIntent {
 }
 
 struct SyncBiotopeIntent: AppIntent {
-    static var title: LocalizedStringResource = "Synchroniser le biotope"
-    static var description = IntentDescription("Aligne les lampes sur le soleil réel de la région d'origine (et la météo de la veille si activée).")
+    static var title: LocalizedStringResource = "Synchroniser les lampes"
+    static var description = IntentDescription("Applique le cycle jour/nuit du moment à toutes les lampes (photopériode fixe ou soleil réel du biotope, avec météo si activée).")
 
     func perform() async throws -> some IntentResult & ProvidesDialog {
-        let count = await HabitatIntentActions.syncBiotopeLights()
+        let count = await HabitatIntentActions.syncScheduledLights()
         if count > 0 {
-            return .result(dialog: "Biotope synchronisé (\(count) lampe(s)).")
+            return .result(dialog: "\(count) lampe(s) synchronisée(s).")
         }
-        return .result(dialog: "Aucune lampe avec un biotope configuré.")
+        return .result(dialog: "Aucune lampe avec un cycle jour/nuit configuré.")
     }
 }
 
@@ -201,9 +149,9 @@ struct HabitatShortcuts: AppShortcutsProvider {
         )
         AppShortcut(
             intent: SyncBiotopeIntent(),
-            phrases: ["Synchronise le biotope avec \(.applicationName)"],
-            shortTitle: "Biotope",
-            systemImageName: "globe.americas.fill"
+            phrases: ["Synchronise le biotope avec \(.applicationName)", "Synchronise les lampes avec \(.applicationName)"],
+            shortTitle: "Synchroniser",
+            systemImageName: "sun.max.fill"
         )
         AppShortcut(
             intent: WaterTerrariumIntent(),

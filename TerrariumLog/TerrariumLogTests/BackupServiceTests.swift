@@ -107,6 +107,49 @@ final class BackupServiceTests: XCTestCase {
         XCTAssertTrue(orphanAnimals.isEmpty)
     }
 
+    @MainActor
+    func testLightRoundTrip() throws {
+        let controller = PersistenceController(inMemory: true)
+        let context = controller.container.mainContext
+
+        let terrarium = Terrarium(name: "Bac tropical", type: .terrarium)
+        context.insert(terrarium)
+
+        let light = Light(name: "Lampe WiZ", brand: .wiz, ipAddress: "192.168.1.50", terrarium: terrarium)
+        light.scheduleMode = .fixed
+        light.dayStartMinutes = 8 * 60
+        light.dayEndMinutes = 20 * 60
+        light.dayBrightness = 80
+        light.biotopeMoonEnabled = true
+        context.insert(light)
+
+        let orphan = Light(name: "Lampe libre", brand: .wiz, ipAddress: "192.168.1.51")
+        orphan.scheduleMode = .biotope
+        orphan.biotopePresetID = "soroa"
+        context.insert(orphan)
+        try context.save()
+
+        let data = try BackupService.shared.exportData(context: context)
+        try BackupService.shared.importData(data, context: context)
+
+        let lights = try context.fetch(FetchDescriptor<Light>())
+        XCTAssertEqual(lights.count, 2)
+
+        let attached = lights.first { $0.terrarium != nil }
+        XCTAssertEqual(attached?.name, "Lampe WiZ")
+        XCTAssertEqual(attached?.terrarium?.name, "Bac tropical")
+        XCTAssertEqual(attached?.scheduleMode, .fixed)
+        XCTAssertEqual(attached?.dayStartMinutes, 8 * 60)
+        XCTAssertEqual(attached?.dayEndMinutes, 20 * 60)
+        XCTAssertEqual(attached?.dayBrightness, 80)
+        XCTAssertEqual(attached?.biotopeMoonEnabled, true)
+
+        let unattached = lights.first { $0.terrarium == nil }
+        XCTAssertEqual(unattached?.name, "Lampe libre")
+        XCTAssertEqual(unattached?.scheduleMode, .biotope)
+        XCTAssertEqual(unattached?.biotopePresetID, "soroa")
+    }
+
     func testImportRejectsInvalidData() {
         let controller = PersistenceController(inMemory: true)
         let context = controller.container.mainContext

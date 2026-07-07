@@ -384,6 +384,12 @@ struct DashboardView: View {
                                 Text(light.terrarium?.name ?? light.brand.displayName)
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
+                                // Cycle jour/nuit actif : visible d'un coup d'œil.
+                                if light.scheduleMode != .manual {
+                                    Label(light.scheduleMode.displayName, systemImage: light.scheduleMode.symbolName)
+                                        .font(.caption2)
+                                        .foregroundStyle(Brand.accent)
+                                }
                             }
                             Spacer()
                             Circle()
@@ -466,9 +472,9 @@ struct AnimalCardView: View {
     /// Type d'événement qui vient d'être ajouté en un tap (feedback ✓ éphémère).
     @State private var quickLoggedEvent: ObservationEventType?
 
-    private var terrariumLightIP: String? {
-        guard let ip = animal.terrarium?.wizLightIP, !ip.isEmpty else { return nil }
-        return ip
+    /// Première lampe configurée du terrarium de l'animal (modèle `Light`).
+    private var terrariumLight: Light? {
+        animal.terrarium?.lights.first { $0.isConfigured }
     }
 
     private var terrariumCamera: Camera? {
@@ -549,6 +555,7 @@ struct AnimalCardView: View {
             if let path = animal.primaryPhotoPath {
                 image = ThumbnailStore.shared.thumbnail(for: path, maxDimension: 240)
             }
+            lightIsOn = terrariumLight?.lastKnownOn ?? false
         }
     }
 
@@ -570,7 +577,7 @@ struct AnimalCardView: View {
                 disabled: quickLoggedEvent == .humidifying
             ) { quickLog(.humidifying) }
 
-            if let lightIP = terrariumLightIP {
+            if let light = terrariumLight {
                 actionTile(
                     title: lightIsOn ? "Éteindre" : "Lumière",
                     icon: lightIsOn ? "lightbulb.fill" : "lightbulb",
@@ -578,7 +585,7 @@ struct AnimalCardView: View {
                     disabled: isSendingLightCommand
                 ) {
                     lightIsOn.toggle()
-                    sendLightCommand(WizCommandBuilder.power(lightIsOn), ip: lightIP)
+                    toggleLight(light, on: lightIsOn)
                 }
             }
 
@@ -630,10 +637,17 @@ struct AnimalCardView: View {
         }
     }
 
-    private func sendLightCommand(_ command: WizCommand, ip: String) {
+    /// Allume/éteint via le `LightController` de la marque et synchronise
+    /// `lastKnownOn` : la section « Lumières » du Dashboard et l'écran lampe
+    /// affichent le même état.
+    private func toggleLight(_ light: Light, on: Bool) {
+        guard let ip = light.ipAddress, !ip.isEmpty else { return }
         isSendingLightCommand = true
         Task {
-            try? await WizLightService.shared.send(command, to: ip)
+            let controller = LightControllerFactory.controller(for: light.brand)
+            try? await controller.setPower(on, ip: ip)
+            light.lastKnownOn = on
+            try? context.save()
             isSendingLightCommand = false
         }
     }

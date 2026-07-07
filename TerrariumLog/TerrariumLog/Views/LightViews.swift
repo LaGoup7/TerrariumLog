@@ -2,9 +2,11 @@ import SwiftUI
 import SwiftData
 import UIKit
 
-/// Centre de contrôle d'une lampe : marche/arrêt, couleur RGB, luminosité,
-/// blanc chaud/froid et effets dynamiques. Les contrôles indisponibles selon la
-/// marque (couleur, effets) sont masqués via le `LightController`.
+/// Centre de contrôle d'une lampe, pensé pour les animaux : réglage manuel
+/// (marche/arrêt, intensité, blancs), observation nocturne en lumière rouge,
+/// et cycle jour/nuit (photopériode fixe ou biotope) piloté par le
+/// `LightScheduleEngine`. Les ambiances décoratives (sons, effets) vivent dans
+/// leur propre écran (`AmbianceView`), hors du pilotage d'élevage.
 struct LightControlView: View {
     @Environment(\.modelContext) private var context
     @Environment(\.dismiss) private var dismiss
@@ -12,19 +14,15 @@ struct LightControlView: View {
 
     @State private var isOn: Bool
     @State private var brightness: Double
-    @State private var color: Color
     @State private var isSending = false
     @State private var errorMessage: String?
     @State private var showingConfig = false
     @State private var showingDeleteConfirmation = false
-    @State private var activeAmbiance: LightAmbiance?
-    /// Boucle d'animation des ambiances Pluie/Orage (annulée à la sortie).
-    @State private var ambianceTask: Task<Void, Never>?
-    @State private var isSoundPlaying = AmbientSoundEngine.shared.isPlaying
-    @State private var isSoundPaused = AmbientSoundEngine.shared.isPaused
-    /// "none" / "builtin" (sons intégrés) / "spotify".
-    @AppStorage("ambianceSoundMode") private var ambianceSoundMode = "builtin"
-    @AppStorage("ambianceVolume") private var ambianceVolume = 0.7
+    @State private var showingAmbiances = false
+    /// Mode observation nocturne (lumière rouge faible) actif.
+    @State private var nightObservationOn = false
+    /// Dernier résultat de synchronisation du cycle (icône + texte).
+    @State private var syncOutcome: LightSyncOutcome?
 
     private var controller: LightController {
         LightControllerFactory.controller(for: light.brand)
@@ -34,7 +32,6 @@ struct LightControlView: View {
         self.light = light
         _isOn = State(initialValue: light.lastKnownOn)
         _brightness = State(initialValue: Double(light.lastBrightness))
-        _color = State(initialValue: .white)
     }
 
     var body: some View {
@@ -42,17 +39,11 @@ struct LightControlView: View {
             VStack(spacing: 16) {
                 if light.isConfigured {
                     powerCard
-                    if controller.supportsColor {
-                        colorCard
-                    }
                     brightnessCard
                     whiteCard
-                    if controller.supportsEffects {
-                        ambiancesCard
-                        effectsCard
-                    }
-                    biotopeCard
-                    scheduleCard
+                    nightObservationCard
+                    cycleCard
+                    automationCard
                 } else {
                     notConfiguredCard
                 }
@@ -76,6 +67,13 @@ struct LightControlView: View {
                         showingConfig = true
                     } label: {
                         Label("Configurer", systemImage: "gearshape")
+                    }
+                    if controller.supportsEffects {
+                        Button {
+                            showingAmbiances = true
+                        } label: {
+                            Label("Ambiances (déco & sons)", systemImage: "music.note")
+                        }
                     }
                     Button(role: .destructive) {
                         showingDeleteConfirmation = true
@@ -103,7 +101,26 @@ struct LightControlView: View {
         .sheet(isPresented: $showingConfig) {
             LightConfigView(light: light)
         }
+        .navigationDestination(isPresented: $showingAmbiances) {
+            AmbianceView(light: light)
+        }
+        // Suivi du cycle en direct tant que l'écran est ouvert : application
+        // immédiate, puis toutes les 5 minutes.
+        .task(id: light.scheduleModeRawValue) {
+            guard light.scheduleMode != .manual else {
+                syncOutcome = nil
+                return
+            }
+            await runSync()
+            while !Task.isCancelled {
+                try? await Task.sleep(nanoseconds: 300_000_000_000)
+                if Task.isCancelled { break }
+                await runSync()
+            }
+        }
     }
+
+    // MARK: Contrôle manuel
 
     private var powerCard: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -121,30 +138,10 @@ struct LightControlView: View {
             Text(light.brand.displayName + (light.terrarium.map { " · \($0.name)" } ?? ""))
                 .font(.caption)
                 .foregroundStyle(.secondary)
-        }
-        .lightCard()
-    }
-
-    private var colorCard: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text("Couleur")
-                .font(.headline)
-            ColorPicker("Choisir une couleur", selection: $color, supportsOpacity: false)
-                .onChange(of: color) { _, newValue in
-                    let rgb = Self.rgbComponents(newValue)
-                    perform { try await controller.setColor(red: rgb.r, green: rgb.g, blue: rgb.b, ip: $0) }
-                }
-            HStack(spacing: 12) {
-                ForEach(Self.presetColors, id: \.self) { preset in
-                    Circle()
-                        .fill(preset)
-                        .frame(width: 34, height: 34)
-                        .overlay(Circle().strokeBorder(Color.primary.opacity(0.15), lineWidth: 1))
-                        .onTapGesture {
-                            // Déclenche l'envoi via le `.onChange(of: color)` ci-dessus.
-                            color = preset
-                        }
-                }
+            if light.scheduleMode != .manual {
+                Text("Un cycle est actif : ce réglage manuel sera écrasé à la prochaine synchronisation.")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
             }
         }
         .lightCard()
@@ -190,246 +187,153 @@ struct LightControlView: View {
         .disabled(isSending)
     }
 
-    // MARK: Ambiances thématiques
+    // MARK: Observation nocturne (lumière rouge)
 
-    private var ambiancesCard: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Ambiances")
-                .font(.headline)
-            LazyVGrid(columns: [GridItem(.adaptive(minimum: 90), spacing: 12)], spacing: 12) {
-                ForEach(LightAmbiance.allCases) { ambiance in
-                    Button {
-                        applyAmbiance(ambiance)
-                    } label: {
-                        VStack(spacing: 6) {
-                            Image(systemName: ambiance.symbolName)
-                                .font(.title3)
-                            Text(ambiance.displayName)
-                                .font(.caption)
-                                .multilineTextAlignment(.center)
-                                .lineLimit(2)
-                                .minimumScaleFactor(0.8)
-                        }
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 12)
-                        .background(
-                            (activeAmbiance == ambiance ? Brand.accent.opacity(0.22) : Brand.accent.opacity(0.10)),
-                            in: RoundedRectangle(cornerRadius: 14, style: .continuous)
-                        )
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                                .strokeBorder(activeAmbiance == ambiance ? Brand.accent : Color.clear, lineWidth: 1.5)
-                        )
+    /// La plupart des invertébrés et reptiles perçoivent très mal le rouge :
+    /// une lueur rouge faible permet d'observer les espèces nocturnes sans
+    /// perturber leur cycle.
+    private var nightObservationCard: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Toggle(isOn: $nightObservationOn) {
+                Label("Observation nocturne", systemImage: "moon.haze.fill")
+                    .font(.headline)
+                    .foregroundStyle(nightObservationOn ? Brand.error : Color.primary)
+            }
+            .tint(Brand.error)
+            .disabled(isSending || !controller.supportsColor)
+            .onChange(of: nightObservationOn) { _, active in
+                if active {
+                    perform {
+                        try await controller.setPower(true, ip: $0)
+                        try await controller.setColor(red: 180, green: 0, blue: 0, ip: $0)
+                        try await controller.setBrightness(10, ip: $0)
                     }
-                    .buttonStyle(.plain)
+                    light.lastKnownOn = true
+                    try? context.save()
+                } else if light.scheduleMode != .manual {
+                    // Retour au cycle en cours.
+                    Task { await runSync() }
+                } else {
+                    perform { try await controller.setPower(false, ip: $0) }
+                    isOn = false
+                    light.lastKnownOn = false
+                    try? context.save()
                 }
             }
-            VStack(alignment: .leading, spacing: 8) {
-                Picker("Son d'ambiance", selection: $ambianceSoundMode) {
-                    Text("Silencieux").tag("none")
-                    Text("Son intégré").tag("builtin")
-                    Text("Spotify").tag("spotify")
-                }
-                .pickerStyle(.segmented)
-
-                if ambianceSoundMode == "builtin" {
-                    HStack(spacing: 10) {
-                        Image(systemName: "speaker.wave.1")
-                            .foregroundStyle(.secondary)
-                        Slider(value: $ambianceVolume, in: 0...1)
-                            .onChange(of: ambianceVolume) { _, newValue in
-                                AmbientSoundEngine.shared.volume = Float(newValue)
-                            }
-                        Image(systemName: "speaker.wave.3")
-                            .foregroundStyle(.secondary)
-                    }
-                    if isSoundPlaying {
-                        HStack(spacing: 16) {
-                            Button {
-                                if AmbientSoundEngine.shared.isPaused {
-                                    AmbientSoundEngine.shared.resume()
-                                } else {
-                                    AmbientSoundEngine.shared.pause()
-                                }
-                                isSoundPaused = AmbientSoundEngine.shared.isPaused
-                            } label: {
-                                Label(isSoundPaused ? "Reprendre" : "Pause",
-                                      systemImage: isSoundPaused ? "play.circle.fill" : "pause.circle.fill")
-                                    .font(.caption.weight(.semibold))
-                            }
-                            .tint(Brand.primary)
-                            Button {
-                                AmbientSoundEngine.shared.stop()
-                                isSoundPlaying = false
-                                isSoundPaused = false
-                            } label: {
-                                Label("Arrêter", systemImage: "stop.circle.fill")
-                                    .font(.caption.weight(.semibold))
-                            }
-                            .tint(Brand.error)
-                        }
-                    }
-                }
-            }
-
-            Text("Son intégré : pluie, orage, vagues, criquets et feu de camp joués par l'app — le son continue téléphone verrouillé et sort sur l'enceinte Bluetooth connectée. Cuba et Coucher de soleil (musicales) passent par Spotify. Les lumières Pluie/Orage s'animent tant que cet écran est ouvert.")
+            Text("Lueur rouge très faible pour observer les espèces nocturnes sans les déranger (la plupart des invertébrés et reptiles ne perçoivent pas le rouge).")
                 .font(.caption2)
                 .foregroundStyle(.secondary)
         }
         .lightCard()
-        .onDisappear {
-            ambianceTask?.cancel()
-            ambianceTask = nil
-        }
     }
 
-    private func applyAmbiance(_ ambiance: LightAmbiance) {
-        ambianceTask?.cancel()
-        ambianceTask = nil
-        activeAmbiance = ambiance
-
-        if let sceneId = ambiance.wizSceneId {
-            perform { try await WizLightService.shared.send(WizCommandBuilder.scene(id: sceneId), to: $0) }
-        } else {
-            guard let ip = light.ipAddress, !ip.isEmpty else {
-                errorMessage = "Aucune adresse IP configurée pour cette lampe."
-                return
-            }
-            ambianceTask = Task { await runAnimatedAmbiance(ambiance, ip: ip) }
-        }
-
-        switch ambianceSoundMode {
-        case "builtin":
-            let played = AmbientSoundEngine.shared.play(ambiance: ambiance, volume: Float(ambianceVolume))
-            isSoundPlaying = played
-            if !played, ambiance.builtinSoundscape == nil {
-                // Ambiance musicale sans fichier fourni : proposer Spotify.
-                openSpotify(search: ambiance.spotifySearch)
-            }
-        case "spotify":
-            AmbientSoundEngine.shared.stop()
-            isSoundPlaying = false
-            openSpotify(search: ambiance.spotifySearch)
-        default:
-            AmbientSoundEngine.shared.stop()
-            isSoundPlaying = false
-        }
-    }
-
-    /// Ambiances animées localement : la lampe WiZ n'a pas de scène pluie/orage,
-    /// on séquence donc nous-mêmes couleurs et éclairs.
-    private func runAnimatedAmbiance(_ ambiance: LightAmbiance, ip: String) async {
-        let service = WizLightService.shared
-        switch ambiance {
-        case .rain:
-            // Bleu-gris qui respire lentement, comme un ciel de pluie.
-            while !Task.isCancelled {
-                try? await service.send(WizCommandBuilder.color(red: 40, green: 70, blue: 110), to: ip)
-                try? await service.send(WizCommandBuilder.brightness(35), to: ip)
-                try? await Task.sleep(nanoseconds: 2_500_000_000)
-                if Task.isCancelled { break }
-                try? await service.send(WizCommandBuilder.brightness(15), to: ip)
-                try? await Task.sleep(nanoseconds: 2_500_000_000)
-            }
-        case .storm:
-            // Pénombre bleutée entrecoupée de salves d'éclairs blancs.
-            while !Task.isCancelled {
-                try? await service.send(WizCommandBuilder.color(red: 25, green: 35, blue: 70), to: ip)
-                try? await service.send(WizCommandBuilder.brightness(15), to: ip)
-                try? await Task.sleep(nanoseconds: UInt64.random(in: 2_000_000_000...6_000_000_000))
-                if Task.isCancelled { break }
-                for _ in 0..<Int.random(in: 1...3) where !Task.isCancelled {
-                    try? await service.send(WizCommandBuilder.color(red: 255, green: 255, blue: 255), to: ip)
-                    try? await service.send(WizCommandBuilder.brightness(100), to: ip)
-                    try? await Task.sleep(nanoseconds: UInt64.random(in: 80_000_000...200_000_000))
-                    try? await service.send(WizCommandBuilder.color(red: 25, green: 35, blue: 70), to: ip)
-                    try? await service.send(WizCommandBuilder.brightness(15), to: ip)
-                    try? await Task.sleep(nanoseconds: UInt64.random(in: 100_000_000...300_000_000))
-                }
-            }
-        default:
-            break
-        }
-    }
-
-    /// Ouvre Spotify sur la recherche d'ambiance (fiche App Store en repli).
-    private func openSpotify(search: String) {
-        let encoded = search.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? search
-        guard let url = URL(string: "spotify:search:\(encoded)") else { return }
-        UIApplication.shared.open(url, options: [:]) { success in
-            if !success, let store = URL(string: "https://apps.apple.com/app/id324684580") {
-                UIApplication.shared.open(store)
-            }
-        }
-    }
-
-    private var effectsCard: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Effets dynamiques")
-                .font(.headline)
-            LazyVGrid(columns: [GridItem(.adaptive(minimum: 90), spacing: 12)], spacing: 12) {
-                ForEach(LightEffect.dynamicOnly) { effect in
-                    Button {
-                        perform { try await controller.setEffect(effect, ip: $0) }
-                    } label: {
-                        VStack(spacing: 6) {
-                            Image(systemName: effect.symbolName)
-                                .font(.title3)
-                            Text(effect.displayName)
-                                .font(.caption)
-                                .multilineTextAlignment(.center)
-                        }
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 12)
-                        .background(Brand.primary.opacity(0.12), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-                    }
-                    .buttonStyle(.plain)
-                    .disabled(isSending)
-                }
-            }
-        }
-        .lightCard()
-    }
-
-    // MARK: Biotope (soleil réel de la région d'origine)
+    // MARK: Cycle jour/nuit
 
     private var selectedBiotope: BiotopePreset? {
         BiotopePreset.preset(id: light.biotopePresetID)
     }
 
-    private var biotopeCard: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Label("Biotope", systemImage: "globe.americas.fill")
+    private var cycleCard: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Label("Cycle jour/nuit", systemImage: "sun.max.fill")
                 .font(.headline)
 
+            Picker("Mode", selection: Binding(
+                get: { light.scheduleMode },
+                set: { newValue in
+                    light.scheduleMode = newValue
+                    try? context.save()
+                    Task { await runSync() }
+                }
+            )) {
+                ForEach(LightScheduleMode.allCases, id: \.self) { mode in
+                    Text(mode.displayName).tag(mode)
+                }
+            }
+            .pickerStyle(.segmented)
+
+            switch light.scheduleMode {
+            case .manual:
+                Text("Aucun cycle : la lampe garde tes réglages manuels.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            case .fixed:
+                fixedScheduleControls
+            case .biotope:
+                biotopeControls
+            }
+
+            if light.scheduleMode != .manual {
+                moonToggle
+                if let outcome = syncOutcome {
+                    Label(outcome.statusText, systemImage: outcome.symbolName)
+                        .font(.caption)
+                        .foregroundStyle(Brand.accent)
+                }
+            }
+        }
+        .lightCard()
+    }
+
+    /// Photopériode fixe : lever, coucher, intensité du plateau. L'aube et le
+    /// crépuscule progressifs sont calculés automatiquement (courbe naturelle).
+    private var fixedScheduleControls: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            DatePicker(
+                "Lever",
+                selection: minutesBinding(\.dayStartMinutes),
+                displayedComponents: .hourAndMinute
+            )
+            DatePicker(
+                "Coucher",
+                selection: minutesBinding(\.dayEndMinutes),
+                displayedComponents: .hourAndMinute
+            )
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Intensité de jour : \(light.dayBrightness) %")
+                    .font(.subheadline)
+                Slider(value: Binding(
+                    get: { Double(light.dayBrightness) },
+                    set: { newValue in
+                        light.dayBrightness = Int(newValue)
+                        try? context.save()
+                    }
+                ), in: 10...100, step: 5) { editing in
+                    if !editing {
+                        Task { await runSync() }
+                    }
+                }
+            }
+            Text("La lumière monte progressivement après le lever (aube chaude), culmine à mi-journée et redescend avant le coucher — pas d'allumage brutal.")
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    /// Biotope : soleil réel de la région d'origine, avec options météo/orage.
+    private var biotopeControls: some View {
+        VStack(alignment: .leading, spacing: 10) {
             Picker("Région", selection: Binding(
                 get: { light.biotopePresetID ?? "" },
                 set: { newValue in
                     light.biotopePresetID = newValue.isEmpty ? nil : newValue
                     try? context.save()
-                    applyBiotopeNow()
+                    Task { await runSync() }
                 }
             )) {
-                Text("Désactivé").tag("")
+                Text("Choisir…").tag("")
                 ForEach(BiotopePreset.all) { preset in
                     Text(preset.name).tag(preset.id)
                 }
             }
 
-            if let preset = selectedBiotope {
-                Toggle(isOn: Binding(
-                    get: { light.biotopeShiftedToLocal },
-                    set: { newValue in
-                        light.biotopeShiftedToLocal = newValue
-                        try? context.save()
-                        applyBiotopeNow()
-                    }
-                )) {
+            if selectedBiotope != nil {
+                Toggle(isOn: biotopeBinding(\.biotopeShiftedToLocal)) {
                     VStack(alignment: .leading, spacing: 1) {
                         Text("Caler sur ma journée")
                             .font(.subheadline)
                         Text(light.biotopeShiftedToLocal
-                             ? "La journée de \(preset.name) est rejouée sur ton horaire."
+                             ? "La journée de là-bas est rejouée sur ton horaire."
                              : "Temps réel là-bas : le décalage horaire est vécu.")
                             .font(.caption2)
                             .foregroundStyle(.secondary)
@@ -437,18 +341,11 @@ struct LightControlView: View {
                 }
                 .tint(Brand.primary)
 
-                Toggle(isOn: Binding(
-                    get: { light.biotopeWeatherEnabled },
-                    set: { newValue in
-                        light.biotopeWeatherEnabled = newValue
-                        try? context.save()
-                        applyBiotopeNow()
-                    }
-                )) {
+                Toggle(isOn: biotopeBinding(\.biotopeWeatherEnabled)) {
                     VStack(alignment: .leading, spacing: 1) {
                         Text("Météo réelle (la veille)")
                             .font(.subheadline)
-                        Text("Le ciel d'hier là-bas module la lampe (nuages, pluie).")
+                        Text("Le ciel d'hier là-bas module l'intensité (nuages, pluie).")
                             .font(.caption2)
                             .foregroundStyle(.secondary)
                     }
@@ -456,175 +353,97 @@ struct LightControlView: View {
                 .tint(Brand.accent)
 
                 if light.biotopeWeatherEnabled {
-                    Toggle(isOn: Binding(
-                        get: { light.biotopeStormSyncEnabled },
-                        set: { newValue in
-                            light.biotopeStormSyncEnabled = newValue
-                            try? context.save()
-                            applyBiotopeNow()
-                        }
-                    )) {
+                    Toggle(isOn: biotopeBinding(\.biotopeStormSyncEnabled)) {
                         VStack(alignment: .leading, spacing: 1) {
                             Text("Orage synchronisé")
                                 .font(.subheadline)
-                            Text("S'il pleuvait là-bas à cette heure : lumière d'orage + son de pluie automatiques.")
+                            Text("S'il pleut là-bas : pénombre d'orage bleu-gris.")
                                 .font(.caption2)
                                 .foregroundStyle(.secondary)
                         }
                     }
                     .tint(Brand.accent)
                 }
+            }
+        }
+    }
 
-                Toggle(isOn: Binding(
-                    get: { light.biotopeMoonEnabled },
-                    set: { newValue in
-                        light.biotopeMoonEnabled = newValue
-                        try? context.save()
-                        applyBiotopeNow()
-                    }
-                )) {
-                    VStack(alignment: .leading, spacing: 1) {
-                        Text("Veilleuse lunaire")
-                            .font(.subheadline)
-                        Text("Les nuits proches de la pleine lune : lueur bleutée minimale au lieu du noir.")
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-                .tint(Brand.accent)
-
-                if !biotopeStatus.isEmpty {
-                    Label(biotopeStatus, systemImage: biotopeStatusIcon)
-                        .font(.caption)
-                        .foregroundStyle(Brand.accent)
-                }
-
-                Text("Suivi automatique tant que cet écran est ouvert (ou que le son d'ambiance joue). App fermée : Automatisation iOS → « Synchroniser le biotope » (ex. toutes les heures).")
+    /// Veilleuse lunaire, valable pour les deux modes de cycle.
+    private var moonToggle: some View {
+        Toggle(isOn: biotopeBinding(\.biotopeMoonEnabled)) {
+            VStack(alignment: .leading, spacing: 1) {
+                Text("Veilleuse lunaire")
+                    .font(.subheadline)
+                Text("Nuits proches de la pleine lune : lueur bleutée minimale au lieu du noir.")
                     .font(.caption2)
                     .foregroundStyle(.secondary)
             }
         }
-        .lightCard()
-        .task(id: light.biotopePresetID) {
-            // Suivi en direct : application immédiate puis toutes les 5 minutes
-            // tant que l'écran est affiché.
-            guard selectedBiotope != nil else { return }
-            applyBiotopeNow()
-            while !Task.isCancelled {
-                try? await Task.sleep(nanoseconds: 300_000_000_000)
-                if Task.isCancelled { break }
-                applyBiotopeNow()
-            }
-        }
+        .tint(Brand.accent)
     }
 
-    @State private var biotopeStatus = ""
-    @State private var biotopeStatusIcon = "sun.max"
-    /// Vrai quand le son de pluie a été lancé PAR l'orage synchronisé (pour ne
-    /// jamais couper une ambiance choisie manuellement).
-    @State private var autoRainSoundActive = false
-
-    /// Calcule la consigne (soleil + météo + orage + lune) et l'envoie à la lampe.
-    private func applyBiotopeNow() {
-        guard let preset = selectedBiotope,
-              let ip = light.ipAddress, !ip.isEmpty else {
-            biotopeStatus = ""
-            return
-        }
-        let shifted = light.biotopeShiftedToLocal
-        let weatherWanted = light.biotopeWeatherEnabled
-        let stormWanted = light.biotopeStormSyncEnabled
-        let moonWanted = light.biotopeMoonEnabled
-        Task {
-            var state = SunCalculator.currentState(for: preset, shiftedToLocalClock: shifted)
-            var weatherNote = ""
-            var isRainingNow = false
-
-            if weatherWanted, state.isDaylight,
-               let weather = await BiotopeWeatherService.shared.yesterdayWeather(for: preset) {
-                var calendar = Calendar.current
-                if !shifted { calendar.timeZone = preset.timeZone }
-                let hour = calendar.component(.hour, from: .now)
-                let factor = weather.lightFactor(hour: hour)
-                isRainingNow = weather.isRaining(hour: hour)
-                state = SunLightState(
-                    isDaylight: true,
-                    brightness: max(10, Int(Double(state.brightness) * factor)),
-                    colorTemperature: state.colorTemperature,
-                    elevation: state.elevation
-                )
-                weatherNote = isRainingNow ? " · pluie là-bas 🌧️" : (factor < 0.75 ? " · nuageux" : "")
+    /// Binding vers un booléen du modèle qui sauvegarde et resynchronise.
+    private func biotopeBinding(_ keyPath: ReferenceWritableKeyPath<Light, Bool>) -> Binding<Bool> {
+        Binding(
+            get: { light[keyPath: keyPath] },
+            set: { newValue in
+                light[keyPath: keyPath] = newValue
+                try? context.save()
+                Task { await runSync() }
             }
-
-            let service = WizLightService.shared
-
-            // Le son de pluie automatique s'arrête dès que la pluie cesse
-            // (sans toucher aux ambiances lancées manuellement).
-            func stopAutoRainIfNeeded() {
-                if autoRainSoundActive {
-                    AmbientSoundEngine.shared.stop()
-                    autoRainSoundActive = false
-                }
-            }
-
-            if state.isDaylight {
-                if stormWanted && isRainingNow {
-                    // Lumière d'orage : bleu-gris tamisé proportionnel au soleil.
-                    try? await service.send(WizCommandBuilder.power(true), to: ip)
-                    try? await service.send(WizCommandBuilder.color(red: 45, green: 65, blue: 105), to: ip)
-                    try? await service.send(WizCommandBuilder.brightness(max(10, state.brightness / 2)), to: ip)
-                    if !AmbientSoundEngine.shared.isPlaying {
-                        AmbientSoundEngine.shared.play(ambiance: .rain, volume: Float(ambianceVolume))
-                        autoRainSoundActive = true
-                        isSoundPlaying = true
-                    }
-                    biotopeStatusIcon = "cloud.rain.fill"
-                    biotopeStatus = "Pluie sur le biotope — lumière d'orage"
-                } else {
-                    stopAutoRainIfNeeded()
-                    try? await service.send(WizCommandBuilder.power(true), to: ip)
-                    try? await service.send(WizCommandBuilder.brightness(state.brightness), to: ip)
-                    try? await service.send(WizCommandBuilder.colorTemperature(state.colorTemperature), to: ip)
-                    biotopeStatusIcon = "sun.max.fill"
-                    biotopeStatus = "Soleil à \(Int(state.elevation))° → \(state.brightness) %\(weatherNote)"
-                }
-                light.lastKnownOn = true
-                isOn = true
-            } else {
-                stopAutoRainIfNeeded()
-                let moonlight = MoonCalculator.illumination()
-                if moonWanted && moonlight >= 0.55 {
-                    try? await service.send(WizCommandBuilder.power(true), to: ip)
-                    try? await service.send(WizCommandBuilder.color(red: 70, green: 80, blue: 130), to: ip)
-                    try? await service.send(WizCommandBuilder.brightness(10), to: ip)
-                    light.lastKnownOn = true
-                    isOn = true
-                    biotopeStatusIcon = "moon.fill"
-                    biotopeStatus = "Nuit — lune à \(Int(moonlight * 100)) % : veilleuse lunaire"
-                } else {
-                    try? await service.send(WizCommandBuilder.power(false), to: ip)
-                    light.lastKnownOn = false
-                    isOn = false
-                    biotopeStatusIcon = "moon.stars.fill"
-                    biotopeStatus = "Nuit sur le biotope — lampe éteinte"
-                }
-            }
-            try? context.save()
-        }
+        )
     }
 
-    /// L'allumage/extinction programmés passent par les Automatisations iOS
-    /// (app Raccourcis), qui exécutent les actions Habitat en arrière-plan —
-    /// l'app n'a pas besoin d'être ouverte. Cette carte sert de mode d'emploi.
-    private var scheduleCard: some View {
+    /// Binding DatePicker ↔ minutes depuis minuit pour la photopériode fixe.
+    private func minutesBinding(_ keyPath: ReferenceWritableKeyPath<Light, Int>) -> Binding<Date> {
+        Binding(
+            get: {
+                let minutes = light[keyPath: keyPath]
+                return Calendar.current.date(
+                    bySettingHour: minutes / 60,
+                    minute: minutes % 60,
+                    second: 0,
+                    of: .now
+                ) ?? .now
+            },
+            set: { newDate in
+                let parts = Calendar.current.dateComponents([.hour, .minute], from: newDate)
+                light[keyPath: keyPath] = (parts.hour ?? 0) * 60 + (parts.minute ?? 0)
+                try? context.save()
+                Task { await runSync() }
+            }
+        )
+    }
+
+    /// Applique la consigne du moment via le moteur et met l'UI à jour.
+    @MainActor
+    private func runSync() async {
+        guard light.scheduleMode != .manual else { return }
+        nightObservationOn = false
+        syncOutcome = await LightScheduleEngine.sync(light)
+        if let outcome = syncOutcome {
+            isOn = outcome.isOn
+            brightness = Double(light.lastBrightness)
+        }
+        try? context.save()
+    }
+
+    // MARK: Automatisation (app fermée)
+
+    /// iOS n'autorise pas l'app à piloter la lampe en arrière-plan : le cycle
+    /// continu passe par UNE Automatisation iOS qui exécute « Synchroniser les
+    /// lampes » à intervalle régulier.
+    private var automationCard: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("Cycle jour/nuit")
+            Text("Quand l'app est fermée")
                 .font(.headline)
+            Text("Le cycle est appliqué en direct tant que cet écran est ouvert. Pour qu'il continue app fermée, crée UNE Automatisation iOS :")
+                .font(.caption)
+                .foregroundStyle(.secondary)
             VStack(alignment: .leading, spacing: 6) {
-                scheduleStep("1", "Raccourcis → Automatisation → +")
-                scheduleStep("2", "« Heure de la journée » → ex. 8 h, Quotidien → Exécuter immédiatement")
-                scheduleStep("3", "Action → Habitat → « Allumer les lumières »")
-                scheduleStep("4", "Répète à 20 h avec « Éteindre les lumières »")
+                automationStep("1", "Raccourcis → Automatisation → + → « Heure de la journée »")
+                automationStep("2", "Choisis une heure, Quotidien, « Exécuter immédiatement », puis duplique-la pour couvrir la journée (ex. toutes les heures)")
+                automationStep("3", "Action → Habitat → « Synchroniser les lampes »")
             }
             Button {
                 if let url = URL(string: "shortcuts://") {
@@ -637,14 +456,14 @@ struct LightControlView: View {
             }
             .buttonStyle(.borderedProminent)
             .tint(Brand.primary)
-            Text("La lampe suivra l'horaire même app fermée. « Dis Siri, allume le terrarium avec Habitat » fonctionne aussi.")
+            Text("La même automatisation applique le bon mode (horaires fixes ou biotope) à toutes les lampes. « Dis Siri, synchronise le biotope avec Habitat » fonctionne aussi.")
                 .font(.caption2)
                 .foregroundStyle(.secondary)
         }
         .lightCard()
     }
 
-    private func scheduleStep(_ number: String, _ text: String) -> some View {
+    private func automationStep(_ number: String, _ text: String) -> some View {
         HStack(alignment: .top, spacing: 8) {
             Text(number)
                 .font(.caption2.bold())
@@ -680,10 +499,7 @@ struct LightControlView: View {
     }
 
     /// Envoie une commande au contrôleur en gérant l'état d'envoi et les erreurs.
-    /// Toute commande manuelle interrompt l'ambiance animée en cours.
     private func perform(_ action: @escaping (String) async throws -> Void) {
-        ambianceTask?.cancel()
-        ambianceTask = nil
         guard let ip = light.ipAddress, !ip.isEmpty else {
             errorMessage = "Aucune adresse IP configurée pour cette lampe."
             return
@@ -699,14 +515,6 @@ struct LightControlView: View {
             isSending = false
         }
     }
-
-    static func rgbComponents(_ color: Color) -> (r: Int, g: Int, b: Int) {
-        var red: CGFloat = 0, green: CGFloat = 0, blue: CGFloat = 0, alpha: CGFloat = 0
-        UIColor(color).getRed(&red, green: &green, blue: &blue, alpha: &alpha)
-        return (Int(red * 255), Int(green * 255), Int(blue * 255))
-    }
-
-    static let presetColors: [Color] = [.red, .orange, .yellow, .green, .blue, .purple, .pink]
 }
 
 /// Formulaire d'ajout/édition d'une lampe. Utilisable seul (ajout depuis le
@@ -801,9 +609,10 @@ struct LightConfigView: View {
     }
 }
 
-private extension View {
+extension View {
     /// Style de carte partagé par les blocs du centre de contrôle des lampes,
-    /// aligné sur la carte standard « Habitat ».
+    /// aligné sur la carte standard « Habitat ». (Interne au module lampes ;
+    /// aussi utilisé par `AmbianceView`.)
     func lightCard() -> some View {
         brandCard()
     }
