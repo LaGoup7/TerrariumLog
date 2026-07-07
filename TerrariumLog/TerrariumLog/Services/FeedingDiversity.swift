@@ -9,7 +9,10 @@ import Foundation
 /// 1. une proie du régime jamais donnée récemment passe en premier ;
 /// 2. sinon, la proie donnée il y a le plus longtemps ;
 /// 3. si la même proie vient d'être servie 2 fois ou plus d'affilée, on force
-///    une alternative quand il en existe une.
+///    une alternative quand il en existe une ;
+/// 4. les proies dont le stock suivi est à zéro sont écartées de la
+///    suggestion (et signalées « à commander ») ; un stock bas est signalé
+///    sans écarter la proie.
 struct FeedingDiversityAnalysis {
     /// Répartition des derniers repas (rawValue → nombre), ordre décroissant.
     let recentCounts: [(preyRawValue: String, count: Int)]
@@ -20,6 +23,10 @@ struct FeedingDiversityAnalysis {
     let suggestionRawValue: String?
     /// Explication courte de la suggestion, prête à afficher.
     let reason: String?
+    /// Alerte de réassort liée à la suggestion (proie idéale en rupture,
+    /// stock bas sur la proie suggérée…), prête à afficher. Nil si rien à
+    /// signaler.
+    let restockNote: String?
 
     var suggestionDisplayName: String? {
         suggestionRawValue.map { PreyType(rawValue: $0)?.displayName ?? $0 }
@@ -30,7 +37,9 @@ enum FeedingDiversity {
     /// Nombre de repas récents pris en compte.
     static let window = 15
 
-    static func analyze(animal: Animal) -> FeedingDiversityAnalysis {
+    /// `stocks` : l'inventaire suivi (facultatif). Une proie sans entrée de
+    /// stock est considérée disponible (l'utilisateur ne suit pas tout).
+    static func analyze(animal: Animal, stocks: [PreyStock] = []) -> FeedingDiversityAnalysis {
         let feedings = animal.journalEntries
             .filter { $0.eventType == ObservationEventType.feeding.rawValue && !($0.preyType ?? "").isEmpty }
             .sorted { $0.date > $1.date }
@@ -72,8 +81,18 @@ enum FeedingDiversity {
                 lastPreyRawValue: lastPrey,
                 consecutiveSameCount: streak,
                 suggestionRawValue: nil,
-                reason: nil
+                reason: nil,
+                restockNote: nil
             )
+        }
+
+        // Stocks suivis, indexés par proie. (uniquingKeysWith par prudence :
+        // deux entrées de stock sur le même type ne doivent pas faire planter.)
+        let stockByPrey = Dictionary(stocks.map { ($0.typeRawValue, $0) },
+                                     uniquingKeysWith: { first, _ in first })
+        func isOutOfStock(_ prey: String) -> Bool {
+            guard let stock = stockByPrey[prey] else { return false }
+            return stock.quantity <= 0
         }
 
         // Candidats triés : jamais donnés d'abord, puis les plus anciens.
@@ -86,16 +105,37 @@ enum FeedingDiversity {
             }
         }
 
-        var suggestion = ranked.first
-        // Éviter de resservir la même proie après une série, si alternative.
+        // La rotation idéale (sans les stocks) vs la rotation réelle
+        // (proies disponibles uniquement).
+        let idealSuggestion = ranked.first
+        let available = ranked.filter { !isOutOfStock($0) }
+
+        var suggestion = available.first ?? idealSuggestion
+        // Éviter de resservir la même proie après une série, si une
+        // alternative disponible existe.
         if let current = suggestion, current == lastPrey, streak >= 2,
-           let alternative = ranked.first(where: { $0 != lastPrey }) {
+           let alternative = available.first(where: { $0 != lastPrey }) {
             suggestion = alternative
+        }
+
+        func displayName(_ prey: String) -> String {
+            PreyType(rawValue: prey)?.displayName ?? prey
+        }
+
+        // Note de réassort : rupture qui a dévié la rotation, rupture totale,
+        // ou stock bas sur la proie suggérée.
+        var restockNote: String?
+        if available.isEmpty {
+            restockNote = "Toutes les proies du régime sont en rupture — commande à prévoir."
+        } else if let ideal = idealSuggestion, isOutOfStock(ideal) {
+            restockNote = "\(displayName(ideal)) en rupture de stock — à commander."
+        } else if let suggestion, let stock = stockByPrey[suggestion], stock.isLow {
+            restockNote = "Stock de \(displayName(suggestion).lowercased()) bas (\(stock.quantity)) — pense à recommander."
         }
 
         var reason: String?
         if let suggestion {
-            let name = PreyType(rawValue: suggestion)?.displayName ?? suggestion
+            let name = displayName(suggestion)
             if lastGiven[suggestion] == nil {
                 reason = recent.isEmpty
                     ? "\(name) pour commencer la rotation"
@@ -103,7 +143,7 @@ enum FeedingDiversity {
             } else if let date = lastGiven[suggestion] {
                 let days = Calendar.current.dateComponents([.day], from: date, to: .now).day ?? 0
                 if let lastPrey, lastPrey != suggestion, streak >= 2 {
-                    let lastName = PreyType(rawValue: lastPrey)?.displayName ?? lastPrey
+                    let lastName = displayName(lastPrey)
                     reason = "déjà \(streak)× \(lastName) d'affilée — varie avec \(name)"
                 } else {
                     reason = "dernier \(name) il y a \(days) j"
@@ -116,7 +156,8 @@ enum FeedingDiversity {
             lastPreyRawValue: lastPrey,
             consecutiveSameCount: streak,
             suggestionRawValue: suggestion,
-            reason: reason
+            reason: reason,
+            restockNote: restockNote
         )
     }
 }

@@ -6,6 +6,7 @@ import Charts
 /// alimentaire par animal, tendance des refus, comparaison des cycles de mue.
 struct AnalyticsView: View {
     @Query(sort: [SortDescriptor<Animal>(\.dashboardSortOrder)]) private var animals: [Animal]
+    @Query private var preyStocks: [PreyStock]
     @State private var selectedAnimalID: PersistentIdentifier?
 
     private var selectedAnimal: Animal? {
@@ -130,7 +131,7 @@ struct AnalyticsView: View {
     // MARK: Diversité alimentaire (animal filtré)
 
     private func diversityCard(for animal: Animal) -> some View {
-        let analysis = FeedingDiversity.analyze(animal: animal)
+        let analysis = FeedingDiversity.analyze(animal: animal, stocks: preyStocks)
         return VStack(alignment: .leading, spacing: 10) {
             Text("Diversité alimentaire · \(animal.name)")
                 .font(.headline)
@@ -166,6 +167,11 @@ struct AnalyticsView: View {
                     Image(systemName: "arrow.triangle.2.circlepath.circle.fill")
                         .foregroundStyle(Brand.primary)
                 }
+            }
+            if let restockNote = analysis.restockNote {
+                Label(restockNote, systemImage: "cart")
+                    .font(.caption)
+                    .foregroundStyle(Brand.warning)
             }
         }
         .brandCard()

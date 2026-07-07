@@ -4,6 +4,7 @@ import SwiftData
 struct ReminderCalendarView: View {
     @Environment(\.modelContext) private var context
     @Query(sort: [SortDescriptor<Reminder>(\.reminderDate)]) private var reminders: [Reminder]
+    @Query private var preyStocks: [PreyStock]
 
     @State private var displayedMonth: Date = .now
     @State private var selectedDate: Date = Calendar.current.startOfDay(for: .now)
@@ -123,13 +124,19 @@ struct ReminderCalendarView: View {
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                             // Nourrissage : proie suggérée par la rotation du
-                            // régime de l'animal, directement dans le calendrier.
-                            if reminder.category == .feeding,
-                               let animal = reminder.animal,
-                               let suggestion = FeedingDiversity.analyze(animal: animal).suggestionDisplayName {
-                                Label("Suggestion : \(suggestion)", systemImage: "arrow.triangle.2.circlepath")
-                                    .font(.caption2)
-                                    .foregroundStyle(Brand.primary)
+                            // régime (stocks pris en compte), dans le calendrier.
+                            if reminder.category == .feeding, let animal = reminder.animal {
+                                let analysis = FeedingDiversity.analyze(animal: animal, stocks: preyStocks)
+                                if let suggestion = analysis.suggestionDisplayName {
+                                    Label("Suggestion : \(suggestion)", systemImage: "arrow.triangle.2.circlepath")
+                                        .font(.caption2)
+                                        .foregroundStyle(Brand.primary)
+                                }
+                                if let restockNote = analysis.restockNote {
+                                    Label(restockNote, systemImage: "cart")
+                                        .font(.caption2)
+                                        .foregroundStyle(Brand.warning)
+                                }
                             }
                         }
                         Spacer()

@@ -298,13 +298,19 @@ struct DashboardView: View {
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                             // Rappel de nourrissage : la proie suggérée par la
-                            // rotation du régime est visible directement ici.
-                            if reminder.category == .feeding,
-                               let animal = reminder.animal,
-                               let suggestion = FeedingDiversity.analyze(animal: animal).suggestionDisplayName {
-                                Label("Suggestion : \(suggestion)", systemImage: "arrow.triangle.2.circlepath")
-                                    .font(.caption2)
-                                    .foregroundStyle(Brand.primary)
+                            // rotation du régime, en tenant compte des stocks.
+                            if reminder.category == .feeding, let animal = reminder.animal {
+                                let analysis = FeedingDiversity.analyze(animal: animal, stocks: preyStocks)
+                                if let suggestion = analysis.suggestionDisplayName {
+                                    Label("Suggestion : \(suggestion)", systemImage: "arrow.triangle.2.circlepath")
+                                        .font(.caption2)
+                                        .foregroundStyle(Brand.primary)
+                                }
+                                if let restockNote = analysis.restockNote {
+                                    Label(restockNote, systemImage: "cart")
+                                        .font(.caption2)
+                                        .foregroundStyle(Brand.warning)
+                                }
                             }
                         }
                         Spacer()

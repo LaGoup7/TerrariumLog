@@ -7,6 +7,7 @@ import UIKit
 struct AnimalDetailView: View {
     @Environment(\.modelContext) private var context
     @Environment(\.dismiss) private var dismiss
+    @Query private var preyStocks: [PreyStock]
     let animal: Animal
 
     @State private var showingJournalSheet = false
@@ -339,7 +340,7 @@ struct AnimalDetailView: View {
 
     private var feedingSection: some View {
         let stats = FeedingStats.compute(from: animal.journalEntries)
-        let diversity = FeedingDiversity.analyze(animal: animal)
+        let diversity = FeedingDiversity.analyze(animal: animal, stocks: preyStocks)
         return VStack(alignment: .leading, spacing: 10) {
             HStack {
                 Text("Repas")
@@ -380,6 +381,11 @@ struct AnimalDetailView: View {
                     Image(systemName: "arrow.triangle.2.circlepath.circle.fill")
                         .foregroundStyle(Brand.primary)
                 }
+            }
+            if let restockNote = diversity.restockNote {
+                Label(restockNote, systemImage: "cart")
+                    .font(.caption)
+                    .foregroundStyle(Brand.warning)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -918,6 +924,7 @@ struct JournalEntryView: View {
     @Environment(\.modelContext) private var context
     @Query(sort: [SortDescriptor<CustomPreyType>(\.name)]) private var customPreyTypes: [CustomPreyType]
     @Query(sort: [SortDescriptor<Animal>(\.dashboardSortOrder)]) private var allAnimals: [Animal]
+    @Query private var preyStocks: [PreyStock]
     let animal: Animal
     /// Mode Dashboard : l'observation peut être appliquée à plusieurs animaux
     /// à la fois (une entrée de journal est créée pour chacun).
@@ -987,9 +994,10 @@ struct JournalEntryView: View {
         Double(moltSize.trimmingCharacters(in: .whitespaces).replacingOccurrences(of: ",", with: "."))
     }
 
-    /// Analyse de diversité pour la suggestion de proie (régime de l'animal).
+    /// Analyse de diversité pour la suggestion de proie (régime de l'animal,
+    /// en tenant compte des stocks réels).
     private var dietAnalysis: FeedingDiversityAnalysis {
-        FeedingDiversity.analyze(animal: animal)
+        FeedingDiversity.analyze(animal: animal, stocks: preyStocks)
     }
     @State private var appliedDietSuggestion = false
 
@@ -1064,6 +1072,11 @@ struct JournalEntryView: View {
                                 Image(systemName: "arrow.triangle.2.circlepath")
                             }
                             .foregroundStyle(Brand.primary)
+                        }
+                        if editingEntry == nil, let restockNote = dietAnalysis.restockNote {
+                            Label(restockNote, systemImage: "cart")
+                                .font(.caption)
+                                .foregroundStyle(Brand.warning)
                         }
                         Picker("Proie", selection: $preyTypeRawValue) {
                             ForEach(availablePreyTypes, id: \.self) { prey in
