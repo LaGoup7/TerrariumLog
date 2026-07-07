@@ -27,6 +27,27 @@ struct AnimalDetailView: View {
     @State private var editingJournalEntry: ObservationEntry?
     @State private var showingEvolutionCompare = false
     @State private var showingDietConfig = false
+    /// Sous-page affichée : la fiche est découpée en quatre volets courts au
+    /// lieu d'un long défilement (facilité de navigation).
+    @State private var selectedDetailTab: DetailTab = .profile
+
+    enum DetailTab: String, CaseIterable, Identifiable {
+        case profile
+        case journal
+        case health
+        case stats
+
+        var id: String { rawValue }
+
+        var displayName: String {
+            switch self {
+            case .profile: return "Profil"
+            case .journal: return "Journal"
+            case .health: return "Santé"
+            case .stats: return "Stats"
+            }
+        }
+    }
 
     private var isCameraAvailable: Bool {
         UIImagePickerController.isSourceTypeAvailable(.camera)
@@ -64,23 +85,38 @@ struct AnimalDetailView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
                 headerSection
-                infoSection
-                healthSection
-                if animal.type == .antColony {
-                    colonySection
+
+                // Quatre volets courts plutôt qu'un long défilement unique.
+                Picker("Volet", selection: $selectedDetailTab) {
+                    ForEach(DetailTab.allCases) { tab in
+                        Text(tab.displayName).tag(tab)
+                    }
                 }
-                feedingSection
-                if animal.type.tracksMolting {
-                    moltSection
+                .pickerStyle(.segmented)
+
+                switch selectedDetailTab {
+                case .profile:
+                    infoSection
+                    if animal.type == .antColony {
+                        colonySection
+                    }
+                case .journal:
+                    journalSection
+                    gallerySection
+                    AnimalVideosSection(animal: animal)
+                case .health:
+                    healthSection
+                    feedingSection
+                    if animal.type.tracksMolting {
+                        moltSection
+                    }
+                    if animal.type.tracksDiapause {
+                        diapauseSection
+                    }
+                    measurementsSection
+                case .stats:
+                    statisticsSection
                 }
-                if animal.type.tracksDiapause {
-                    diapauseSection
-                }
-                journalSection
-                gallerySection
-                AnimalVideosSection(animal: animal)
-                measurementsSection
-                statisticsSection
             }
             .padding()
         }

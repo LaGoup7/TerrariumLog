@@ -8,6 +8,7 @@ enum DashboardSection: String, CaseIterable, Identifiable {
     case calendar
     case cameras
     case lights
+    case preyStock
     case terrariums
     case animals
 
@@ -19,6 +20,7 @@ enum DashboardSection: String, CaseIterable, Identifiable {
         case .calendar: return "Calendrier des tâches"
         case .cameras: return "Caméras"
         case .lights: return "Lumières"
+        case .preyStock: return "Stock de proies"
         case .terrariums: return "Terrariums"
         case .animals: return "Animaux"
         }
@@ -30,6 +32,7 @@ enum DashboardSection: String, CaseIterable, Identifiable {
         case .calendar: return "calendar"
         case .cameras: return "video"
         case .lights: return "lightbulb"
+        case .preyStock: return "shippingbox"
         case .terrariums: return "leaf"
         case .animals: return "pawprint"
         }
@@ -127,6 +130,13 @@ struct DashboardView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
+                    // Analyses (statistiques d'élevage), sorties des Réglages.
+                    NavigationLink(destination: AnalyticsView()) {
+                        Image(systemName: "chart.bar.xaxis")
+                    }
+                    .disabled(animals.isEmpty)
+                }
+                ToolbarItem(placement: .topBarTrailing) {
                     // Photo rapide : l'appareil s'ouvre tout de suite, puis note
                     // + rattachement à un animal ou un terrarium.
                     Button {
@@ -185,6 +195,10 @@ struct DashboardView: View {
             }
         case .lights:
             listSection { lightsSection }
+        case .preyStock:
+            if !preyStocks.isEmpty {
+                listSection { preyStockSection }
+            }
         case .terrariums:
             if !terrariums.isEmpty {
                 listSection { terrariumsSection }
@@ -291,6 +305,41 @@ struct DashboardView: View {
         .sheet(isPresented: $showingAddReminder) {
             AddReminderView()
         }
+    }
+
+    /// Bloc permanent du stock de proies : vue d'ensemble + accès à la gestion.
+    /// (L'alerte rouge en tête de Dashboard reste dédiée aux stocks bas.)
+    private var preyStockSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                Text("Stock de proies")
+                    .font(.headline)
+                Spacer()
+                NavigationLink(destination: PreyStockView()) {
+                    Text("Gérer")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(Brand.primary)
+                }
+            }
+            ForEach(preyStocks.sorted { $0.quantity < $1.quantity }.prefix(4), id: \.persistentModelID) { stock in
+                HStack {
+                    Image(systemName: "shippingbox")
+                        .foregroundStyle(stock.isLow ? Brand.warning : Brand.accent)
+                    Text(stock.displayName)
+                        .font(.subheadline)
+                    Spacer()
+                    Text("\(stock.quantity)")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(stock.isLow ? Brand.warning : Color.primary)
+                }
+            }
+            if preyStocks.count > 4 {
+                Text("+ \(preyStocks.count - 4) autre(s) stock(s)")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .dashboardCard()
     }
 
     /// Alerte de stock bas, affichée seulement quand un stock passe sous son seuil.

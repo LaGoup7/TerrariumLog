@@ -123,29 +123,9 @@ struct SettingsView: View {
                     }
                 }
 
-                Section("Élevage") {
-                    NavigationLink {
-                        PreyStockView()
-                    } label: {
-                        Label("Stock de proies", systemImage: "shippingbox")
-                    }
-                    NavigationLink {
-                        AllPhotosView()
-                    } label: {
-                        Label("Toutes les photos", systemImage: "photo.on.rectangle.angled")
-                    }
-                    NavigationLink {
-                        SpeciesSheetsView()
-                    } label: {
-                        Label("Fiches espèces", systemImage: "book.closed")
-                    }
-                    NavigationLink {
-                        AnalyticsView()
-                    } label: {
-                        Label("Analyses", systemImage: "chart.bar.xaxis")
-                    }
-                }
-
+                // Les anciennes entrées « Élevage » ont déménagé là où on les
+                // cherche : Stock de proies & Analyses → Dashboard, Photos →
+                // Timeline, Fiches espèces → onglet Animaux.
                 if !customPreyTypes.isEmpty {
                     Section("Types de proies personnalisés") {
                         ForEach(customPreyTypes) { custom in

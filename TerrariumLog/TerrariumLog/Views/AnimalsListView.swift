@@ -52,6 +52,12 @@ struct AnimalsListView: View {
             .searchable(text: $searchText, prompt: "Rechercher un animal")
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
+                    // Fiches espèces (catalogue d'élevage), sorties des Réglages.
+                    NavigationLink(destination: SpeciesSheetsView()) {
+                        Image(systemName: "book.closed")
+                    }
+                }
+                ToolbarItem(placement: .topBarTrailing) {
                     Button { showingAddSheet = true } label: {
                         Image(systemName: "plus")
                     }

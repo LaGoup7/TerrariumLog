@@ -10,6 +10,15 @@ struct TimelineView: View {
     @State private var searchText = ""
     @State private var galleryContext: TimelineGalleryContext?
     @State private var editingEntry: ObservationEntry?
+    /// Contenu affiché : journal des événements ou grille de toutes les photos.
+    @State private var displayMode: DisplayMode = .journal
+
+    enum DisplayMode: String, CaseIterable, Identifiable {
+        case journal
+        case photos
+        var id: String { rawValue }
+        var displayName: String { self == .journal ? "Journal" : "Photos" }
+    }
 
     /// Galerie ouverte depuis les photos d'un événement de la timeline.
     struct TimelineGalleryContext: Identifiable {
@@ -80,39 +89,37 @@ struct TimelineView: View {
 
     var body: some View {
         NavigationStack {
-            List {
-                if presentEventTypes.count > 1 {
-                    Section {
-                        eventTypeChips
-                    }
-                    .listRowSeparator(.hidden)
-                    .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 0))
-                }
-
-                ForEach(monthGroups) { group in
-                    Section {
-                        ForEach(group.entries) { entry in
-                            entryRow(entry)
-                        }
-                    } header: {
-                        Text(group.title)
-                            .font(.subheadline.weight(.semibold))
-                            .foregroundStyle(Brand.primary)
-                            .textCase(nil)
-                    }
+            Group {
+                if displayMode == .journal {
+                    journalList
+                } else {
+                    AllPhotosView()
                 }
             }
+            // Sélecteur Journal / Photos toujours visible en tête d'écran.
+            .safeAreaInset(edge: .top, spacing: 0) {
+                Picker("Affichage", selection: $displayMode) {
+                    ForEach(DisplayMode.allCases) { mode in
+                        Text(mode.displayName).tag(mode)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 8)
+                .background(.bar)
+            }
             .navigationTitle("Timeline")
-            .searchable(text: $searchText, prompt: "Rechercher dans le journal")
             .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Menu {
-                        Button("Tous les animaux") { selectedAnimal = nil }
-                        ForEach(animals) { animal in
-                            Button(animal.name) { selectedAnimal = animal }
+                if displayMode == .journal {
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Menu {
+                            Button("Tous les animaux") { selectedAnimal = nil }
+                            ForEach(animals) { animal in
+                                Button(animal.name) { selectedAnimal = animal }
+                            }
+                        } label: {
+                            Image(systemName: "line.3.horizontal.decrease.circle")
                         }
-                    } label: {
-                        Image(systemName: "line.3.horizontal.decrease.circle")
                     }
                 }
             }
@@ -125,6 +132,32 @@ struct TimelineView: View {
                 }
             }
         }
+    }
+
+    private var journalList: some View {
+        List {
+            if presentEventTypes.count > 1 {
+                Section {
+                    eventTypeChips
+                }
+                .listRowSeparator(.hidden)
+                .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 0))
+            }
+
+            ForEach(monthGroups) { group in
+                Section {
+                    ForEach(group.entries) { entry in
+                        entryRow(entry)
+                    }
+                } header: {
+                    Text(group.title)
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(Brand.primary)
+                        .textCase(nil)
+                }
+            }
+        }
+        .searchable(text: $searchText, prompt: "Rechercher dans le journal")
     }
 
     /// Puces de filtre par type d'événement.
