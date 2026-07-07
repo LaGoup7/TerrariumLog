@@ -1,144 +1,99 @@
 import XCTest
-import SwiftData
 @testable import TerrariumLog
 
-@MainActor
+/// Teste la version **pure** du moteur (valeurs explicites + `ObservationEntry`
+/// autonomes), sans ModelContext — même approche que `JournalInsightsTests`.
 final class JournalSuggestionEngineTests: XCTestCase {
     private let day: TimeInterval = 86400
     private let base = Date(timeIntervalSince1970: 1_000_000)
 
-    private func makeContext() -> ModelContext {
-        PersistenceController(inMemory: true).container.mainContext
-    }
-
-    private func makeAnimal(
-        type: AnimalType = .jumpingSpider,
-        status: AnimalStatus = .normal,
-        terrarium: Terrarium? = nil,
-        in context: ModelContext
-    ) -> Animal {
-        let animal = Animal(
-            name: "Testeur-\(UUID().uuidString.prefix(4))",
-            species: "Test",
-            type: type,
-            origin: .captured,
-            arrivalDate: base,
-            currentStage: "L5",
-            status: status,
-            notes: ""
-        )
-        animal.terrarium = terrarium
-        context.insert(animal)
-        return animal
-    }
-
-    private func addFeeding(_ animal: Animal, dayOffset: Int, in context: ModelContext) {
-        let entry = ObservationEntry(
+    private func feeding(dayOffset: Int) -> ObservationEntry {
+        ObservationEntry(
             date: base.addingTimeInterval(Double(dayOffset) * day),
             eventType: ObservationEventType.feeding.rawValue,
-            note: "",
-            animal: animal
+            note: ""
         )
-        context.insert(entry)
     }
 
-    private func addMolt(_ animal: Animal, dayOffset: Int, from: String, to: String, in context: ModelContext) {
-        let entry = ObservationEntry(
+    private func molt(dayOffset: Int, from: String, to: String) -> ObservationEntry {
+        ObservationEntry(
             date: base.addingTimeInterval(Double(dayOffset) * day),
             eventType: ObservationEventType.molt.rawValue,
             note: "",
             previousStage: from,
-            newStage: to,
-            animal: animal
+            newStage: to
         )
-        context.insert(entry)
     }
 
     // MARK: Nourrissage
 
-    func testSuggestsFeedingWhenOverdue() throws {
-        let context = makeContext()
-        let animal = makeAnimal(in: context)
-        addFeeding(animal, dayOffset: 0, in: context)
-        addFeeding(animal, dayOffset: 2, in: context)
-        addFeeding(animal, dayOffset: 4, in: context)
-        try context.save()
-
-        let suggestions = JournalSuggestionEngine.suggestions(for: animal, now: base.addingTimeInterval(40 * day))
+    func testSuggestsFeedingWhenOverdue() {
+        let entries = [feeding(dayOffset: 0), feeding(dayOffset: 2), feeding(dayOffset: 4)]
+        let suggestions = JournalSuggestionEngine.suggestions(
+            animalName: "Testeur", type: .jumpingSpider, status: .normal,
+            entries: entries, terrarium: nil, now: base.addingTimeInterval(40 * day)
+        )
         XCTAssertTrue(suggestions.contains { $0.kind == .feedingOverdue })
     }
 
-    func testNoFeedingSuggestionWhenRecentlyFed() throws {
-        let context = makeContext()
-        let animal = makeAnimal(in: context)
-        addFeeding(animal, dayOffset: 0, in: context)
-        addFeeding(animal, dayOffset: 2, in: context)
-        addFeeding(animal, dayOffset: 4, in: context)
-        try context.save()
-
-        let suggestions = JournalSuggestionEngine.suggestions(for: animal, now: base.addingTimeInterval(5 * day))
+    func testNoFeedingSuggestionWhenRecentlyFed() {
+        let entries = [feeding(dayOffset: 0), feeding(dayOffset: 2), feeding(dayOffset: 4)]
+        let suggestions = JournalSuggestionEngine.suggestions(
+            animalName: "Testeur", type: .jumpingSpider, status: .normal,
+            entries: entries, terrarium: nil, now: base.addingTimeInterval(5 * day)
+        )
         XCTAssertFalse(suggestions.contains { $0.kind == .feedingOverdue })
     }
 
     // MARK: Mue
 
-    func testSuggestsMoltApproachingForMoltingSpecies() throws {
-        let context = makeContext()
-        let animal = makeAnimal(type: .jumpingSpider, in: context)
-        addMolt(animal, dayOffset: 0, from: "L4", to: "L5", in: context)
-        addMolt(animal, dayOffset: 30, from: "L5", to: "L6", in: context)
-        try context.save()
-
+    func testSuggestsMoltApproachingForMoltingSpecies() {
+        let entries = [molt(dayOffset: 0, from: "L4", to: "L5"), molt(dayOffset: 30, from: "L5", to: "L6")]
         // 27 j depuis la dernière mue, cycle moyen 30 j → 27 ≥ 25,5.
-        let suggestions = JournalSuggestionEngine.suggestions(for: animal, now: base.addingTimeInterval(57 * day))
+        let suggestions = JournalSuggestionEngine.suggestions(
+            animalName: "Testeur", type: .jumpingSpider, status: .normal,
+            entries: entries, terrarium: nil, now: base.addingTimeInterval(57 * day)
+        )
         XCTAssertTrue(suggestions.contains { $0.kind == .moltApproaching })
     }
 
-    func testNoMoltSuggestionForNonMoltingSpecies() throws {
-        let context = makeContext()
-        let animal = makeAnimal(type: .antColony, in: context)
-        addMolt(animal, dayOffset: 0, from: "L4", to: "L5", in: context)
-        addMolt(animal, dayOffset: 30, from: "L5", to: "L6", in: context)
-        try context.save()
-
-        let suggestions = JournalSuggestionEngine.suggestions(for: animal, now: base.addingTimeInterval(57 * day))
+    func testNoMoltSuggestionForNonMoltingSpecies() {
+        let entries = [molt(dayOffset: 0, from: "L4", to: "L5"), molt(dayOffset: 30, from: "L5", to: "L6")]
+        let suggestions = JournalSuggestionEngine.suggestions(
+            animalName: "Testeur", type: .antColony, status: .normal,
+            entries: entries, terrarium: nil, now: base.addingTimeInterval(57 * day)
+        )
         XCTAssertFalse(suggestions.contains { $0.kind == .moltApproaching })
     }
 
-    func testNoMoltSuggestionWhenAlreadyInPremolt() throws {
-        let context = makeContext()
-        let animal = makeAnimal(type: .jumpingSpider, status: .premolt, in: context)
-        addMolt(animal, dayOffset: 0, from: "L4", to: "L5", in: context)
-        addMolt(animal, dayOffset: 30, from: "L5", to: "L6", in: context)
-        try context.save()
-
-        let suggestions = JournalSuggestionEngine.suggestions(for: animal, now: base.addingTimeInterval(57 * day))
+    func testNoMoltSuggestionWhenAlreadyInPremolt() {
+        let entries = [molt(dayOffset: 0, from: "L4", to: "L5"), molt(dayOffset: 30, from: "L5", to: "L6")]
+        let suggestions = JournalSuggestionEngine.suggestions(
+            animalName: "Testeur", type: .jumpingSpider, status: .premolt,
+            entries: entries, terrarium: nil, now: base.addingTimeInterval(57 * day)
+        )
         XCTAssertFalse(suggestions.contains { $0.kind == .moltApproaching })
     }
 
     // MARK: Environnement
 
-    func testSuggestsTemperatureLowWhenReadingBelowTarget() throws {
-        let context = makeContext()
+    func testSuggestsTemperatureLowWhenReadingBelowTarget() {
         let terrarium = Terrarium(name: "T", type: .terrarium, targetTemperatureMin: 24, targetTemperatureMax: 28)
-        context.insert(terrarium)
-        let animal = makeAnimal(terrarium: terrarium, in: context)
-        try context.save()
-
         let reading = TerrariumSensorReading(temperature: 20, humidity: 60, soilMoisture: nil, luminosity: nil)
-        let suggestions = JournalSuggestionEngine.suggestions(for: animal, reading: reading, now: base)
+        let suggestions = JournalSuggestionEngine.suggestions(
+            animalName: "Testeur", type: .jumpingSpider, status: .normal,
+            entries: [], terrarium: terrarium, reading: reading, now: base
+        )
         XCTAssertTrue(suggestions.contains { $0.kind == .temperatureLow })
     }
 
-    func testNoEnvironmentSuggestionWhenReadingInRange() throws {
-        let context = makeContext()
+    func testNoEnvironmentSuggestionWhenReadingInRange() {
         let terrarium = Terrarium(name: "T", type: .terrarium, targetTemperatureMin: 24, targetTemperatureMax: 28, targetHumidityMin: 55, targetHumidityMax: 70)
-        context.insert(terrarium)
-        let animal = makeAnimal(terrarium: terrarium, in: context)
-        try context.save()
-
         let reading = TerrariumSensorReading(temperature: 26, humidity: 62, soilMoisture: nil, luminosity: nil)
-        let suggestions = JournalSuggestionEngine.suggestions(for: animal, reading: reading, now: base)
+        let suggestions = JournalSuggestionEngine.suggestions(
+            animalName: "Testeur", type: .jumpingSpider, status: .normal,
+            entries: [], terrarium: terrarium, reading: reading, now: base
+        )
         XCTAssertFalse(suggestions.contains { $0.kind == .temperatureLow || $0.kind == .temperatureHigh || $0.kind == .humidityLow || $0.kind == .humidityHigh })
     }
 }

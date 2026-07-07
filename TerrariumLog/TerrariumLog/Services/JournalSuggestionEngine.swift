@@ -54,26 +54,50 @@ enum JournalSuggestionEngine {
         static let `default` = Thresholds()
     }
 
+    /// Surcharge de commodité pour la vue : extrait les valeurs de l'`Animal`
+    /// puis délègue à la version pure ci-dessous.
     static func suggestions(
         for animal: Animal,
         reading: TerrariumSensorReading? = nil,
         thresholds: Thresholds = .default,
         now: Date = .now
     ) -> [JournalSuggestion] {
+        suggestions(
+            animalName: animal.name,
+            type: animal.type,
+            status: animal.status,
+            entries: animal.journalEntries.filter { !$0.isPhotoOnly },
+            terrarium: animal.terrarium,
+            reading: reading,
+            thresholds: thresholds,
+            now: now
+        )
+    }
+
+    /// Version **pure** : ne dépend d'aucune relation SwiftData à charger, donc
+    /// testable avec des `ObservationEntry` autonomes (sans ModelContext).
+    static func suggestions(
+        animalName: String,
+        type: AnimalType,
+        status: AnimalStatus,
+        entries: [ObservationEntry],
+        terrarium: Terrarium?,
+        reading: TerrariumSensorReading? = nil,
+        thresholds: Thresholds = .default,
+        now: Date = .now
+    ) -> [JournalSuggestion] {
+        let events = entries.filter { !$0.isPhotoOnly }
         var result: [JournalSuggestion] = []
-        let entries = animal.journalEntries.filter { !$0.isPhotoOnly }
-
-        result.append(contentsOf: feedingSuggestion(animal: animal, entries: entries, thresholds: thresholds, now: now))
-        result.append(contentsOf: moltSuggestion(animal: animal, entries: entries, thresholds: thresholds, now: now))
-        result.append(contentsOf: environmentSuggestions(animal: animal, reading: reading))
-
+        result.append(contentsOf: feedingSuggestion(animalName: animalName, entries: events, thresholds: thresholds, now: now))
+        result.append(contentsOf: moltSuggestion(animalName: animalName, type: type, status: status, entries: events, thresholds: thresholds, now: now))
+        result.append(contentsOf: environmentSuggestions(animalName: animalName, terrarium: terrarium, reading: reading))
         return result
     }
 
     // MARK: Nourrissage en retard
 
     private static func feedingSuggestion(
-        animal: Animal,
+        animalName: String,
         entries: [ObservationEntry],
         thresholds: Thresholds,
         now: Date
@@ -94,7 +118,7 @@ enum JournalSuggestionEngine {
         let rounded = Int(days.rounded())
         return [JournalSuggestion(
             kind: .feedingOverdue,
-            animalName: animal.name,
+            animalName: animalName,
             suggestedEventType: .feeding,
             title: "Nourrissage à prévoir",
             reason: "Pas nourri depuis \(rounded) jour\(rounded > 1 ? "s" : "")",
@@ -106,14 +130,16 @@ enum JournalSuggestionEngine {
     // MARK: Mue probable
 
     private static func moltSuggestion(
-        animal: Animal,
+        animalName: String,
+        type: AnimalType,
+        status: AnimalStatus,
         entries: [ObservationEntry],
         thresholds: Thresholds,
         now: Date
     ) -> [JournalSuggestion] {
-        guard animal.type.tracksMolting else { return [] }
+        guard type.tracksMolting else { return [] }
         // Déjà signalé comme en prémue / en mue : rien à suggérer.
-        guard animal.status != .premolt, animal.status != .molting else { return [] }
+        guard status != .premolt, status != .molting else { return [] }
 
         let stats = MoltStats.compute(from: entries)
         guard let average = stats.averageDaysBetweenMolts, average > 0,
@@ -129,7 +155,7 @@ enum JournalSuggestionEngine {
             : "Cycle moyen ~\(Int(average.rounded())) j déjà dépassé"
         return [JournalSuggestion(
             kind: .moltApproaching,
-            animalName: animal.name,
+            animalName: animalName,
             suggestedEventType: .premoltStart,
             title: "Mue probable approche",
             reason: reason,
@@ -141,10 +167,11 @@ enum JournalSuggestionEngine {
     // MARK: Environnement hors plage cible
 
     private static func environmentSuggestions(
-        animal: Animal,
+        animalName: String,
+        terrarium: Terrarium?,
         reading: TerrariumSensorReading?
     ) -> [JournalSuggestion] {
-        guard let reading, let terrarium = animal.terrarium else { return [] }
+        guard let reading, let terrarium else { return [] }
         var result: [JournalSuggestion] = []
 
         if let temperature = reading.temperature {
@@ -152,7 +179,7 @@ enum JournalSuggestionEngine {
             case .belowRange:
                 result.append(JournalSuggestion(
                     kind: .temperatureLow,
-                    animalName: animal.name,
+                    animalName: animalName,
                     suggestedEventType: .temperatureAdjust,
                     title: "Température basse",
                     reason: "Relevé \(trim(temperature))°C sous la plage cible",
@@ -162,7 +189,7 @@ enum JournalSuggestionEngine {
             case .aboveRange:
                 result.append(JournalSuggestion(
                     kind: .temperatureHigh,
-                    animalName: animal.name,
+                    animalName: animalName,
                     suggestedEventType: .temperatureAdjust,
                     title: "Température élevée",
                     reason: "Relevé \(trim(temperature))°C au-dessus de la plage cible",
@@ -179,7 +206,7 @@ enum JournalSuggestionEngine {
             case .belowRange:
                 result.append(JournalSuggestion(
                     kind: .humidityLow,
-                    animalName: animal.name,
+                    animalName: animalName,
                     suggestedEventType: .humidifying,
                     title: "Humidité basse",
                     reason: "Relevé \(trim(humidity))% sous la plage cible",
@@ -189,7 +216,7 @@ enum JournalSuggestionEngine {
             case .aboveRange:
                 result.append(JournalSuggestion(
                     kind: .humidityHigh,
-                    animalName: animal.name,
+                    animalName: animalName,
                     suggestedEventType: .humidityAdjust,
                     title: "Humidité élevée",
                     reason: "Relevé \(trim(humidity))% au-dessus de la plage cible",
