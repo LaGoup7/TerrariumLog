@@ -107,21 +107,50 @@ final class FeedingDiversityTests: XCTestCase {
         XCTAssertTrue(note.contains("rupture"), "La rupture totale doit être signalée : \(note)")
     }
 
-    /// Une proie sans stock suivi reste disponible (on ne suit pas tout).
+    /// Dès qu'un inventaire est suivi, il fait foi : une proie absente des
+    /// stocks n'est pas suggérée tant qu'une proie EN stock existe, et la
+    /// rotation contrariée est signalée « à commander pour varier ».
     @MainActor
-    func testUntrackedPreyIsConsideredAvailable() throws {
+    func testUntrackedPreyDeferredToInStockPrey() throws {
         let controller = PersistenceController(inMemory: true)
         let context = controller.container.mainContext
+        // Rotation idéale = grillon (jamais donné), mais seul le stock de
+        // mouches existe : on suggère la mouche, pas le grillon.
         let animal = makeAnimal(context: context, diet: [.fly, .cricket], meals: [(.fly, 1), (.fly, 3)])
 
-        // Seules les mouches sont suivies ; les grillons (non suivis) restent
-        // suggérables sans note de réassort.
         let flyStock = PreyStock(typeRawValue: PreyType.fly.rawValue, quantity: 50)
         context.insert(flyStock)
 
         let analysis = FeedingDiversity.analyze(animal: animal, stocks: [flyStock])
-        XCTAssertEqual(analysis.suggestionRawValue, PreyType.cricket.rawValue)
-        XCTAssertNil(analysis.restockNote)
+        XCTAssertEqual(analysis.suggestionRawValue, PreyType.fly.rawValue,
+                       "On ne suggère pas une proie absente de l'inventaire")
+        let note = try XCTUnwrap(analysis.restockNote)
+        XCTAssertTrue(note.contains("Grillon"), "La proie de rotation manquante doit être signalée : \(note)")
+        XCTAssertTrue(note.contains("absent"))
+    }
+
+    /// Scénario utilisateur : des drosophiles au régime mais aucune entrée de
+    /// stock pour elles — la suggestion doit se rabattre sur ce qui est en
+    /// stock et proposer de commander des drosophiles.
+    @MainActor
+    func testDrosophilaNotSuggestedWhenAbsentFromInventory() throws {
+        let controller = PersistenceController(inMemory: true)
+        let context = controller.container.mainContext
+        let animal = makeAnimal(
+            context: context,
+            diet: [.drosophile, .cricket],
+            meals: [(.cricket, 1), (.cricket, 4)]
+        )
+
+        // Inventaire suivi : uniquement des grillons.
+        let cricketStock = PreyStock(typeRawValue: PreyType.cricket.rawValue, quantity: 10)
+        context.insert(cricketStock)
+
+        let analysis = FeedingDiversity.analyze(animal: animal, stocks: [cricketStock])
+        XCTAssertEqual(analysis.suggestionRawValue, PreyType.cricket.rawValue,
+                       "Les drosophiles absentes de l'inventaire ne doivent pas être suggérées")
+        let note = try XCTUnwrap(analysis.restockNote)
+        XCTAssertTrue(note.contains("Drosophile"), "Il faut proposer d'en commander : \(note)")
     }
 
     /// L'évitement de série (2× la même proie d'affilée) ne doit proposer que

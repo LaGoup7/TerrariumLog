@@ -10,9 +10,11 @@ import Foundation
 /// 2. sinon, la proie donnée il y a le plus longtemps ;
 /// 3. si la même proie vient d'être servie 2 fois ou plus d'affilée, on force
 ///    une alternative quand il en existe une ;
-/// 4. les proies dont le stock suivi est à zéro sont écartées de la
-///    suggestion (et signalées « à commander ») ; un stock bas est signalé
-///    sans écarter la proie.
+/// 4. dès qu'un inventaire est suivi, il fait foi : la suggestion se fait
+///    d'abord parmi les proies EN stock ; une proie absente de l'inventaire
+///    n'est proposée qu'à défaut, et signalée « à commander pour varier » si
+///    la rotation l'aurait choisie ; une proie suivie à zéro est écartée
+///    (« en rupture ») ; un stock bas est signalé sans écarter la proie.
 struct FeedingDiversityAnalysis {
     /// Répartition des derniers repas (rawValue → nombre), ordre décroissant.
     let recentCounts: [(preyRawValue: String, count: Int)]
@@ -90,9 +92,15 @@ enum FeedingDiversity {
         // deux entrées de stock sur le même type ne doivent pas faire planter.)
         let stockByPrey = Dictionary(stocks.map { ($0.typeRawValue, $0) },
                                      uniquingKeysWith: { first, _ in first })
+        /// Suivie en stock ET à zéro : indisponible, à commander.
         func isOutOfStock(_ prey: String) -> Bool {
             guard let stock = stockByPrey[prey] else { return false }
             return stock.quantity <= 0
+        }
+        /// Suivie en stock ET disponible (quantité > 0).
+        func isInStock(_ prey: String) -> Bool {
+            guard let stock = stockByPrey[prey] else { return false }
+            return stock.quantity > 0
         }
 
         // Candidats triés : jamais donnés d'abord, puis les plus anciens.
@@ -105,10 +113,15 @@ enum FeedingDiversity {
             }
         }
 
-        // La rotation idéale (sans les stocks) vs la rotation réelle
-        // (proies disponibles uniquement).
+        // La rotation idéale (sans les stocks) vs la rotation réelle.
+        // Dès qu'un inventaire est suivi, il fait foi : on suggère d'abord
+        // parmi les proies EN stock ; les proies absentes de l'inventaire ne
+        // sont proposées qu'à défaut (l'inventaire représente ce qu'on a).
+        // Les proies suivies à zéro sont toujours écartées.
         let idealSuggestion = ranked.first
-        let available = ranked.filter { !isOutOfStock($0) }
+        let inStock = ranked.filter(isInStock)
+        let notExcluded = ranked.filter { !isOutOfStock($0) }
+        let available = stocks.isEmpty ? ranked : (inStock.isEmpty ? notExcluded : inStock)
 
         var suggestion = available.first ?? idealSuggestion
         // Éviter de resservir la même proie après une série, si une
@@ -122,13 +135,16 @@ enum FeedingDiversity {
             PreyType(rawValue: prey)?.displayName ?? prey
         }
 
-        // Note de réassort : rupture qui a dévié la rotation, rupture totale,
-        // ou stock bas sur la proie suggérée.
+        // Note de réassort : rupture ou absence qui a dévié la rotation,
+        // rupture totale, ou stock bas sur la proie suggérée.
         var restockNote: String?
         if available.isEmpty {
             restockNote = "Toutes les proies du régime sont en rupture — commande à prévoir."
         } else if let ideal = idealSuggestion, isOutOfStock(ideal) {
             restockNote = "\(displayName(ideal)) en rupture de stock — à commander."
+        } else if let ideal = idealSuggestion, !stocks.isEmpty,
+                  stockByPrey[ideal] == nil, suggestion != ideal {
+            restockNote = "\(displayName(ideal)) absent de tes stocks — à commander pour varier le régime."
         } else if let suggestion, let stock = stockByPrey[suggestion], stock.isLow {
             restockNote = "Stock de \(displayName(suggestion).lowercased()) bas (\(stock.quantity)) — pense à recommander."
         }
