@@ -75,6 +75,8 @@ struct DashboardView: View {
     @State private var showingCustomize = false
     /// Capture photo rapide (appareil d'abord) depuis la barre du Dashboard.
     @State private var showingQuickPhoto = false
+    /// Lampes dont une commande marche/arrêt est en cours d'envoi.
+    @State private var sendingLightIDs: Set<PersistentIdentifier> = []
     /// Animal choisi pour une observation rapide depuis la barre du Dashboard.
     @State private var observationAnimal: Animal?
     @AppStorage("dashboardSectionOrder") private var sectionOrderRaw = ""
@@ -427,35 +429,30 @@ struct DashboardView: View {
         }
     }
 
+    /// Accès rapide caméras : grandes vignettes (dernière image du live) en
+    /// grille — un tap ouvre directement le flux.
     private var camerasSection: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text("Caméras")
                 .font(.headline)
-            ForEach(cameras) { camera in
-                NavigationLink(destination: CameraLiveView(camera: camera)) {
-                    HStack(spacing: 12) {
-                        CameraPreviewThumbnail(camera: camera)
-                        VStack(alignment: .leading) {
-                            Text(camera.name)
-                                .font(.subheadline)
-                            Text(camera.terrarium?.name ?? "Sans terrarium")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                        Spacer()
-                        Circle()
-                            .fill(camera.isConfigured ? Brand.primary : Brand.warning)
-                            .frame(width: 8, height: 8)
-                        Image(systemName: "play.circle.fill")
-                            .foregroundStyle(Brand.accent)
+            LazyVGrid(
+                columns: cameras.count == 1
+                    ? [GridItem(.flexible())]
+                    : [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)],
+                spacing: 10
+            ) {
+                ForEach(cameras) { camera in
+                    NavigationLink(destination: CameraLiveView(camera: camera)) {
+                        CameraQuickTile(camera: camera)
                     }
-                }
-                .contextMenu {
-                    Button(role: .destructive) {
-                        context.delete(camera)
-                        try? context.save()
-                    } label: {
-                        Label("Supprimer la caméra", systemImage: "trash")
+                    .buttonStyle(.plain)
+                    .contextMenu {
+                        Button(role: .destructive) {
+                            context.delete(camera)
+                            try? context.save()
+                        } label: {
+                            Label("Supprimer la caméra", systemImage: "trash")
+                        }
                     }
                 }
             }
@@ -486,28 +483,49 @@ struct DashboardView: View {
                     .foregroundStyle(.secondary)
             } else {
                 ForEach(lights) { light in
-                    NavigationLink(destination: LightControlView(light: light)) {
-                        HStack {
+                    HStack(spacing: 12) {
+                        // Interrupteur rapide : un tap allume/éteint sans
+                        // ouvrir l'écran de contrôle.
+                        Button {
+                            toggleDashboardLight(light)
+                        } label: {
                             Image(systemName: light.lastKnownOn ? "lightbulb.fill" : "lightbulb")
+                                .font(.title3)
                                 .foregroundStyle(light.lastKnownOn ? Brand.warning : Color.secondary)
-                            VStack(alignment: .leading) {
-                                Text(light.name)
-                                    .font(.subheadline)
-                                Text(light.terrarium?.name ?? light.brand.displayName)
+                                .frame(width: 42, height: 42)
+                                .background(
+                                    light.lastKnownOn ? Brand.warning.opacity(0.16) : Brand.surfaceElevated,
+                                    in: RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                )
+                        }
+                        .buttonStyle(.borderless)
+                        .disabled(!light.isConfigured || sendingLightIDs.contains(light.persistentModelID))
+
+                        NavigationLink(destination: LightControlView(light: light)) {
+                            HStack {
+                                VStack(alignment: .leading) {
+                                    Text(light.name)
+                                        .font(.subheadline)
+                                    Text(light.terrarium?.name ?? light.brand.displayName)
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                    // Cycle jour/nuit actif : visible d'un coup d'œil.
+                                    if light.scheduleMode != .manual {
+                                        Label(light.scheduleMode.displayName, systemImage: light.scheduleMode.symbolName)
+                                            .font(.caption2)
+                                            .foregroundStyle(Brand.accent)
+                                    }
+                                }
+                                Spacer()
+                                Circle()
+                                    .fill(light.isConfigured ? Brand.primary : Brand.warning)
+                                    .frame(width: 8, height: 8)
+                                Image(systemName: "chevron.right")
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
-                                // Cycle jour/nuit actif : visible d'un coup d'œil.
-                                if light.scheduleMode != .manual {
-                                    Label(light.scheduleMode.displayName, systemImage: light.scheduleMode.symbolName)
-                                        .font(.caption2)
-                                        .foregroundStyle(Brand.accent)
-                                }
                             }
-                            Spacer()
-                            Circle()
-                                .fill(light.isConfigured ? Brand.primary : Brand.warning)
-                                .frame(width: 8, height: 8)
                         }
+                        .buttonStyle(.plain)
                     }
                     .contextMenu {
                         Button(role: .destructive) {
@@ -521,6 +539,22 @@ struct DashboardView: View {
             }
         }
         .dashboardCard()
+    }
+
+    /// Bascule marche/arrêt d'une lampe depuis le bloc Lumières, via le
+    /// contrôleur de sa marque, avec l'état partagé mis à jour.
+    private func toggleDashboardLight(_ light: Light) {
+        guard let ip = light.ipAddress, !ip.isEmpty else { return }
+        let target = !light.lastKnownOn
+        sendingLightIDs.insert(light.persistentModelID)
+        Task {
+            let controller = LightControllerFactory.controller(for: light.brand)
+            try? await controller.setPower(target, ip: ip)
+            light.lastKnownOn = target
+            try? context.save()
+            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+            sendingLightIDs.remove(light.persistentModelID)
+        }
     }
 
     private var terrariumsSection: some View {
@@ -547,28 +581,62 @@ struct DashboardView: View {
     }
 }
 
-/// Vignette Dashboard d'une caméra : dernière image vue du live (mise en cache
-/// automatiquement pendant la lecture), sinon pictogramme neutre.
-struct CameraPreviewThumbnail: View {
+/// Grande tuile caméra du Dashboard : dernière image du live en plein cadre,
+/// nom et terrarium en surimpression — un tap ouvre le flux.
+struct CameraQuickTile: View {
     let camera: Camera
     @State private var image: UIImage?
 
     var body: some View {
-        Group {
-            if let image {
-                Image(uiImage: image)
-                    .resizable()
-                    .scaledToFill()
-            } else {
-                Image(systemName: "video.fill")
-                    .font(.callout)
-                    .foregroundStyle(Brand.accent)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .background(Brand.surfaceElevated)
+        ZStack(alignment: .bottomLeading) {
+            Group {
+                if let image {
+                    Color.clear
+                        .overlay(
+                            Image(uiImage: image)
+                                .resizable()
+                                .scaledToFill()
+                        )
+                } else {
+                    Rectangle()
+                        .fill(Brand.surfaceElevated)
+                        .overlay(
+                            Image(systemName: "video.fill")
+                                .font(.title2)
+                                .foregroundStyle(Brand.accent)
+                        )
+                }
             }
+            // Bandeau lisible quelle que soit l'image.
+            LinearGradient(
+                colors: [.clear, .black.opacity(0.65)],
+                startPoint: .center,
+                endPoint: .bottom
+            )
+            HStack(spacing: 6) {
+                Circle()
+                    .fill(camera.isConfigured ? Brand.primary : Brand.warning)
+                    .frame(width: 7, height: 7)
+                VStack(alignment: .leading, spacing: 0) {
+                    Text(camera.name)
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.white)
+                        .lineLimit(1)
+                    if let terrariumName = camera.terrarium?.name {
+                        Text(terrariumName)
+                            .font(.caption2)
+                            .foregroundStyle(.white.opacity(0.8))
+                            .lineLimit(1)
+                    }
+                }
+                Spacer()
+                Image(systemName: "play.circle.fill")
+                    .foregroundStyle(.white)
+            }
+            .padding(8)
         }
-        .frame(width: 64, height: 44)
-        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+        .aspectRatio(16 / 10, contentMode: .fit)
+        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
         .onAppear {
             image = CameraPreviewStore.shared.load(for: camera)
         }
