@@ -153,6 +153,45 @@ final class FeedingDiversityTests: XCTestCase {
         XCTAssertTrue(note.contains("Drosophile"), "Il faut proposer d'en commander : \(note)")
     }
 
+    /// Un stock réservé à un autre animal est invisible : les graines des
+    /// Messor n'entrent pas dans la rotation des araignées.
+    @MainActor
+    func testStockDedicatedToAnotherAnimalIsIgnored() throws {
+        let controller = PersistenceController(inMemory: true)
+        let context = controller.container.mainContext
+        let spider = makeAnimal(context: context, diet: [.fly, .cricket], meals: [(.fly, 1), (.fly, 3)])
+        let ants = makeAnimal(context: context, diet: [.seeds], meals: [])
+
+        // Mouches réservées aux fourmis (cas absurde mais discriminant) ;
+        // grillons partagés.
+        let flyStock = PreyStock(typeRawValue: PreyType.fly.rawValue, quantity: 50)
+        flyStock.eaters = [ants]
+        let cricketStock = PreyStock(typeRawValue: PreyType.cricket.rawValue, quantity: 10)
+        context.insert(flyStock)
+        context.insert(cricketStock)
+        try context.save()
+
+        let analysis = FeedingDiversity.analyze(animal: spider, stocks: [flyStock, cricketStock])
+        XCTAssertEqual(analysis.suggestionRawValue, PreyType.cricket.rawValue,
+                       "Le stock réservé à un autre animal ne doit pas compter pour l'araignée")
+    }
+
+    /// Un stock réservé à l'animal lui-même reste bien utilisé pour lui.
+    @MainActor
+    func testStockDedicatedToTheAnimalIsUsed() throws {
+        let controller = PersistenceController(inMemory: true)
+        let context = controller.container.mainContext
+        let spider = makeAnimal(context: context, diet: [.fly, .cricket], meals: [(.fly, 1)])
+
+        let cricketStock = PreyStock(typeRawValue: PreyType.cricket.rawValue, quantity: 10)
+        cricketStock.eaters = [spider]
+        context.insert(cricketStock)
+        try context.save()
+
+        let analysis = FeedingDiversity.analyze(animal: spider, stocks: [cricketStock])
+        XCTAssertEqual(analysis.suggestionRawValue, PreyType.cricket.rawValue)
+    }
+
     /// L'évitement de série (2× la même proie d'affilée) ne doit proposer que
     /// des alternatives en stock.
     @MainActor

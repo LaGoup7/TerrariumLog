@@ -15,6 +15,9 @@ struct PreyStockDTO: Codable {
     var quantity: Int
     var lowThreshold: Int
     var updatedAt: Date
+    /// Noms des animaux auxquels le stock est réservé (résolus par nom à
+    /// l'import). Optionnel : absent des anciennes sauvegardes = partagé.
+    var eaterNames: [String]?
 }
 
 struct TerrariumDTO: Codable {

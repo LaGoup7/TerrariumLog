@@ -347,8 +347,16 @@ struct DashboardView: View {
                 HStack {
                     Image(systemName: "shippingbox")
                         .foregroundStyle(stock.isLow ? Brand.warning : Brand.accent)
-                    Text(stock.displayName)
-                        .font(.subheadline)
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text(stock.displayName)
+                            .font(.subheadline)
+                        if let eatersLabel = stock.eatersLabel {
+                            Text(eatersLabel)
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                                .lineLimit(1)
+                        }
+                    }
                     Spacer()
                     Text("\(stock.quantity)")
                         .font(.subheadline.weight(.semibold))

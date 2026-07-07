@@ -13,6 +13,12 @@ final class PreyStock {
     var lowThreshold: Int
     var updatedAt: Date
 
+    /// Animaux auxquels ce stock est réservé (ex. les graines pour la colonie
+    /// de Messor barbarus). Vide = stock partagé par tous les animaux. Les
+    /// suggestions de proies ignorent les stocks réservés à d'autres animaux.
+    @Relationship(deleteRule: .nullify)
+    var eaters: [Animal] = []
+
     init(typeRawValue: String, quantity: Int, lowThreshold: Int = 5, updatedAt: Date = .now) {
         self.typeRawValue = typeRawValue
         self.quantity = quantity
@@ -26,6 +32,17 @@ final class PreyStock {
 
     var isLow: Bool {
         quantity <= lowThreshold
+    }
+
+    /// Vrai si ce stock concerne cet animal (réservé à lui, ou partagé).
+    func isFor(_ animal: Animal) -> Bool {
+        eaters.isEmpty || eaters.contains { $0.persistentModelID == animal.persistentModelID }
+    }
+
+    /// Libellé de l'attribution, ex. « Pour Messor » ou nil si partagé.
+    var eatersLabel: String? {
+        guard !eaters.isEmpty else { return nil }
+        return "Pour " + eaters.map(\.name).sorted().joined(separator: ", ")
     }
 }
 

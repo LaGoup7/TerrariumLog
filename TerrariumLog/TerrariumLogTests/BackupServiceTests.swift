@@ -181,6 +181,42 @@ final class BackupServiceTests: XCTestCase {
         XCTAssertEqual(plants.first?.lastWatered, Date(timeIntervalSince1970: 1_750_000_000))
     }
 
+    @MainActor
+    func testPreyStockEatersRoundTrip() throws {
+        let controller = PersistenceController(inMemory: true)
+        let context = controller.container.mainContext
+
+        let ants = Animal(
+            name: "Messor barbarus",
+            species: "Messor barbarus",
+            type: .antColony,
+            origin: .purchased,
+            arrivalDate: .now,
+            currentStage: "Colonie",
+            status: .normal,
+            notes: ""
+        )
+        context.insert(ants)
+
+        let seeds = PreyStock(typeRawValue: PreyType.seeds.rawValue, quantity: 100)
+        seeds.eaters = [ants]
+        context.insert(seeds)
+        let shared = PreyStock(typeRawValue: PreyType.cricket.rawValue, quantity: 10)
+        context.insert(shared)
+        try context.save()
+
+        let data = try BackupService.shared.exportData(context: context)
+        try BackupService.shared.importData(data, context: context)
+
+        let stocks = try context.fetch(FetchDescriptor<PreyStock>())
+        XCTAssertEqual(stocks.count, 2)
+        let seedsStock = try XCTUnwrap(stocks.first { $0.typeRawValue == PreyType.seeds.rawValue })
+        XCTAssertEqual(seedsStock.eaters.map(\.name), ["Messor barbarus"],
+                       "L'attribution doit être résolue par nom à l'import")
+        let sharedStock = try XCTUnwrap(stocks.first { $0.typeRawValue == PreyType.cricket.rawValue })
+        XCTAssertTrue(sharedStock.eaters.isEmpty, "Un stock partagé doit le rester")
+    }
+
     func testImportRejectsInvalidData() {
         let controller = PersistenceController(inMemory: true)
         let context = controller.container.mainContext

@@ -9,6 +9,8 @@ struct PreyStockView: View {
     @Query(sort: [SortDescriptor<PreyStock>(\.typeRawValue)]) private var stocks: [PreyStock]
     @Query(sort: [SortDescriptor<CustomPreyType>(\.name)]) private var customPreyTypes: [CustomPreyType]
     @State private var showingAddSheet = false
+    /// Stock dont on édite l'attribution aux animaux.
+    @State private var assigningStock: PreyStock?
 
     var body: some View {
         List {
@@ -29,6 +31,16 @@ struct PreyStockView: View {
                             Text(stock.isLow ? "Stock bas (seuil \(stock.lowThreshold))" : "Seuil d'alerte : \(stock.lowThreshold)")
                                 .font(.caption)
                                 .foregroundStyle(stock.isLow ? Brand.warning : Color.secondary)
+                            // Attribution : à qui ce stock est réservé.
+                            Button {
+                                assigningStock = stock
+                            } label: {
+                                Label(stock.eatersLabel ?? "Pour tous les animaux", systemImage: "pawprint")
+                                    .font(.caption2)
+                                    .foregroundStyle(stock.eaters.isEmpty ? Color.secondary : Brand.primary)
+                                    .lineLimit(1)
+                            }
+                            .buttonStyle(.borderless)
                         }
                         Spacer()
                         Stepper(value: Binding(
@@ -67,6 +79,64 @@ struct PreyStockView: View {
         .sheet(isPresented: $showingAddSheet) {
             AddPreyStockView(existingTypeRawValues: Set(stocks.map(\.typeRawValue)),
                              customPreyTypeNames: customPreyTypes.map(\.name))
+        }
+        .sheet(item: $assigningStock) { stock in
+            PreyStockEatersView(stock: stock)
+        }
+    }
+}
+
+/// Attribution d'un stock à des animaux : les suggestions de proies des autres
+/// animaux ignorent ce stock (ex. graines réservées aux Messor barbarus).
+struct PreyStockEatersView: View {
+    @Environment(\.dismiss) private var dismiss
+    @Environment(\.modelContext) private var context
+    @Query(sort: [SortDescriptor<Animal>(\.dashboardSortOrder)]) private var animals: [Animal]
+    @Bindable var stock: PreyStock
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    ForEach(animals) { animal in
+                        Toggle(isOn: Binding(
+                            get: { stock.eaters.contains { $0.persistentModelID == animal.persistentModelID } },
+                            set: { isOn in
+                                if isOn {
+                                    stock.eaters.append(animal)
+                                } else {
+                                    stock.eaters.removeAll { $0.persistentModelID == animal.persistentModelID }
+                                }
+                                try? context.save()
+                            }
+                        )) {
+                            Label {
+                                VStack(alignment: .leading, spacing: 1) {
+                                    Text(animal.name)
+                                        .font(.subheadline)
+                                    Text(animal.species)
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+                            } icon: {
+                                Image(systemName: animal.type.symbolName)
+                            }
+                        }
+                        .tint(Brand.primary)
+                    }
+                } header: {
+                    Text("\(stock.displayName) — pour qui ?")
+                } footer: {
+                    Text("Aucune coche = stock partagé par tous. Coché : seules les suggestions de ces animaux utilisent ce stock (les graines des fourmis ne seront jamais proposées aux araignées).")
+                }
+            }
+            .navigationTitle("Attribution du stock")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Fermer") { dismiss() }
+                }
+            }
         }
     }
 }

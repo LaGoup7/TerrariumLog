@@ -26,7 +26,13 @@ struct BackupService {
             unassignedAnimals: unassignedAnimalDTOs,
             customPreyTypeNames: customPreyTypes.map(\.name),
             preyStocks: preyStocks.map {
-                PreyStockDTO(typeRawValue: $0.typeRawValue, quantity: $0.quantity, lowThreshold: $0.lowThreshold, updatedAt: $0.updatedAt)
+                PreyStockDTO(
+                    typeRawValue: $0.typeRawValue,
+                    quantity: $0.quantity,
+                    lowThreshold: $0.lowThreshold,
+                    updatedAt: $0.updatedAt,
+                    eaterNames: $0.eaters.isEmpty ? nil : $0.eaters.map(\.name)
+                )
             },
             unassignedLights: lights.filter { $0.terrarium == nil }.map(makeLightDTO)
         )
@@ -274,13 +280,20 @@ struct BackupService {
         for name in backup.customPreyTypeNames ?? [] {
             context.insert(CustomPreyType(name: name))
         }
+        // Les stocks après les animaux : l'attribution (eaterNames) est
+        // résolue par nom sur les animaux fraîchement importés.
+        let importedAnimals = (try? context.fetch(FetchDescriptor<Animal>())) ?? []
         for stockDTO in backup.preyStocks ?? [] {
-            context.insert(PreyStock(
+            let stock = PreyStock(
                 typeRawValue: stockDTO.typeRawValue,
                 quantity: stockDTO.quantity,
                 lowThreshold: stockDTO.lowThreshold,
                 updatedAt: stockDTO.updatedAt
-            ))
+            )
+            if let eaterNames = stockDTO.eaterNames, !eaterNames.isEmpty {
+                stock.eaters = importedAnimals.filter { eaterNames.contains($0.name) }
+            }
+            context.insert(stock)
         }
         for lightDTO in backup.unassignedLights ?? [] {
             insert(lightDTO, terrarium: nil, into: context)

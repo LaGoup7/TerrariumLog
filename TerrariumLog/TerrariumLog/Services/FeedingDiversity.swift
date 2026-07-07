@@ -39,9 +39,11 @@ enum FeedingDiversity {
     /// Nombre de repas récents pris en compte.
     static let window = 15
 
-    /// `stocks` : l'inventaire suivi (facultatif). Une proie sans entrée de
-    /// stock est considérée disponible (l'utilisateur ne suit pas tout).
-    static func analyze(animal: Animal, stocks: [PreyStock] = []) -> FeedingDiversityAnalysis {
+    /// `stocks` : l'inventaire suivi (facultatif). Les stocks réservés à
+    /// d'autres animaux (`PreyStock.eaters`) sont ignorés pour cet animal —
+    /// les graines des Messor n'entrent pas dans la rotation des araignées.
+    static func analyze(animal: Animal, stocks allStocks: [PreyStock] = []) -> FeedingDiversityAnalysis {
+        let stocks = allStocks.filter { $0.isFor(animal) }
         let feedings = animal.journalEntries
             .filter { $0.eventType == ObservationEventType.feeding.rawValue && !($0.preyType ?? "").isEmpty }
             .sorted { $0.date > $1.date }

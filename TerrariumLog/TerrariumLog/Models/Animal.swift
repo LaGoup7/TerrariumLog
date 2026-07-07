@@ -55,6 +55,11 @@ final class Animal {
     @Relationship(deleteRule: .cascade, inverse: \AnimalVideo.animal)
     var videos: [AnimalVideo] = []
 
+    /// Stocks de proies réservés à cet animal (inverse de `PreyStock.eaters`).
+    /// La suppression de l'animal rend simplement le stock partagé.
+    @Relationship(deleteRule: .nullify, inverse: \PreyStock.eaters)
+    var dedicatedPreyStocks: [PreyStock] = []
+
     init(
         name: String,
         species: String,
