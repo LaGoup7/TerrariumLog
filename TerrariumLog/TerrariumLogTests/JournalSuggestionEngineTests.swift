@@ -56,23 +56,25 @@ final class JournalSuggestionEngineTests: XCTestCase {
 
     // MARK: Nourrissage
 
-    func testSuggestsFeedingWhenOverdue() {
+    func testSuggestsFeedingWhenOverdue() throws {
         let context = makeContext()
         let animal = makeAnimal(in: context)
         addFeeding(animal, dayOffset: 0, in: context)
         addFeeding(animal, dayOffset: 2, in: context)
         addFeeding(animal, dayOffset: 4, in: context)
+        try context.save()
 
         let suggestions = JournalSuggestionEngine.suggestions(for: animal, now: base.addingTimeInterval(40 * day))
         XCTAssertTrue(suggestions.contains { $0.kind == .feedingOverdue })
     }
 
-    func testNoFeedingSuggestionWhenRecentlyFed() {
+    func testNoFeedingSuggestionWhenRecentlyFed() throws {
         let context = makeContext()
         let animal = makeAnimal(in: context)
         addFeeding(animal, dayOffset: 0, in: context)
         addFeeding(animal, dayOffset: 2, in: context)
         addFeeding(animal, dayOffset: 4, in: context)
+        try context.save()
 
         let suggestions = JournalSuggestionEngine.suggestions(for: animal, now: base.addingTimeInterval(5 * day))
         XCTAssertFalse(suggestions.contains { $0.kind == .feedingOverdue })
@@ -80,32 +82,35 @@ final class JournalSuggestionEngineTests: XCTestCase {
 
     // MARK: Mue
 
-    func testSuggestsMoltApproachingForMoltingSpecies() {
+    func testSuggestsMoltApproachingForMoltingSpecies() throws {
         let context = makeContext()
         let animal = makeAnimal(type: .jumpingSpider, in: context)
         addMolt(animal, dayOffset: 0, from: "L4", to: "L5", in: context)
         addMolt(animal, dayOffset: 30, from: "L5", to: "L6", in: context)
+        try context.save()
 
         // 27 j depuis la dernière mue, cycle moyen 30 j → 27 ≥ 25,5.
         let suggestions = JournalSuggestionEngine.suggestions(for: animal, now: base.addingTimeInterval(57 * day))
         XCTAssertTrue(suggestions.contains { $0.kind == .moltApproaching })
     }
 
-    func testNoMoltSuggestionForNonMoltingSpecies() {
+    func testNoMoltSuggestionForNonMoltingSpecies() throws {
         let context = makeContext()
         let animal = makeAnimal(type: .antColony, in: context)
         addMolt(animal, dayOffset: 0, from: "L4", to: "L5", in: context)
         addMolt(animal, dayOffset: 30, from: "L5", to: "L6", in: context)
+        try context.save()
 
         let suggestions = JournalSuggestionEngine.suggestions(for: animal, now: base.addingTimeInterval(57 * day))
         XCTAssertFalse(suggestions.contains { $0.kind == .moltApproaching })
     }
 
-    func testNoMoltSuggestionWhenAlreadyInPremolt() {
+    func testNoMoltSuggestionWhenAlreadyInPremolt() throws {
         let context = makeContext()
         let animal = makeAnimal(type: .jumpingSpider, status: .premolt, in: context)
         addMolt(animal, dayOffset: 0, from: "L4", to: "L5", in: context)
         addMolt(animal, dayOffset: 30, from: "L5", to: "L6", in: context)
+        try context.save()
 
         let suggestions = JournalSuggestionEngine.suggestions(for: animal, now: base.addingTimeInterval(57 * day))
         XCTAssertFalse(suggestions.contains { $0.kind == .moltApproaching })
@@ -113,22 +118,24 @@ final class JournalSuggestionEngineTests: XCTestCase {
 
     // MARK: Environnement
 
-    func testSuggestsTemperatureLowWhenReadingBelowTarget() {
+    func testSuggestsTemperatureLowWhenReadingBelowTarget() throws {
         let context = makeContext()
         let terrarium = Terrarium(name: "T", type: .terrarium, targetTemperatureMin: 24, targetTemperatureMax: 28)
         context.insert(terrarium)
         let animal = makeAnimal(terrarium: terrarium, in: context)
+        try context.save()
 
         let reading = TerrariumSensorReading(temperature: 20, humidity: 60, soilMoisture: nil, luminosity: nil)
         let suggestions = JournalSuggestionEngine.suggestions(for: animal, reading: reading, now: base)
         XCTAssertTrue(suggestions.contains { $0.kind == .temperatureLow })
     }
 
-    func testNoEnvironmentSuggestionWhenReadingInRange() {
+    func testNoEnvironmentSuggestionWhenReadingInRange() throws {
         let context = makeContext()
         let terrarium = Terrarium(name: "T", type: .terrarium, targetTemperatureMin: 24, targetTemperatureMax: 28, targetHumidityMin: 55, targetHumidityMax: 70)
         context.insert(terrarium)
         let animal = makeAnimal(terrarium: terrarium, in: context)
+        try context.save()
 
         let reading = TerrariumSensorReading(temperature: 26, humidity: 62, soilMoisture: nil, luminosity: nil)
         let suggestions = JournalSuggestionEngine.suggestions(for: animal, reading: reading, now: base)
