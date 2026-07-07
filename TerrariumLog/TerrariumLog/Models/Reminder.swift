@@ -70,6 +70,7 @@ enum ReminderRecurrence: String, CaseIterable, Codable, Sendable {
 enum ReminderCategory: String, CaseIterable, Codable, Sendable {
     case feeding
     case humidification
+    case watering
     case weeklyCheck
     case hibernation
     case cleaning
@@ -79,6 +80,7 @@ enum ReminderCategory: String, CaseIterable, Codable, Sendable {
         switch self {
         case .feeding: return "Nourrissage"
         case .humidification: return "Humidification"
+        case .watering: return "Arrosage des plantes"
         case .weeklyCheck: return "Contrôle hebdomadaire"
         case .hibernation: return "Hivernation"
         case .cleaning: return "Nettoyage"

@@ -150,6 +150,37 @@ final class BackupServiceTests: XCTestCase {
         XCTAssertEqual(unattached?.biotopePresetID, "soroa")
     }
 
+    @MainActor
+    func testPlantRoundTripWithWateringFields() throws {
+        let controller = PersistenceController(inMemory: true)
+        let context = controller.container.mainContext
+
+        let terrarium = Terrarium(name: "Bac planté", type: .terrarium)
+        context.insert(terrarium)
+        let plant = Plant(
+            name: "Fittonia",
+            species: "Fittonia albivenis",
+            lastWatered: Date(timeIntervalSince1970: 1_750_000_000),
+            status: .dry,
+            notes: "Coin gauche",
+            wateringIntervalDays: 5,
+            photoPath: "plante_fittonia.jpg",
+            terrarium: terrarium
+        )
+        context.insert(plant)
+        try context.save()
+
+        let data = try BackupService.shared.exportData(context: context)
+        try BackupService.shared.importData(data, context: context)
+
+        let plants = try context.fetch(FetchDescriptor<Plant>())
+        XCTAssertEqual(plants.count, 1)
+        XCTAssertEqual(plants.first?.wateringIntervalDays, 5)
+        XCTAssertEqual(plants.first?.photoPath, "plante_fittonia.jpg")
+        XCTAssertEqual(plants.first?.status, .dry)
+        XCTAssertEqual(plants.first?.lastWatered, Date(timeIntervalSince1970: 1_750_000_000))
+    }
+
     func testImportRejectsInvalidData() {
         let controller = PersistenceController(inMemory: true)
         let context = controller.container.mainContext

@@ -59,9 +59,15 @@ struct DashboardView: View {
     @Query(sort: [SortDescriptor<Light>(\.name)]) private var lights: [Light]
     @Query(sort: [SortDescriptor<Terrarium>(\.name)]) private var terrariums: [Terrarium]
     @Query private var preyStocks: [PreyStock]
+    @Query private var plants: [Plant]
 
     private var lowStocks: [PreyStock] {
         preyStocks.filter(\.isLow)
+    }
+
+    /// Plantes dont l'échéance d'arrosage est atteinte (suivi activé).
+    private var plantsToWater: [Plant] {
+        plants.filter(\.isWateringDue)
     }
 
     @State private var showingAddReminder = false
@@ -106,11 +112,19 @@ struct DashboardView: View {
                 .listRowBackground(Color.clear)
                 .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 8, trailing: 16))
 
-                // L'alerte de stock reste toujours en tête : c'est une alerte,
-                // pas un bloc décoratif.
+                // Les alertes restent toujours en tête : ce sont des alertes,
+                // pas des blocs décoratifs.
                 if !lowStocks.isEmpty {
                     Section {
                         lowStockCard
+                    }
+                    .listRowSeparator(.hidden)
+                    .listRowBackground(Color.clear)
+                    .listRowInsets(cardInsets)
+                }
+                if !plantsToWater.isEmpty {
+                    Section {
+                        plantsToWaterCard
                     }
                     .listRowSeparator(.hidden)
                     .listRowBackground(Color.clear)
@@ -337,6 +351,49 @@ struct DashboardView: View {
                 Text("+ \(preyStocks.count - 4) autre(s) stock(s)")
                     .font(.caption2)
                     .foregroundStyle(.secondary)
+            }
+        }
+        .dashboardCard()
+    }
+
+    /// Alerte d'arrosage : plantes dont l'échéance est atteinte. Chaque rangée
+    /// ouvre la fiche plante ; « Arrosée » règle le cas en un tap.
+    private var plantsToWaterCard: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 12) {
+                Image(systemName: "drop.fill")
+                    .foregroundStyle(Brand.accent)
+                Text("Plantes à arroser")
+                    .font(.headline)
+                Spacer()
+            }
+            ForEach(plantsToWater, id: \.persistentModelID) { plant in
+                HStack(spacing: 12) {
+                    NavigationLink(destination: PlantDetailView(plant: plant)) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(plant.name)
+                                .font(.subheadline)
+                            Text(plant.terrarium?.name ?? "Sans terrarium")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    .buttonStyle(.plain)
+                    Spacer()
+                    Button {
+                        plant.markWatered()
+                        try? context.save()
+                        UINotificationFeedbackGenerator().notificationOccurred(.success)
+                    } label: {
+                        Label("Arrosée", systemImage: "drop")
+                            .font(.caption.weight(.semibold))
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 6)
+                            .background(Brand.accent.opacity(0.16), in: Capsule())
+                            .foregroundStyle(Brand.accent)
+                    }
+                    .buttonStyle(.borderless)
+                }
             }
         }
         .dashboardCard()

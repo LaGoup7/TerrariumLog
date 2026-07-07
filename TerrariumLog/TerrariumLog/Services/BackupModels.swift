@@ -139,6 +139,9 @@ struct PlantDTO: Codable {
     var lastWatered: Date?
     var status: PlantStatus
     var notes: String
+    /// Optionnels : absents des anciennes sauvegardes.
+    var wateringIntervalDays: Int?
+    var photoPath: String?
 }
 
 struct CameraDTO: Codable {

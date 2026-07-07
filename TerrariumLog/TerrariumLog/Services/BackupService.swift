@@ -55,6 +55,11 @@ struct BackupService {
             for entry in terrarium.observations {
                 photoPaths.formUnion(entry.photoPaths)
             }
+            for plant in terrarium.plants {
+                if let path = plant.photoPath {
+                    photoPaths.insert(path)
+                }
+            }
         }
         for animal in animals {
             if let path = animal.primaryPhotoPath {
@@ -204,7 +209,9 @@ struct BackupService {
             addedDate: plant.addedDate,
             lastWatered: plant.lastWatered,
             status: plant.status,
-            notes: plant.notes
+            notes: plant.notes,
+            wateringIntervalDays: plant.wateringIntervalDays,
+            photoPath: plant.photoPath
         )
     }
 
@@ -335,6 +342,8 @@ struct BackupService {
                 lastWatered: plantDTO.lastWatered,
                 status: plantDTO.status,
                 notes: plantDTO.notes,
+                wateringIntervalDays: plantDTO.wateringIntervalDays,
+                photoPath: plantDTO.photoPath,
                 terrarium: terrarium
             )
             context.insert(plant)

@@ -410,29 +410,44 @@ struct TerrariumDetailView: View {
                     .foregroundStyle(.secondary)
             } else {
                 ForEach(terrarium.plants) { plant in
-                    HStack {
-                        VStack(alignment: .leading) {
-                            Text(plant.name)
-                                .font(.subheadline)
-                            if let lastWatered = plant.lastWatered {
-                                Text("Arrosée le \(lastWatered.formatted(date: .abbreviated, time: .omitted))")
+                    NavigationLink(destination: PlantDetailView(plant: plant)) {
+                        HStack(spacing: 12) {
+                            PlantThumbnail(plant: plant)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(plant.name)
+                                    .font(.subheadline)
+                                Text(plant.isWateringDue ? "À arroser !" : plant.lastWateredLabel.prefix(1).capitalized + plant.lastWateredLabel.dropFirst())
                                     .font(.caption)
-                                    .foregroundStyle(.secondary)
+                                    .foregroundStyle(plant.isWateringDue ? Brand.warning : Color.secondary)
                             }
+                            Spacer()
+                            Text(plant.status.displayName)
+                                .font(.caption.bold())
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 4)
+                                .background(plantStatusColor(plant.status).opacity(0.2))
+                                .clipShape(Capsule())
+                            Image(systemName: "chevron.right")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
                         }
-                        Spacer()
-                        Text(plant.status.displayName)
-                            .font(.caption.bold())
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 4)
-                            .background(plantStatusColor(plant.status).opacity(0.2))
-                            .clipShape(Capsule())
+                    }
+                    .contextMenu {
                         Button {
+                            plant.markWatered()
+                            try? context.save()
+                            UINotificationFeedbackGenerator().notificationOccurred(.success)
+                        } label: {
+                            Label("Arrosée aujourd'hui", systemImage: "drop.fill")
+                        }
+                        Button(role: .destructive) {
+                            if let path = plant.photoPath {
+                                try? PhotoStorage.shared.deleteImage(at: path)
+                            }
                             context.delete(plant)
                             try? context.save()
                         } label: {
-                            Image(systemName: "trash")
-                                .foregroundStyle(Brand.error)
+                            Label("Supprimer", systemImage: "trash")
                         }
                     }
                 }
@@ -496,6 +511,13 @@ struct TerrariumDetailView: View {
                 }
 
                 environmentStatusLine(for: reading)
+
+                // Capteur de sol + plantes : le relevé débouche sur une action.
+                if let soil = reading.soilMoisture, soil < 25, !terrarium.plants.isEmpty {
+                    Label("Sol sec (\(Int(soil)) %) — pense à arroser les plantes.", systemImage: "leaf.fill")
+                        .font(.caption)
+                        .foregroundStyle(Brand.warning)
+                }
 
                 HStack(spacing: 10) {
                     sensorActionButton(title: "Brumiser", icon: "cloud.fog.fill", action: .mist)
@@ -751,41 +773,4 @@ private struct TerrariumPhotoThumbnail: View {
     }
 }
 
-struct AddPlantView: View {
-    @Environment(\.dismiss) private var dismiss
-    @Environment(\.modelContext) private var context
-    let terrarium: Terrarium
-
-    @State private var name = ""
-    @State private var species = ""
-    @State private var status: PlantStatus = .ok
-    @State private var notes = ""
-
-    var body: some View {
-        NavigationStack {
-            Form {
-                TextField("Nom", text: $name)
-                TextField("Espèce", text: $species)
-                Picker("État", selection: $status) {
-                    ForEach(PlantStatus.allCases, id: \.self) { status in
-                        Text(status.displayName).tag(status)
-                    }
-                }
-                TextField("Notes", text: $notes)
-            }
-            .navigationTitle("Ajouter une plante")
-            .toolbar {
-                ToolbarItem(placement: .topBarLeading) { Button("Annuler") { dismiss() } }
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button("Enregistrer") {
-                        let plant = Plant(name: name, species: species, status: status, notes: notes, terrarium: terrarium)
-                        context.insert(plant)
-                        try? context.save()
-                        dismiss()
-                    }
-                    .disabled(name.isEmpty)
-                }
-            }
-        }
-    }
-}
+// `AddPlantView` et `PlantDetailView` vivent dans Views/PlantViews.swift.
